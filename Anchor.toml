@@ -2,7 +2,10 @@
 seeds = false
 skip-lint = false
 [programs.localnet]
-solana_anchor_sveltekit_multiple_programs = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+solana_anchor_sveltekit_multiple_programs = "B29aHXp7o9Aa4PUwHsNxYREXP5vzw4KmAJbivfntTZ6X"
+program_1 = "4wF9FmzBGs1oCYPMfdCXEbrhajWHdCQePjqAgqX52HUJ"
+program_2 = "3i5S58AWdLzpSbXaiEQp1pQvZBH4ybCdCeCNpDcgeFaf"
+program_3 = "E9zwFX6bW5HdxtrpjoAYrNNmLSK48HaJ7g1HDeu51hvf"
 
 [registry]
 url = "https://api.apr.dev"

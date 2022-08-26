@@ -11,7 +11,7 @@
 	import { WalletProvider } from '@svelte-on-solana/wallet-adapter-ui';
 	import { AnchorConnectionProvider } from '@svelte-on-solana/wallet-adapter-anchor';
 	import { clusterApiUrl } from '@solana/web3.js';
-	import idl from '../../../target/idl/solana_anchor_metaplex_mint_sell_nfts.json';
+	import idl from '../../../target/idl/solana_anchor_sveltekit_multiple_programs.json';
 	import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 	import '../app.css';
 
