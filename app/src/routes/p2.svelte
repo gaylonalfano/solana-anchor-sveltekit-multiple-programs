@@ -4,7 +4,12 @@
 	import { clusterApiUrl } from '@solana/web3.js';
 	import idl from '../../../target/idl/program_2.json';
 
-	const network = clusterApiUrl('devnet'); // localhost or mainnet */
+	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
+	const network = 'http://localhost:8899';
+
+	$: {
+		console.log($workspaceStore?.program);
+	}
 </script>
 
 <AnchorConnectionProvider {network} {idl} />
@@ -17,7 +22,7 @@
 		</h1>
 		<div class="text-center">
 			<h3>Workspace Program (w/IDL)</h3>
-			{$workspaceStore.program}
+			{$workspaceStore?.program?.idl.name}
 		</div>
 	</div>
 </div>
