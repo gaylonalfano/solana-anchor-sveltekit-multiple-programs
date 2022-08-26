@@ -93,6 +93,9 @@
 		<div class="flex items-stretch">
 			<a href="/" class="btn btn-ghost btn-sm rounded-btn">Home</a>
 			<a href="/basics" class="btn btn-ghost btn-sm rounded-btn">Basics</a>
+			<a href="/mint" class="btn btn-ghost btn-sm rounded-btn">Mint</a>
+			<a href="/vote" class="btn btn-ghost btn-sm rounded-btn">Vote</a>
+			<a href="/pdas" class="btn btn-ghost btn-sm rounded-btn">PDAs</a>
 			<a href="/p1" class="btn btn-ghost btn-sm rounded-btn">P1</a>
 			<a href="/p2" class="btn btn-ghost btn-sm rounded-btn">P2</a>
 			<a href="/p3" class="btn btn-ghost btn-sm rounded-btn">P3</a>

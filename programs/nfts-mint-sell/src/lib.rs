@@ -8,10 +8,10 @@ use {
 pub mod mint;
 pub mod sell;
 
-declare_id!("D1bjHUXjN8KQfuUC1TtC3CCXCdhS4XYceCYjndF77U2G");
+declare_id!("BxkVzPHMxjtPqwipVHqmUyw1Ftr33Vd8FFxcRByDHMgJ");
 
 #[program]
-pub mod solana_anchor_metaplex_mint_sell_nfts {
+pub mod nfts_mint_sell {
     use super::*;
 
     // NOTE The fn name corresponds to IDL's program.methods.[fn]

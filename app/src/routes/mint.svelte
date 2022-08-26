@@ -2,9 +2,15 @@
 	import * as anchor from '@project-serum/anchor';
 	import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 	import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
+	import { AnchorConnectionProvider } from '@svelte-on-solana/wallet-adapter-anchor';
+	import { clusterApiUrl } from '@solana/web3.js';
+	import idl from '../../../target/idl/nfts_mint_sell.json';
 	import { onMount } from 'svelte';
 	import { notificationStore } from '../stores/notification';
 	import { Button } from '$lib/index';
+
+	const network = clusterApiUrl('devnet'); // localhost or mainnet */
+	// const network = 'http://localhost:8899';
 
 	const testNftTitle = 'Frontend Title';
 	const testNftSymbol = 'TEST';
@@ -141,8 +147,13 @@
 			txid: tx
 		});
 	}
+
+	$: {
+		console.log($workspaceStore?.program);
+	}
 </script>
 
+<AnchorConnectionProvider {network} {idl} />
 <div class="md:hero mx-auto p-4">
 	<div class="md:hero-content flex flex-col">
 		<h1

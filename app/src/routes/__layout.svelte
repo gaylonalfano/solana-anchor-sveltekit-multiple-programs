@@ -16,8 +16,8 @@
 	import '../app.css';
 
 	const localStorageKey = 'walletAdapter';
-	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
-	const network = 'http://localhost:8899';
+	const network = clusterApiUrl('devnet'); // localhost or mainnet */
+	// const network = 'http://localhost:8899';
 
 	let wallets = [new PhantomWalletAdapter(), new SolflareWalletAdapter()];
 

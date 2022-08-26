@@ -16,6 +16,15 @@
 				<a href="/basics">Basics</a>
 			</li>
 			<li>
+				<a href="/mint">Mint</a>
+			</li>
+			<li>
+				<a href="/vote">Vote</a>
+			</li>
+			<li>
+				<a href="/pdas">PDAs</a>
+			</li>
+			<li>
 				<a href="/p1">P1</a>
 			</li>
 			<li>

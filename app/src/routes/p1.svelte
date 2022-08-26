@@ -4,8 +4,8 @@
 	import { clusterApiUrl } from '@solana/web3.js';
 	import idl from '../../../target/idl/program_1.json';
 
-	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
-	const network = 'http://localhost:8899';
+	const network = clusterApiUrl('devnet'); // localhost or mainnet */
+	// const network = 'http://localhost:8899';
 
 	$: {
 		console.log($workspaceStore?.program);
