@@ -1,6 +1,4 @@
 <script lang="ts">
-	/* import { SignMessage, SendTransaction } from '$lib/index'; */
-
 	import * as anchor from '@project-serum/anchor';
 	import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 	import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
