@@ -1,7 +1,6 @@
 import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
-// import { SolanaAnchorMetaplexMintSellNfts } from "../target/types/solana_anchor_metaplex_mint_nfts";
-import { SolanaAnchorMetaplexMintSellNfts } from "../target/types/solana_anchor_metaplex_mint_sell_nfts";
+import { NftsMintSell } from "../target/types/nfts_mint_sell";
 import { createKeypairFromFile } from "./utils";
 
 describe("solana-anchor-metaplex-mint-sell-nfts", () => {
@@ -15,14 +14,7 @@ describe("solana-anchor-metaplex-mint-sell-nfts", () => {
   const wallet = provider.wallet as anchor.Wallet;
   anchor.setProvider(provider);
 
-  // OLD PROGRAM NAME:
-  // const program = anchor.workspace
-  //   .SolanaAnchorMetaplexMintNfts as Program<SolanaAnchorMetaplexMintSellNfts>;
-
-  // NEW PROGRAM NAME:
-  // NOTE Had to update this name EVERYWHERE! TL;DR Just init a fresh project and copy files!
-  const program = anchor.workspace
-    .SolanaAnchorMetaplexMintSellNfts as Program<SolanaAnchorMetaplexMintSellNfts>;
+  const program = anchor.workspace.NftsMintSell as Program<NftsMintSell>;
 
   const TOKEN_METADATA_PROGRAM_ID = new anchor.web3.PublicKey(
     "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
