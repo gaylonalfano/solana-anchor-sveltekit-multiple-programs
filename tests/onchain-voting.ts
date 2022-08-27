@@ -1,7 +1,6 @@
 import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
 import { PublicKey } from "@solana/web3.js";
-// import { SolanaAnchorVotingApp } from "../target/types/solana_anchor_voting_app";
 import { OnchainVoting } from "../target/types/onchain_voting";
 import { expect } from "chai";
 import { BN } from "bn.js";
