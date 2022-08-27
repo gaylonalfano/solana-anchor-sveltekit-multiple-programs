@@ -17,15 +17,23 @@
 	// Let's fetch the vote account data
 	// const program = $workspaceStore.program as anchor.Program;
 	// const provider = $workspaceStore.provider as anchor.AnchorProvider;
-	type VoteAccount = {
-		isActive: boolean;
-		gmi: any; // BN2
-		ngmi: any; // BN2
-		bump: number;
-	};
+	// type VoteAccount = {
+	// 	isActive: boolean;
+	// 	gmi: any; // BN2
+	// 	ngmi: any; // BN2
+	// 	bump: number;
+	// };
 
 	// let voteAccount: TypeDef<IdlAccountDef, anchor.IdlTypes<anchor.Idl>>; // TS Error
 	let voteAccount;
+	let allProgramAccounts;
+
+	async function getProgramAccounts() {
+		let accounts = await $workspaceStore.connection.getProgramAccounts(
+			($workspaceStore?.program as anchor.Program).programId
+		);
+		allProgramAccounts = accounts;
+	}
 
 	// Q: Use lifecycle hook or perhaps SSR? Here or in __layout?
 	// Q: How to pre-fetch existing onchain data?
@@ -35,6 +43,7 @@
 
 	$: {
 		console.log('voteAccount: ', voteAccount);
+		console.log('allProgramAccounts: ', allProgramAccounts);
 	}
 
 	// === Use Tests code instead of Helpers
@@ -143,7 +152,7 @@
 		voteAccount = currentVoteAccountState;
 	}
 
-	// TODO Reuse this to submit a Vote. Need to see how this Enum looks in JS,
+	// TODO Refactor this to submit a general purpose Vote. Need to see how this Enum looks in JS,
 	// as I want to display the total voteAccount data in the UI
 	async function handleVoteGmi() {
 		const [voteAccountPDA, voteAccountBump] = await anchor.web3.PublicKey.findProgramAddress(
@@ -306,23 +315,18 @@
 			<div class="card-body items-center text-center">
 				<Button disabled={!$walletStore.publicKey} on:click={handleCreateDataAccount}>Init</Button>
 				<Button disabled={!$walletStore.publicKey} on:click={handleGetAccountData}>Get</Button>
-				<div class="card-actions">
-					<Button disabled={!$walletStore.publicKey} on:click={handleVoteGmi}>GMI</Button>
-					<Button disabled={!$walletStore.publicKey} on:click={handleVoteNgmi}>NGMI</Button>
-				</div>
+				<Button disabled={!$walletStore.publicKey} on:click={getProgramAccounts}>Get All</Button>
 				{#if voteAccount}
-					<div class="card-body justify-center">
-						<div class="stats shadow">
-							<div class="stat">
-								<div class="stat-title">GMI</div>
-								<div class="stat-value">{voteAccount.gmi.words[0]}</div>
-							</div>
+					<div class="stats shadow">
+						<div class="stat place-items-center">
+							<div class="stat-title">GMI</div>
+							<div class="stat-value">{voteAccount.gmi.words[0]}</div>
+							<Button disabled={!$walletStore.publicKey} on:click={handleVoteGmi}>GMI</Button>
 						</div>
-						<div class="stats shadow">
-							<div class="stat">
-								<div class="stat-title">NGMI</div>
-								<div class="stat-value">{voteAccount.ngmi.words[0]}</div>
-							</div>
+						<div class="stat place-items-center">
+							<div class="stat-title">NGMI</div>
+							<div class="stat-value">{voteAccount.ngmi.words[0]}</div>
+							<Button disabled={!$walletStore.publicKey} on:click={handleVoteNgmi}>NGMI</Button>
 						</div>
 					</div>
 				{/if}

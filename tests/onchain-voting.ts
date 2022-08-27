@@ -53,7 +53,7 @@ import { BN } from "bn.js";
 // // 4. Execute the RPC
 // await program.rpc.initialize();
 
-describe("solana-anchor-voting-app", () => {
+describe("onchain-voting", () => {
   // Configure the client to use the local cluster.
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -115,7 +115,7 @@ describe("solana-anchor-voting-app", () => {
         systemProgram: anchor.web3.SystemProgram.programId, // ERROR CPI
       })
       .rpc();
-    console.log("Your transaction signature: ", tx);
+    console.log("TxHash ::", tx);
 
     // 3. After the transaction returns, we can fetch the state of the vote account
     let currentVoteAccountState = await program.account.voteState.fetch(
