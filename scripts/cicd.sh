@@ -40,19 +40,19 @@ case $1 in
             # solana program deploy dist/program/$program.so
         done;;
     "reset-and-build")
-        rm -rf ./node_modules
+        rm -rf ../node_modules
         for x in $(solana program show --programs | awk 'RP==0 {print $1}'); do 
             if [[ $x != "Program" ]]; 
             then 
                 solana program close $x; 
             fi
         done
-        rm -rf src/programs/$program/target
+        rm -rf /programs/$program/target
         # rm -rf dist/program
         for program in "${SOLANA_PROGRAMS[@]}"; do
-            cargo clean --manifest-path=./src/programs/$program/Cargo.toml
-            cargo build-bpf --manifest-path=./src/programs/$program/Cargo.toml
-            solana program deploy src/programs/$program/target/deploy/$program.so
+            cargo clean --manifest-path=../programs/$program/Cargo.toml
+            cargo build-bpf --manifest-path=../programs/$program/Cargo.toml
+            solana program deploy ../programs/$program/target/deploy/$program.so
 
             # cargo clean --manifest-path=./src/$program/Cargo.toml
             # cargo build-bpf --manifest-path=./src/$program/Cargo.toml --bpf-out-dir=./dist/program
