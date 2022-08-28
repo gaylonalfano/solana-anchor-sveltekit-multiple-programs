@@ -316,60 +316,60 @@
 		>
 			PDAs + Custom Instruction Data
 		</h1>
-		<div class="grid grid-cols-4 gap-6">
-			<div class="form-control">
-				<label class="input-group input-group-vertical pb-1">
-					<span>Color</span>
-					<input type="text" placeholder="" class="input input-bordered" bind:value={color} />
-				</label>
-				<button class="btn btn-accent" on:click={handleCreateLedgerAccount}>Create</button>
-			</div>
-			<div class="form-control">
-				<label class="input-group input-group-vertical pb-1">
-					<span>Color</span>
-					<input type="text" placeholder="" class="input input-bordered" bind:value={color} />
-				</label>
-				<label class="input-group input-group-vertical pb-1">
-					<span>Seed</span>
-					<input type="text" placeholder="" class="input input-bordered" bind:value={seed} />
-				</label>
-				<button class="btn btn-info" on:click={() => handleGetLedgerAccount(color, seed)}
+			<div class="grid grid-cols-4 gap-6 pt-2">
+				<div class="form-control">
+					<label class="input-group input-group-vertical pb-1">
+						<span>Color</span>
+						<input type="text" placeholder="" class="input input-bordered" bind:value={color} />
+					</label>
+					<button class="btn btn-accent" on:click={handleCreateLedgerAccount}>Create</button>
+				</div>
+				<div class="form-control">
+					<label class="input-group input-group-vertical pb-1">
+						<span>Color</span>
+						<input type="text" placeholder="" class="input input-bordered" bind:value={color} />
+					</label>
+					<label class="input-group input-group-vertical pb-1">
+						<span>Seed</span>
+						<input type="text" placeholder="" class="input input-bordered" bind:value={seed} />
+					</label>
+					<button class="btn btn-info" on:click={() => handleGetLedgerAccount(color, seed)}
 					>Get</button
 				>
-			</div>
-			<div class="form-control">
-				<label class="input-group input-group-vertical pb-1">
-					<span>Color</span>
-					<input type="text" placeholder="" class="input input-bordered" bind:value={color} />
-				</label>
-				<label class="input-group input-group-vertical pb-1">
-					<span>New Balance</span>
-					<input type="text" placeholder="" class="input input-bordered" bind:value={newBalance} />
-				</label>
-				<button class="btn btn-secondary" on:click={handleModifyLedgerAccount}>Modify</button>
-			</div>
-			<div class="form-control">
-				<label class="input-group input-group-vertical pb-1">
-					<span>Color</span>
-					<input type="text" class="input input-bordered" bind:value={color} />
-				</label>
-				<label class="input-group input-group-vertical pb-1">
-					<span>Operation</span>
-					<select bind:value={operation} class="select select-bordered">
-						<option value="1" selected>+</option>
-						<option value="2">-</option>
-						<option value="3">*</option>
-						<option value="4">Reset</option>
-					</select>
-				</label>
-				<label class="input-group input-group-vertical pb-1">
-					<span>Operation Value</span>
-					<input type="text" class="input input-bordered" bind:value={operationValue} />
-				</label>
-				<button class="btn btn-primary" on:click={handleModifyLedgerAccountWithInstructionData}
+				</div>
+				<div class="form-control">
+					<label class="input-group input-group-vertical pb-1">
+						<span>Color</span>
+						<input type="text" placeholder="" class="input input-bordered" bind:value={color} />
+					</label>
+					<label class="input-group input-group-vertical pb-1">
+						<span>New Balance</span>
+						<input type="text" placeholder="" class="input input-bordered" bind:value={newBalance} />
+					</label>
+					<button class="btn btn-secondary" on:click={handleModifyLedgerAccount}>Modify</button>
+				</div>
+				<div class="form-control">
+					<label class="input-group input-group-vertical pb-1">
+						<span>Color</span>
+						<input type="text" class="input input-bordered" bind:value={color} />
+					</label>
+					<label class="input-group input-group-vertical pb-1">
+						<span>Operation</span>
+						<select bind:value={operation} class="select select-bordered">
+							<option value="1" selected>+</option>
+							<option value="2">-</option>
+							<option value="3">*</option>
+							<option value="4">Reset</option>
+						</select>
+					</label>
+					<label class="input-group input-group-vertical pb-1">
+						<span>Operation Value</span>
+						<input type="text" class="input input-bordered" bind:value={operationValue} />
+					</label>
+					<button class="btn btn-primary" on:click={handleModifyLedgerAccountWithInstructionData}
 					>Modify w/Ix</button
 				>
-			</div>
+				</div>
 		</div>
 		{#if fetchedLedgerAccount}
 			<div class="stats shadow">

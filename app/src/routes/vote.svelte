@@ -311,26 +311,24 @@
 		>
 			Vote
 		</h1>
-		<div class="text-center">
-			<div class="card-body items-center text-center">
-				<Button disabled={!$walletStore.publicKey} on:click={handleCreateDataAccount}>Init</Button>
-				<Button disabled={!$walletStore.publicKey} on:click={handleGetAccountData}>Get</Button>
-				<Button disabled={!$walletStore.publicKey} on:click={getProgramAccounts}>Get All</Button>
-				{#if voteAccount}
-					<div class="stats shadow">
-						<div class="stat place-items-center">
-							<div class="stat-title">GMI</div>
-							<div class="stat-value">{voteAccount.gmi.words[0]}</div>
-							<Button disabled={!$walletStore.publicKey} on:click={handleVoteGmi}>GMI</Button>
-						</div>
-						<div class="stat place-items-center">
-							<div class="stat-title">NGMI</div>
-							<div class="stat-value">{voteAccount.ngmi.words[0]}</div>
-							<Button disabled={!$walletStore.publicKey} on:click={handleVoteNgmi}>NGMI</Button>
-						</div>
+		<div class="card-body items-center text-center pt-0">
+			<Button disabled={!$walletStore.publicKey} on:click={handleCreateDataAccount}>Init</Button>
+			<Button disabled={!$walletStore.publicKey} on:click={handleGetAccountData}>Get</Button>
+			<Button disabled={!$walletStore.publicKey} on:click={getProgramAccounts}>Get All</Button>
+			{#if voteAccount}
+				<div class="stats shadow">
+					<div class="stat place-items-center">
+						<div class="stat-title">GMI</div>
+						<div class="stat-value">{voteAccount.gmi.words[0]}</div>
+						<Button disabled={!$walletStore.publicKey} on:click={handleVoteGmi}>GMI</Button>
 					</div>
-				{/if}
-			</div>
+					<div class="stat place-items-center">
+						<div class="stat-title">NGMI</div>
+						<div class="stat-value">{voteAccount.ngmi.words[0]}</div>
+						<Button disabled={!$walletStore.publicKey} on:click={handleVoteNgmi}>NGMI</Button>
+					</div>
+				</div>
+			{/if}
 		</div>
 	</div>
 </div>
