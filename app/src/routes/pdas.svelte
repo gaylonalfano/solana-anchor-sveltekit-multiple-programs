@@ -1,15 +1,11 @@
 <script lang="ts">
-	/* import { SignMessage, SendTransaction } from '$lib/index'; */
-
 	import * as anchor from '@project-serum/anchor';
 	import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 	import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 	import { AnchorConnectionProvider } from '@svelte-on-solana/wallet-adapter-anchor';
 	import { clusterApiUrl } from '@solana/web3.js';
 	import idl from '../../../target/idl/pdas_instruction_data.json';
-	import { onMount } from 'svelte';
 	import { notificationStore } from '../stores/notification';
-	import { Button } from '$lib/index';
 
 	const network = clusterApiUrl('devnet'); // localhost or mainnet */
 
@@ -72,7 +68,7 @@
 		// NOTE This requires same args i.e., Context, color, system
 		// NOTE We're technically creating a ledger account LOCATED at
 		// this PDA address!
-		await $workspaceStore?.program?.methods
+		const tx = await $workspaceStore?.program?.methods
 			.createLedger(color)
 			.accounts({
 				ledgerAccount: pda,
@@ -82,6 +78,12 @@
 			// NOTE FRONTEND: Don't need to pass signers() I guess....
 			// .signers([wallet]) // Q: Need this? A: NO!
 			.rpc();
+
+		notificationStore.add({
+			type: 'success',
+			message: 'Transaction successful!',
+			txid: tx
+		});
 	}
 
 	async function handleCreateLedgerAccount() {
@@ -171,7 +173,7 @@
 		// NOTE This is another program function instruction
 		// Q: Going to TEST whether other wallets can modify if they have the PDA...
 		// A: NOPE! Error: Signature verification failed
-		await $workspaceStore.program?.methods
+		const tx = await $workspaceStore.program?.methods
 			.modifyLedger(newBalance)
 			.accounts({
 				ledgerAccount: pda,
@@ -181,6 +183,12 @@
 			})
 			// .signers([wallet]) // NOT needed on FRONTEND I THINK...
 			.rpc();
+
+		notificationStore.add({
+			type: 'success',
+			message: 'Transaction successful!',
+			txid: tx
+		});
 
 		// 4. Retrieve the updated data one last time
 		data = await $workspaceStore.program?.account.ledger.fetch(pda);
@@ -262,7 +270,7 @@
 		// 	)}`
 		// );
 
-		await $workspaceStore.program?.methods
+		const tx = await $workspaceStore.program?.methods
 			// Q: Is Buffer the right type for this when using Anchor?
 			// REF: Check out the tic-tac-toe tests for the Tile (they pass object directly!)
 			// A: NO! Passes without using the Buffer! Looks like Anchor's generated IDL does
@@ -277,6 +285,12 @@
 			})
 			// .signers([wallet]) // NOT needed on FRONTEND I THINK...
 			.rpc();
+
+		notificationStore.add({
+			type: 'success',
+			message: 'Transaction successful!',
+			txid: tx
+		});
 
 		// 4. Retrieve the updated data one last time
 		data = await $workspaceStore?.program?.account.ledger.fetch(pda);
@@ -316,60 +330,60 @@
 		>
 			PDAs + Custom Instruction Data
 		</h1>
-			<div class="grid grid-cols-4 gap-6 pt-2">
-				<div class="form-control">
-					<label class="input-group input-group-vertical pb-1">
-						<span>Color</span>
-						<input type="text" placeholder="" class="input input-bordered" bind:value={color} />
-					</label>
-					<button class="btn btn-accent" on:click={handleCreateLedgerAccount}>Create</button>
-				</div>
-				<div class="form-control">
-					<label class="input-group input-group-vertical pb-1">
-						<span>Color</span>
-						<input type="text" placeholder="" class="input input-bordered" bind:value={color} />
-					</label>
-					<label class="input-group input-group-vertical pb-1">
-						<span>Seed</span>
-						<input type="text" placeholder="" class="input input-bordered" bind:value={seed} />
-					</label>
-					<button class="btn btn-info" on:click={() => handleGetLedgerAccount(color, seed)}
+		<div class="grid grid-cols-4 gap-6 pt-2">
+			<div class="form-control">
+				<label class="input-group input-group-vertical pb-1">
+					<span>Color</span>
+					<input type="text" placeholder="" class="input input-bordered" bind:value={color} />
+				</label>
+				<button class="btn btn-accent" on:click={handleCreateLedgerAccount}>Create</button>
+			</div>
+			<div class="form-control">
+				<label class="input-group input-group-vertical pb-1">
+					<span>Color</span>
+					<input type="text" placeholder="" class="input input-bordered" bind:value={color} />
+				</label>
+				<label class="input-group input-group-vertical pb-1">
+					<span>Seed</span>
+					<input type="text" placeholder="" class="input input-bordered" bind:value={seed} />
+				</label>
+				<button class="btn btn-info" on:click={() => handleGetLedgerAccount(color, seed)}
 					>Get</button
 				>
-				</div>
-				<div class="form-control">
-					<label class="input-group input-group-vertical pb-1">
-						<span>Color</span>
-						<input type="text" placeholder="" class="input input-bordered" bind:value={color} />
-					</label>
-					<label class="input-group input-group-vertical pb-1">
-						<span>New Balance</span>
-						<input type="text" placeholder="" class="input input-bordered" bind:value={newBalance} />
-					</label>
-					<button class="btn btn-secondary" on:click={handleModifyLedgerAccount}>Modify</button>
-				</div>
-				<div class="form-control">
-					<label class="input-group input-group-vertical pb-1">
-						<span>Color</span>
-						<input type="text" class="input input-bordered" bind:value={color} />
-					</label>
-					<label class="input-group input-group-vertical pb-1">
-						<span>Operation</span>
-						<select bind:value={operation} class="select select-bordered">
-							<option value="1" selected>+</option>
-							<option value="2">-</option>
-							<option value="3">*</option>
-							<option value="4">Reset</option>
-						</select>
-					</label>
-					<label class="input-group input-group-vertical pb-1">
-						<span>Operation Value</span>
-						<input type="text" class="input input-bordered" bind:value={operationValue} />
-					</label>
-					<button class="btn btn-primary" on:click={handleModifyLedgerAccountWithInstructionData}
+			</div>
+			<div class="form-control">
+				<label class="input-group input-group-vertical pb-1">
+					<span>Color</span>
+					<input type="text" placeholder="" class="input input-bordered" bind:value={color} />
+				</label>
+				<label class="input-group input-group-vertical pb-1">
+					<span>New Balance</span>
+					<input type="text" placeholder="" class="input input-bordered" bind:value={newBalance} />
+				</label>
+				<button class="btn btn-secondary" on:click={handleModifyLedgerAccount}>Modify</button>
+			</div>
+			<div class="form-control">
+				<label class="input-group input-group-vertical pb-1">
+					<span>Color</span>
+					<input type="text" class="input input-bordered" bind:value={color} />
+				</label>
+				<label class="input-group input-group-vertical pb-1">
+					<span>Operation</span>
+					<select bind:value={operation} class="select select-bordered">
+						<option value="1" selected>+</option>
+						<option value="2">-</option>
+						<option value="3">*</option>
+						<option value="4">Reset</option>
+					</select>
+				</label>
+				<label class="input-group input-group-vertical pb-1">
+					<span>Operation Value</span>
+					<input type="text" class="input input-bordered" bind:value={operationValue} />
+				</label>
+				<button class="btn btn-primary" on:click={handleModifyLedgerAccountWithInstructionData}
 					>Modify w/Ix</button
 				>
-				</div>
+			</div>
 		</div>
 		{#if fetchedLedgerAccount}
 			<div class="stats shadow">
