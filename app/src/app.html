@@ -10,5 +10,9 @@
 	</head>
 	<body>
 		<div class="flex flex-col h-screen">%sveltekit.body%</div>
+		<script>
+			// Global node polyfill.
+			window.global = window;
+		</script>
 	</body>
 </html>
