@@ -1,7 +1,12 @@
 // https://examples.anchor-lang.com/docs/non-custodial-escrow
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+use anchor_spl::token::{
+    Mint, 
+    Token, 
+    TokenAccount
+};
+declare_id!("2StMWoVSWWjefwhoFsvjXVcaFABDBeMaFH2pKarQGjdW");
+
 #[program]
 pub mod non_custodial_escrow {
     use super::*;
@@ -45,7 +50,7 @@ pub mod non_custodial_escrow {
                 ctx.accounts.token_program.to_account_info(), 
                 anchor_spl::token::Transfer {
                     from: ctx.accounts.escrowed_x_tokens.to_account_info(),
-                    to: ctx.accounts.buyers_x_tokens.to_account_info(),
+                    to: ctx.accounts.buyer_x_tokens.to_account_info(),
                     // Q: Who's the authory of escrow.escrowed_x_tokens?
                     // A: The escrow account itself (see init token::authority = escrow)
                     // Q: But this is a PDA... How to sign or pass seeds?
@@ -56,20 +61,20 @@ pub mod non_custodial_escrow {
                 // signer_seeds
                 // Q: Do we need our program Id as a seed?
                 // A: Nope! But we need the bump!
-                &[&["escrow".as_bytes(), ctx.accounts.escrow.authority.key(), &[ctx.accounts.escrow.bump]]]
+                &[&["escrow".as_bytes(), ctx.accounts.escrow.authority.as_ref(), &[ctx.accounts.escrow.bump]]]
             ),
             ctx.accounts.escrowed_x_tokens.amount,
         )?;
 
-        // 2. Transfer y_amount of buyers_y_tokens to seller
+        // 2. Transfer y_amount of buyer_y_tokens to seller
         // ... THAT'S IT! Wow, overthought that one...
         anchor_spl::token::transfer(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(), 
                 anchor_spl::token::Transfer {
-                    from: ctx.accounts.buyers_y_tokens.to_account_info(),
-                    to: ctx.accounts.sellers_y_tokens.to_account_info(),
-                    // Q: Authority of buyers_y_tokens is buyer, right?
+                    from: ctx.accounts.buyer_y_tokens.to_account_info(),
+                    to: ctx.accounts.seller_y_tokens.to_account_info(),
+                    // Q: Authority of buyer_y_tokens is buyer, right?
                     // A: Yes! It's the buyer's wallet after all...
                     authority: ctx.accounts.buyer.to_account_info(),
                 }
@@ -79,17 +84,66 @@ pub mod non_custodial_escrow {
         
         Ok(())
     }
+
+    pub fn cancel(ctx: Context<Cancel>) -> Result<()> {
+        // NOTE Allow the seller (initiator) to cancel the escrow
+        // Q: What't the flow?
+        // Transfer escrowed_x_tokens back to seller (initiator)?
+        anchor_spl::token::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                anchor_spl::token::Transfer {
+                    from: ctx.accounts.escrowed_x_tokens.to_account_info(),
+                    to: ctx.accounts.seller_x_tokens.to_account_info(),
+                    authority: ctx.accounts.escrow.to_account_info(),
+                }, 
+                // signer_seeds since escrow is authority and is PDA
+                &[&["escrow".as_bytes(), ctx.accounts.escrow.authority.as_ref(), &[ctx.accounts.escrow.bump]]]
+            ),
+            // amount of x tokens
+            ctx.accounts.escrowed_x_tokens.amount,
+        )?;
+
+        // Q: Which account do we close? escrow? escrowed_x_tokens?
+        // A: escrowed_x_tokens!
+        // Q: How do you close an account?
+        // A: Use the token::close_account() method!
+        anchor_spl::token::close_account(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                anchor_spl::token::CloseAccount {
+                    account: ctx.accounts.escrowed_x_tokens.to_account_info(),
+                    // Q: Is 'destination' where the refund should go to (i.e., original payer)?
+                    destination: ctx.accounts.seller.to_account_info(),
+                    authority: ctx.accounts.escrow.to_account_info(),
+                },  
+                // signer_seeds since 'escrow' is authority of escrowed_x_tokens and is PDA
+                // NOTE signer_seeds is a bunch of &[u8] types, so use .as_bytes(), as_ref(), etc.
+                // NOTE escrow.authority = seller since the seller paid to create the PDA account
+                // Q: When do I use escrow.authority versus seller? Either okay?
+                &[&["escrow".as_bytes(), ctx.accounts.escrow.authority.as_ref(), &[ctx.accounts.escrow.bump]]]
+                // &[&["escrow".as_bytes(), ctx.accounts.seller.as_ref()], &[ctx.accounts.escrow.bump]]
+            )
+        )?;
+
+        Ok(())
+    }
 }
 
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
-    seller: Signer<'info>,
-    x_mint: Account<'info, Mint>,
-    y_mint: Account<'info, Mint>,
-    #[account(mut, constraint = seller_x_token.mint == x_mint.key() && seller_x_token.owner == seller.key())] 
-    seller_x_token: Account<'info, TokenAccount>,
+    // Q: Need 'pub' or no?
+    pub seller: Signer<'info>,
+    pub x_mint: Account<'info, Mint>,
+    pub y_mint: Account<'info, Mint>,
+    #[account(
+        mut, 
+        constraint = seller_x_token.mint == x_mint.key(),
+        constraint = seller_x_token.owner == seller.key()
+    )] 
+    pub seller_x_token: Account<'info, TokenAccount>,
     #[account(
         init, 
         payer = seller,  // authority (wallet that's paysing for PDA account creation)
@@ -105,12 +159,11 @@ pub struct Initialize<'info> {
         payer = seller,
         token::mint = x_mint, // Setting the .mint property
         token::authority = escrow, // Setting the .authority property to be escrow PDA account address
-                                   
     )]
-    escrowed_x_tokens: Account<'info, TokenAccount>,
-    token_program: Program<'info, Token>,
-    rent: Sysvar<'info, Rent>,
-    system_program: Program<'info, System>,
+    pub escrowed_x_tokens: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -131,7 +184,8 @@ pub struct Accept<'info> {
     #[account(mut)]
     pub buyer: Signer<'info>,
 
-    #[account(mut, seeds = ["escrow".as_bytes(), escrow.authority.key()], bump = escrow.bump)]
+    // NOTE 'seeds' are &[u8], so need to use as_bytes(), as_ref(), etc.
+    #[account(mut, seeds = ["escrow".as_bytes(), escrow.authority.key().as_ref()], bump = escrow.bump)]
     pub escrow: Account<'info, Escrow>,
     // Q: Do we need to create a escrowed_y_tokens account inside escrow?
     // A: NO! But we DO need buyer and seller's x and y token accounts data
@@ -141,24 +195,61 @@ pub struct Accept<'info> {
     #[account(mut, constraint = escrowed_x_tokens.key() == escrow.escrowed_x_tokens)]
     pub escrowed_x_tokens: Account<'info, TokenAccount>,
 
-    // NOTE Confirm the sellers_y_tokens.mint matches escrow.y_mint address
+    // NOTE Confirm the seller_y_tokens.mint matches escrow.y_mint address
     // This ensures we're matching the same y tokens
-    #[account(mut, constraint = sellers_y_tokens.mint == escrow.y_mint)]
-    pub sellers_y_tokens: Account<'info, TokenAccount>,
+    #[account(mut, constraint = seller_y_tokens.mint == escrow.y_mint)]
+    pub seller_y_tokens: Account<'info, TokenAccount>,
 
     // NOTE Verifying that x tokens are the same. Can't use escrow.mint (no prop)!
-    #[account(mut, constraint = buyers_x_tokens.mint == escrowed_x_tokens.mint)]
-    pub buyers_x_tokens: Account<'info, TokenAccount>,
+    #[account(mut, constraint = buyer_x_tokens.mint == escrowed_x_tokens.mint)]
+    pub buyer_x_tokens: Account<'info, TokenAccount>,
 
-    // NOTE Verify that y tokens align AND that our buyer account matches buyers_x_tokens.owner!
+    // NOTE Verify that y tokens align AND that our buyer account matches buyer_x_tokens.owner!
     #[account(
         mut, 
-        constraint = buyers_y_tokens.mint == escrow.y_mint, 
-        constraint = buyers_y_tokens.owner == buyer.key()
+        constraint = buyer_y_tokens.mint == escrow.y_mint, 
+        constraint = buyer_y_tokens.owner == buyer.key()
     )]
-    pub buyers_y_tokens: Account<'info, TokenAccount>,
+    pub buyer_y_tokens: Account<'info, TokenAccount>,
 
     // NOTE Pass Token Program so we can perform all the transfers
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct Cancel<'info> {
+    #[account(mut)]
+    pub seller: Signer<'info>,
+
+    // Q: Need a constraint = escrow.authority.key() == seller.key()?
+    // A: Yes! But just need escrow.authority (no .key() needed). Also need close = seller
+    // Q: What is 'close' arg?
+    #[account(
+        mut, 
+        close = seller, 
+        constraint = escrow.authority == seller.key(), 
+        seeds = ["escrow".as_bytes(), escrow.authority.as_ref()], 
+        bump = escrow.bump,
+    )]
+    pub escrow: Account<'info, Escrow>,
+
+    // NOTE The owner/authority of token account is the escrow PDA account
+    // This means we'll need CpiContext::new_with_signer() to have PDA signer
+    #[account(mut, constraint = escrowed_x_tokens.key() == escrow.escrowed_x_tokens)]
+    pub escrowed_x_tokens: Account<'info, TokenAccount>,
+
+    // Q: Need seller_x_tokens account?
+    // A: Yes!
+    // Q: What kind of checks are needed?
+    // A: Check that seller is the owner and verify the mint matches
+    #[account(
+        mut, 
+        constraint = seller_x_tokens.owner == seller.key(),
+        constraint = seller_x_tokens.mint == escrowed_x_tokens.mint,
+    )]
+    pub seller_x_tokens: Account<'info, TokenAccount>,
+
+    // Need token program for transfers
     pub token_program: Program<'info, Token>,
 }
 

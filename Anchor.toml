@@ -13,6 +13,7 @@ solana_anchor_sveltekit_multiple_programs = "B29aHXp7o9Aa4PUwHsNxYREXP5vzw4KmAJb
 nfts_mint_sell = "BxkVzPHMxjtPqwipVHqmUyw1Ftr33Vd8FFxcRByDHMgJ"
 onchain_voting = "7SxznnN7ztjk4W9xx5FP7GbjkydxUPzXzFthoMvLMdSs"
 pdas_instruction_data = "FsQ7Br8rjcPMmL9BCQnDwnvVEYqYWoiF4gAX6HZ69S2L"
+non_custodial_escrow = "2StMWoVSWWjefwhoFsvjXVcaFABDBeMaFH2pKarQGjdW"
 program_1 = "4wF9FmzBGs1oCYPMfdCXEbrhajWHdCQePjqAgqX52HUJ"
 program_2 = "3i5S58AWdLzpSbXaiEQp1pQvZBH4ybCdCeCNpDcgeFaf"
 program_3 = "E9zwFX6bW5HdxtrpjoAYrNNmLSK48HaJ7g1HDeu51hvf"
