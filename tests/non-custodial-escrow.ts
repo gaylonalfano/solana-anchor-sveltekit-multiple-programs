@@ -17,6 +17,7 @@ describe("non-custodial-escrow", () => {
   // Configure the client to use the devnet
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
+  console.log(`provider.wallet: ${provider.wallet}`);
 
   const program = anchor.workspace
     .NonCustodialEscrow as Program<NonCustodialEscrow>;
@@ -26,7 +27,7 @@ describe("non-custodial-escrow", () => {
   const seller = anchor.web3.Keypair.generate();
   let x_mint;
   let y_mint;
-  let seller_x_token;
+  let seller_x_token; // Associated Token Accounts
   let seller_y_token;
   let buyer_x_token;
   let buyer_y_token;
@@ -38,6 +39,8 @@ describe("non-custodial-escrow", () => {
       buyer.publicKey,
       1 * anchor.web3.LAMPORTS_PER_SOL
     );
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     await provider.connection.requestAirdrop(
       seller.publicKey,
@@ -73,6 +76,8 @@ describe("non-custodial-escrow", () => {
     );
     console.log(`x_mint: ${x_mint.toBase58()}`);
 
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     y_mint = await createMint(
       provider.connection, // connection
       seller, // payer of tx and init fees
@@ -84,6 +89,7 @@ describe("non-custodial-escrow", () => {
       // TOKEN_PROGRAM_ID // programId
     );
     console.log(`y_mint: ${y_mint.toBase58()}`);
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // 4. Create associated token accounts for seller's and buyer's x and y tokens
     // 4.1 Create seller_x_token ATA
@@ -93,6 +99,8 @@ describe("non-custodial-escrow", () => {
       x_mint, // mint pubkey
       seller.publicKey // owner pubkey
     );
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     // 4.2 Mint new supply and transfer to seller_x_token account
     await mintToChecked(
       provider.connection, //connection,
@@ -104,6 +112,8 @@ describe("non-custodial-escrow", () => {
       8 //decimals
       // [signer1, signer2...], // only multisig account will use
     );
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     // 4.3 Create the seller_y_token ATA
     seller_y_token = await createAssociatedTokenAccount(
       provider.connection, // connection
@@ -120,12 +130,15 @@ describe("non-custodial-escrow", () => {
       buyer.publicKey
     );
 
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     buyer_y_token = await createAssociatedTokenAccount(
       provider.connection,
       seller,
       y_mint,
       buyer.publicKey
     );
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // 4.5 Mint new y token supply and transfer to buyer_y_token account
     await mintToChecked(
@@ -134,14 +147,27 @@ describe("non-custodial-escrow", () => {
       y_mint, // mint
       buyer_y_token, // destination
       seller, // mint authority
-      1e8, // amount
+      1e8, // amount. NOTE If decimals is 8, you mint 10^8 for 1 token
       8 // decimals
       // [signer1, signer2...], // only multisig account will use
+    );
+
+    // Check the status of these wallets and token accounts
+    console.log(
+      `seller_x_token balance: ${await provider.connection.getTokenAccountBalance(
+        seller_x_token
+      )}`
+    );
+    console.log(
+      `buyer_y_token balance: ${await provider.connection.getTokenAccountBalance(
+        buyer_y_token
+      )}`
     );
   });
 
   it("Initializes escrow account with x_amount of tokens transferred from seller", async () => {
     // Create some associated token accounts for x and y tokens for buyer and seller
     // Call our on-chain program's initialize() method and set escrow properties values
+    console.log("initialize test here...");
   });
 });

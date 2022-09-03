@@ -142,6 +142,7 @@ describe("solana-anchor-metaplex-mint-sell-nfts", () => {
       .rpc({ skipPreflight: true }); // Get better logs
   });
 
+  // TODO Need to bring over some test keypairs JSON files
   // it("Sell!", async () => {
   //   console.log("1. Set up mint, buyer, and seller (wallet) accounts...");
   //   const buyer: anchor.web3.Keypair = await createKeypairFromFile(
