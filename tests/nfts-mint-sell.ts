@@ -47,7 +47,7 @@ describe("solana-anchor-metaplex-mint-sell-nfts", () => {
         ],
         TOKEN_METADATA_PROGRAM_ID // Program that will own the PDA
       )
-    )[0]; // Just want the address
+    )[0]; // Just want the address [0 = Address, 1 = Bump]
     console.log(
       `Metadata Account Address (PDA) initialized: ${metadataAccountAddress}`
     );
