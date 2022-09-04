@@ -133,8 +133,8 @@ pub mod non_custodial_escrow {
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
-    #[account(mut)]
     // Q: Need 'pub' or no?
+    #[account(mut)]
     pub seller: Signer<'info>,
     pub x_mint: Account<'info, Mint>,
     pub y_mint: Account<'info, Mint>,
@@ -147,7 +147,7 @@ pub struct Initialize<'info> {
     #[account(
         init, 
         payer = seller,  // authority (wallet that's paysing for PDA account creation)
-        space=Escrow::LEN,
+        space = Escrow::LEN,
         seeds = ["escrow".as_bytes(), seller.key().as_ref()],
         bump,
     )]
@@ -273,5 +273,5 @@ impl Escrow {
     // 32 X Token Account Address
     // 32 Y Mint Address
     // 8 Y Amount
-    pub const LEN: usize = 8 + 1+ 32 + 32 + 32 + 8;
+    pub const LEN: usize = 8 + 1 + 32 + 32 + 32 + 8;
 }

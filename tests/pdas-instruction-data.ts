@@ -170,8 +170,8 @@ describe("pdas-instruction-data", () => {
 
     // 3. Make our modifications to the account using on-chain program function
     // NOTE This is another program function instruction
-    // TODO Need to pass data: LedgerInstructions by building
-    // the BufferLayout for the struct (I think...)
+    // Q: Need to pass data: LedgerInstructions by building
+    // the BufferLayout for the struct (I think...)???
     // A: WRONG! Use IDL generated Types!
     // const ledgerInstructions: Buffer = await createLedgerInstructionsBuffer(
     //   operation,
