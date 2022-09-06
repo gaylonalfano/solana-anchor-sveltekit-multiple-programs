@@ -10,6 +10,7 @@ declare_id!("2StMWoVSWWjefwhoFsvjXVcaFABDBeMaFH2pKarQGjdW");
 #[program]
 pub mod non_custodial_escrow {
     use super::*;
+
     pub fn initialize(ctx: Context<Initialize>, x_amount: u64, y_amount: u64) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
         escrow.bump = *ctx.bumps.get("escrow").unwrap();
@@ -17,6 +18,7 @@ pub mod non_custodial_escrow {
         escrow.escrowed_x_token = ctx.accounts.escrowed_x_token.key();
         escrow.y_amount = y_amount; // number of token sellers wants in exchange
         escrow.y_mint = ctx.accounts.y_mint.key(); // token seller wants in exchange
+        msg!("escrow BEFORE transfer: {:?}", ctx.accounts.escrow);
 
 
         // Transfer seller's x_token to program owned escrow token account
@@ -31,6 +33,7 @@ pub mod non_custodial_escrow {
             ),
             x_amount,
         )?;
+
         Ok(())
     }
 
@@ -135,15 +138,19 @@ pub mod non_custodial_escrow {
 pub struct Initialize<'info> {
     // Q: Need 'pub' or no?
     #[account(mut)]
-    pub seller: Signer<'info>,
-    pub x_mint: Account<'info, Mint>,
-    pub y_mint: Account<'info, Mint>,
+    seller: Signer<'info>,
+
+    x_mint: Account<'info, Mint>,
+
+    y_mint: Account<'info, Mint>,
+
     #[account(
         mut, 
         constraint = seller_x_token.mint == x_mint.key(),
         constraint = seller_x_token.owner == seller.key()
     )] 
-    pub seller_x_token: Account<'info, TokenAccount>,
+    seller_x_token: Account<'info, TokenAccount>,
+
     #[account(
         init, 
         payer = seller,  // authority (wallet that's paysing for PDA account creation)
@@ -152,6 +159,7 @@ pub struct Initialize<'info> {
         bump,
     )]
     pub escrow: Account<'info, Escrow>,
+
     // Q: This isn't a PDA, right? But making the escrow PDA account
     // the authority, so guess the escrow PDA grants permission?
     #[account(
@@ -160,10 +168,11 @@ pub struct Initialize<'info> {
         token::mint = x_mint, // Setting the .mint property
         token::authority = escrow, // Setting the .authority property to be escrow PDA account address
     )]
-    pub escrowed_x_token: Account<'info, TokenAccount>,
-    pub token_program: Program<'info, Token>,
-    pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
+    escrowed_x_token: Account<'info, TokenAccount>,
+
+    token_program: Program<'info, Token>,
+    rent: Sysvar<'info, Rent>,
+    system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -247,15 +256,16 @@ pub struct Cancel<'info> {
         constraint = seller_x_token.owner == seller.key(),
         constraint = seller_x_token.mint == escrowed_x_token.mint,
     )]
-    pub seller_x_token: Account<'info, TokenAccount>,
+    seller_x_token: Account<'info, TokenAccount>,
 
     // Need token program for transfers
-    pub token_program: Program<'info, Token>,
+    token_program: Program<'info, Token>,
 }
 
 
 // This is a PDA for our escrow data account
 // REF: Check out solana-escrow/state.rs to see how Escrow struct is defined
+#[derive(Debug)]
 #[account]
 pub struct Escrow {
     authority: Pubkey, // The seller (initiator of exchange)

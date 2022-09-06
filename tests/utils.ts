@@ -4,6 +4,9 @@ import * as BufferLayout from "@solana/buffer-layout";
 import { Buffer } from "buffer";
 import fs from "mz/fs";
 
+// Testing TX dump:
+// 49wxwrfGq8VVt94oCWy1Le7tdsRZiUkdYM7C5uQh3ETHP5EKY648cFFi9jBEtYjYTcfE9cuJWiwuAPrmnrnW3z9r
+
 export async function createKeypairFromFile(
   filepath: string
 ): Promise<anchor.web3.Keypair> {

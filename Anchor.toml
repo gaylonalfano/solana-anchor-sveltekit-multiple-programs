@@ -1,5 +1,5 @@
 [features]
-seeds = false
+seeds = true
 skip-lint = false
 
 [programs.localnet]
@@ -22,6 +22,8 @@ program_1 = "4wF9FmzBGs1oCYPMfdCXEbrhajWHdCQePjqAgqX52HUJ"
 program_2 = "3i5S58AWdLzpSbXaiEQp1pQvZBH4ybCdCeCNpDcgeFaf"
 program_3 = "E9zwFX6bW5HdxtrpjoAYrNNmLSK48HaJ7g1HDeu51hvf"
 
+[workspace]
+types = "app/src/idl/"  # Will copy IDL to frontend app
 
 [registry]
 url = "https://api.apr.dev"
