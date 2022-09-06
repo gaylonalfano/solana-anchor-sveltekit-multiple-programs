@@ -13,6 +13,7 @@ pub mod non_custodial_escrow {
 
     pub fn initialize(ctx: Context<Initialize>, x_amount: u64, y_amount: u64) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
+        // NOTE bumps.get("account_name"), NOT seed!
         escrow.bump = *ctx.bumps.get("escrow").unwrap();
         escrow.authority = ctx.accounts.seller.key();
         escrow.escrowed_x_token = ctx.accounts.escrowed_x_token.key();
