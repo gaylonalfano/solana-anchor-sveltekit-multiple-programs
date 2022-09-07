@@ -203,7 +203,7 @@ describe("non-custodial-escrow", () => {
     const y_amount = new anchor.BN(40); // number of token seller wants in exchange for x_amount
     // Check whether escrow account already has data
 
-    await program.methods
+    const tx = await program.methods
       .initialize(x_amount, y_amount)
       // NOTE We only provide the PublicKeys for all the accounts.
       // We do NOT have to deal with isSigner, isWritable, etc. like in RAW
@@ -228,46 +228,21 @@ describe("non-custodial-escrow", () => {
       // Q: Why is escrowed_x_token a Signer? It's just a type TokenAccount...
       .signers([escrowed_x_token])
       .rpc({ skipPreflight: true });
+    console.log("TxHash ::", tx);
 
-    // try {
-    //   console.log("TRY...");
-    //   // Check whether Escrow account data already exists
-    //   let data = await program.account.escrow.fetch(escrow);
-
-    //   if (!data) {
-    //     await program.methods
-    //       .initialize(x_amount, y_amount)
-    //       // NOTE We only provide the PublicKeys for all the accounts.
-    //       // We do NOT have to deal with isSigner, isWritable, etc. like in RAW
-    //       // since we already declared that in the program Context struct.
-    //       // This means Anchor will look for all that info in our struct on ENTRY!
-    //       // NOTE We also don't have to pass the System Program, Token Program, and
-    //       // Associated Token Program, since Anchor resolves these automatically.
-    //       // NOTE Values in accounts([]) are PublicKeys!
-    //       .accounts({
-    //         seller: seller.publicKey,
-    //         xMint: x_mint,
-    //         yMint: y_mint,
-    //         sellerXToken: seller_x_token,
-    //         escrow: escrow, // created in program
-    //         escrowedXToken: escrowed_x_token.publicKey, // created in program
-    //         tokenProgram: TOKEN_PROGRAM_ID,
-    //         rent: SYSVAR_RENT_PUBKEY,
-    //         systemProgram: anchor.web3.SystemProgram.programId,
-    //       })
-    //       // Q: Which accounts are Signers?
-    //       // A: Check IDL! Wallet and escrowed_x_token!
-    //       // Q: Why is escrowed_x_token a Signer? It's just a type TokenAccount...
-    //       .signers([escrowed_x_token])
-    //       .rpc({ skipPreflight: true });
-
-    //     data = await program.account.escrow.fetch(escrow);
-    //     console.log(data);
+    let data = await program.account.escrow.fetch(escrow);
+    console.log("Our Escrow PDA has account with data:\n");
+    console.log(`{
+        authority: ${data.authority},
+        escrowedXToken: ${data.escrowedXToken},
+        yMint: ${data.yMint},
+        yAmount: ${data.yAmount},
+    }`);
+    // {
+    //     authority: HCpmSRydSxpnybDDi51hNb9hjowvAqdpwprKL2ufh5PE,
+    //     escrowedXToken: Dcp4JVmrGncru1etSih5JFdooWK3BZDP8h5QK7qTgxA7,
+    //     yMint: GEkKTvAmnpkRhvftq6sbcKcDWnGXByky9Fbt1kBm99Qi,
+    //     yAmount: 40,
     //   }
-    // } catch (e) {
-    //   console.error(e);
-    // }
-
-    // console.log("TxHash ::", tx);
   });
 });

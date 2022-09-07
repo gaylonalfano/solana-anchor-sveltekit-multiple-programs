@@ -28,21 +28,7 @@ export type NonCustodialEscrow = {
         {
           "name": "escrow",
           "isMut": true,
-          "isSigner": false,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "type": "string",
-                "value": "escrow"
-              },
-              {
-                "kind": "account",
-                "type": "publicKey",
-                "path": "seller"
-              }
-            ]
-          }
+          "isSigner": false
         },
         {
           "name": "escrowedXToken",
@@ -87,22 +73,7 @@ export type NonCustodialEscrow = {
         {
           "name": "escrow",
           "isMut": true,
-          "isSigner": false,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "type": "string",
-                "value": "escrow"
-              },
-              {
-                "kind": "account",
-                "type": "publicKey",
-                "account": "Escrow",
-                "path": "escrow.authority"
-              }
-            ]
-          }
+          "isSigner": false
         },
         {
           "name": "escrowedXToken",
@@ -143,22 +114,7 @@ export type NonCustodialEscrow = {
         {
           "name": "escrow",
           "isMut": true,
-          "isSigner": false,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "type": "string",
-                "value": "escrow"
-              },
-              {
-                "kind": "account",
-                "type": "publicKey",
-                "account": "Escrow",
-                "path": "escrow.authority"
-              }
-            ]
-          }
+          "isSigner": false
         },
         {
           "name": "escrowedXToken",
@@ -241,21 +197,7 @@ export const IDL: NonCustodialEscrow = {
         {
           "name": "escrow",
           "isMut": true,
-          "isSigner": false,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "type": "string",
-                "value": "escrow"
-              },
-              {
-                "kind": "account",
-                "type": "publicKey",
-                "path": "seller"
-              }
-            ]
-          }
+          "isSigner": false
         },
         {
           "name": "escrowedXToken",
@@ -300,22 +242,7 @@ export const IDL: NonCustodialEscrow = {
         {
           "name": "escrow",
           "isMut": true,
-          "isSigner": false,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "type": "string",
-                "value": "escrow"
-              },
-              {
-                "kind": "account",
-                "type": "publicKey",
-                "account": "Escrow",
-                "path": "escrow.authority"
-              }
-            ]
-          }
+          "isSigner": false
         },
         {
           "name": "escrowedXToken",
@@ -356,22 +283,7 @@ export const IDL: NonCustodialEscrow = {
         {
           "name": "escrow",
           "isMut": true,
-          "isSigner": false,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "type": "string",
-                "value": "escrow"
-              },
-              {
-                "kind": "account",
-                "type": "publicKey",
-                "account": "Escrow",
-                "path": "escrow.authority"
-              }
-            ]
-          }
+          "isSigner": false
         },
         {
           "name": "escrowedXToken",

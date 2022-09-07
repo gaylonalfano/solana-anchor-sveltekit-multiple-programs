@@ -19,7 +19,7 @@ pub mod non_custodial_escrow {
         escrow.escrowed_x_token = ctx.accounts.escrowed_x_token.key();
         escrow.y_amount = y_amount; // number of token sellers wants in exchange
         escrow.y_mint = ctx.accounts.y_mint.key(); // token seller wants in exchange
-        msg!("escrow BEFORE transfer: {:?}", ctx.accounts.escrow);
+        // msg!("escrow BEFORE transfer: {:?}", ctx.accounts.escrow);
 
 
         // Transfer seller's x_token to program owned escrow token account
