@@ -4,6 +4,7 @@ import {
   createMint,
   createAssociatedTokenAccount,
   mintToChecked,
+  TOKEN_2022_PROGRAM_ID,
 } from "@solana/spl-token";
 import { Program } from "@project-serum/anchor";
 import { PublicKey, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
@@ -41,7 +42,6 @@ describe("non-custodial-escrow", () => {
   let seller_y_token;
   let buyer_x_token;
   let buyer_y_token;
-  const SEED = "escrow";
   // NOTE This is just saving the Pubkey, since program creates actual account
   let escrowed_x_token = anchor.web3.Keypair.generate();
   console.log(`escrowed_x_token: ${escrowed_x_token.publicKey}`);
@@ -77,8 +77,8 @@ describe("non-custodial-escrow", () => {
 
     // 2. Find a PDA for our escrow account to be located at
     const [escrowPDA, escrowBump] = await PublicKey.findProgramAddress(
-      // [anchor.utils.bytes.utf8.encode(SEED), seller.publicKey.toBuffer()],
-      [Buffer.from(SEED), seller.publicKey.toBuffer()],
+      // [anchor.utils.bytes.utf8.encode("escrow"), seller.publicKey.toBuffer()],
+      [Buffer.from("escrow"), seller.publicKey.toBuffer()],
       program.programId
     );
     escrow = escrowPDA;
@@ -219,7 +219,7 @@ describe("non-custodial-escrow", () => {
         sellerXToken: seller_x_token,
         escrow: escrow, // created in program
         escrowedXToken: escrowed_x_token.publicKey, // created in program
-        tokenProgram: TOKEN_PROGRAM_ID,
+        tokenProgram: TOKEN_2022_PROGRAM_ID, // Q: Use 2022 version?
         rent: SYSVAR_RENT_PUBKEY,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
@@ -245,4 +245,20 @@ describe("non-custodial-escrow", () => {
     //     yAmount: 40,
     //   }
   });
+
+  // it("Accept the trade", async () => {
+  //   const tx = await program.methods
+  //     .accept()
+  //     .accounts({
+  //       buyer: buyer.publicKey,
+  //       escrow: escrow,
+  //       escrowedXToken: escrowed_x_token.publicKey,
+  //       sellerYToken: seller_y_token,
+  //       buyerXToken: buyer_x_token,
+  //       buyerYToken: buyer_y_token,
+  //       tokenProgram: TOKEN_2022_PROGRAM_ID,
+  //     })
+  //     .signers([buyer])
+  //     .rpc({ skipPreflight: true });
+  // });
 });
