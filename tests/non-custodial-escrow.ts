@@ -223,9 +223,15 @@ describe("non-custodial-escrow", () => {
     } catch (e) {
       console.log(`Account ${escrow} does NOT exist!`);
       console.log("Creating account...");
-      const ix = program.methods.initialize(x_amount, y_amount);
-      console.log("ix: ", ix);
-      await ix
+      const tx = await program.methods
+        .initialize(x_amount, y_amount)
+        // NOTE We only provide the PublicKeys for all the accounts.
+        // We do NOT have to deal with isSigner, isWritable, etc. like in RAW
+        // since we already declared that in the program Context struct.
+        // This means Anchor will look for all that info in our struct on ENTRY!
+        // NOTE We also don't have to pass the System Program, Token Program, and
+        // Associated Token Program, since Anchor resolves these automatically.
+        // NOTE Values in accounts([]) are PublicKeys!
         .accounts({
           seller: seller.publicKey,
           xMint: x_mint,
@@ -233,70 +239,50 @@ describe("non-custodial-escrow", () => {
           sellerXToken: seller_x_token,
           escrow: escrow, // created in program
           escrowedXToken: escrowed_x_token.publicKey, // created in program
-          tokenProgram: TOKEN_PROGRAM_ID, // Q: Use 2022 version?
+          tokenProgram: TOKEN_PROGRAM_ID, // Q: Use 2022 version? A: TOKEN_PROGRAM_ID!
           rent: SYSVAR_RENT_PUBKEY,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
+        // Q: Which accounts are Signers?
+        // A: Check IDL! Wallet and escrowed_x_token!
+        // Q: Why is escrowed_x_token a Signer? It's just a type TokenAccount...
         .signers([escrowed_x_token])
-        .rpc();
+        .rpc({ skipPreflight: true });
 
-      // const tx = await program.methods
-      //   .initialize(x_amount, y_amount)
-      //   // NOTE We only provide the PublicKeys for all the accounts.
-      //   // We do NOT have to deal with isSigner, isWritable, etc. like in RAW
-      //   // since we already declared that in the program Context struct.
-      //   // This means Anchor will look for all that info in our struct on ENTRY!
-      //   // NOTE We also don't have to pass the System Program, Token Program, and
-      //   // Associated Token Program, since Anchor resolves these automatically.
-      //   // NOTE Values in accounts([]) are PublicKeys!
-      //   .accounts({
-      //     seller: seller.publicKey,
-      //     xMint: x_mint,
-      //     yMint: y_mint,
-      //     sellerXToken: seller_x_token,
-      //     escrow: escrow, // created in program
-      //     escrowedXToken: escrowed_x_token.publicKey, // created in program
-      //     tokenProgram: TOKEN_2022_PROGRAM_ID, // Q: Use 2022 version?
-      //     rent: SYSVAR_RENT_PUBKEY,
-      //     systemProgram: anchor.web3.SystemProgram.programId,
-      //   })
-      //   // Q: Which accounts are Signers?
-      //   // A: Check IDL! Wallet and escrowed_x_token!
-      //   // Q: Why is escrowed_x_token a Signer? It's just a type TokenAccount...
-      //   .signers([escrowed_x_token])
-      //   .rpc({ skipPreflight: true });
-      // console.log("TxHash ::", tx);
+      console.log("TxHash ::", tx);
 
       data = await program.account.escrow.fetch(escrow);
-      console.log("Our Escrow PDA has account with data:\n");
-      console.log(`{
-        authority: ${data.authority},
-        escrowedXToken: ${data.escrowedXToken},
-        yMint: ${data.yMint},
-        yAmount: ${data.yAmount},
-      }`);
-      // {
-      //     authority: HCpmSRydSxpnybDDi51hNb9hjowvAqdpwprKL2ufh5PE,
-      //     escrowedXToken: Dcp4JVmrGncru1etSih5JFdooWK3BZDP8h5QK7qTgxA7,
-      //     yMint: GEkKTvAmnpkRhvftq6sbcKcDWnGXByky9Fbt1kBm99Qi,
-      //     yAmount: 40,
-      //   }
     }
+    console.log("Our Escrow PDA has account with data:\n");
+    console.log(`{
+      authority: ${data.authority},
+      escrowedXToken: ${data.escrowedXToken},
+      yMint: ${data.yMint},
+      yAmount: ${data.yAmount},
+    }`);
+    // {
+    //     authority: HCpmSRydSxpnybDDi51hNb9hjowvAqdpwprKL2ufh5PE,
+    //     escrowedXToken: Dcp4JVmrGncru1etSih5JFdooWK3BZDP8h5QK7qTgxA7,
+    //     yMint: GEkKTvAmnpkRhvftq6sbcKcDWnGXByky9Fbt1kBm99Qi,
+    //     yAmount: 40,
+    //   }
   });
 
-  // it("Accept the trade", async () => {
-  //   const tx = await program.methods
-  //     .accept()
-  //     .accounts({
-  //       buyer: buyer.publicKey,
-  //       escrow: escrow,
-  //       escrowedXToken: escrowed_x_token.publicKey,
-  //       sellerYToken: seller_y_token,
-  //       buyerXToken: buyer_x_token,
-  //       buyerYToken: buyer_y_token,
-  //       tokenProgram: TOKEN_2022_PROGRAM_ID,
-  //     })
-  //     .signers([buyer])
-  //     .rpc({ skipPreflight: true });
-  // });
+  it("Accept the trade", async () => {
+    const tx = await program.methods
+      .accept()
+      .accounts({
+        buyer: buyer.publicKey,
+        escrow: escrow,
+        escrowedXToken: escrowed_x_token.publicKey,
+        sellerYToken: seller_y_token,
+        buyerXToken: buyer_x_token,
+        buyerYToken: buyer_y_token,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([buyer])
+      .rpc({ skipPreflight: true });
+
+    console.log("TxHash ::", tx);
+  });
 });
