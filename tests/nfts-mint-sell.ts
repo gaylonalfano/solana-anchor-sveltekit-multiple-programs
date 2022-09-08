@@ -175,7 +175,7 @@ describe("solana-anchor-metaplex-mint-sell-nfts", () => {
 
   //   // Need to then sell NFT to second account
   //   // === Accounts Reference ===
-  //   //     #[account(mut)]
+  //   // #[account(mut)]
   //   // pub mint: Account<'info, token::Mint>,
   //   // // Q: Why is type TokenAccount instead of AssociatedToken?
   //   // // A: associated_token::AssociatedToken points to the PROGRAM! Not an ATA type!

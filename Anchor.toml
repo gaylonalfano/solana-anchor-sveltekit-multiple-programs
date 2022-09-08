@@ -29,7 +29,7 @@ types = "app/src/idl/"  # Will copy IDL to frontend app
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet" #"devnet"
+cluster = "http://localhost:8899" #"localnet" #"devnet"
 wallet = "/Users/gaylonalfano/.config/solana/id.json"
 
 [scripts]

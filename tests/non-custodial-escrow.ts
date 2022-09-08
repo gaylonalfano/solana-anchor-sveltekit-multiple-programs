@@ -23,6 +23,16 @@ describe("non-custodial-escrow", () => {
     `provider.connection.rpcEndpoint: ${provider.connection.rpcEndpoint}`
   );
 
+  // Q: Which Token Program ID should I use?
+  // Can't get initialize() to pass and create the Escrow account
+  // REF: https://github.com/solana-labs/solana-program-library/tree/master/token
+  // NOTE 2022 ID: TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+  // A: TOKEN_PROGRAM_ID! Interesting. I'm using spl-token 0.3.4, so I thought to use
+  // the latest 2022 ID, but when I printed the ix (ie w/o rpc() call), the errors
+  // became easier to follow. TL;DR Use TOKEN_PROGRAM_ID!
+  // console.log("TOKEN_PROGRAM_ID: ", TOKEN_PROGRAM_ID.toBase58()); // TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
+  // console.log("TOKEN_2022_PROGRAM_ID: ", TOKEN_2022_PROGRAM_ID.toBase58()); // TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
+
   const program = anchor.workspace
     .NonCustodialEscrow as Program<NonCustodialEscrow>;
 
@@ -213,15 +223,9 @@ describe("non-custodial-escrow", () => {
     } catch (e) {
       console.log(`Account ${escrow} does NOT exist!`);
       console.log("Creating account...");
-      const tx = await program.methods
-        .initialize(x_amount, y_amount)
-        // NOTE We only provide the PublicKeys for all the accounts.
-        // We do NOT have to deal with isSigner, isWritable, etc. like in RAW
-        // since we already declared that in the program Context struct.
-        // This means Anchor will look for all that info in our struct on ENTRY!
-        // NOTE We also don't have to pass the System Program, Token Program, and
-        // Associated Token Program, since Anchor resolves these automatically.
-        // NOTE Values in accounts([]) are PublicKeys!
+      const ix = program.methods.initialize(x_amount, y_amount);
+      console.log("ix: ", ix);
+      await ix
         .accounts({
           seller: seller.publicKey,
           xMint: x_mint,
@@ -229,16 +233,39 @@ describe("non-custodial-escrow", () => {
           sellerXToken: seller_x_token,
           escrow: escrow, // created in program
           escrowedXToken: escrowed_x_token.publicKey, // created in program
-          tokenProgram: TOKEN_2022_PROGRAM_ID, // Q: Use 2022 version?
+          tokenProgram: TOKEN_PROGRAM_ID, // Q: Use 2022 version?
           rent: SYSVAR_RENT_PUBKEY,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
-        // Q: Which accounts are Signers?
-        // A: Check IDL! Wallet and escrowed_x_token!
-        // Q: Why is escrowed_x_token a Signer? It's just a type TokenAccount...
         .signers([escrowed_x_token])
-        .rpc({ skipPreflight: true });
-      console.log("TxHash ::", tx);
+        .rpc();
+
+      // const tx = await program.methods
+      //   .initialize(x_amount, y_amount)
+      //   // NOTE We only provide the PublicKeys for all the accounts.
+      //   // We do NOT have to deal with isSigner, isWritable, etc. like in RAW
+      //   // since we already declared that in the program Context struct.
+      //   // This means Anchor will look for all that info in our struct on ENTRY!
+      //   // NOTE We also don't have to pass the System Program, Token Program, and
+      //   // Associated Token Program, since Anchor resolves these automatically.
+      //   // NOTE Values in accounts([]) are PublicKeys!
+      //   .accounts({
+      //     seller: seller.publicKey,
+      //     xMint: x_mint,
+      //     yMint: y_mint,
+      //     sellerXToken: seller_x_token,
+      //     escrow: escrow, // created in program
+      //     escrowedXToken: escrowed_x_token.publicKey, // created in program
+      //     tokenProgram: TOKEN_2022_PROGRAM_ID, // Q: Use 2022 version?
+      //     rent: SYSVAR_RENT_PUBKEY,
+      //     systemProgram: anchor.web3.SystemProgram.programId,
+      //   })
+      //   // Q: Which accounts are Signers?
+      //   // A: Check IDL! Wallet and escrowed_x_token!
+      //   // Q: Why is escrowed_x_token a Signer? It's just a type TokenAccount...
+      //   .signers([escrowed_x_token])
+      //   .rpc({ skipPreflight: true });
+      // console.log("TxHash ::", tx);
 
       data = await program.account.escrow.fetch(escrow);
       console.log("Our Escrow PDA has account with data:\n");
