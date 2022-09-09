@@ -256,10 +256,13 @@ describe("non-custodial-escrow", () => {
       data = await program.account.escrow.fetch(escrow);
     }
 
-    // const escrowedXTokenData = await provider.connection.getAccountInfo(
-    //   escrowed_x_token.publicKey
-    // );
-    // console.log("escrowedXTokenData: ", escrowedXTokenData);
+    const escrowedXTokenAccountData = await provider.connection.getAccountInfo(
+      escrowed_x_token.publicKey
+    );
+    console.log(
+      "INITIALIZE::escrowedXTokenAccountData: ",
+      escrowedXTokenAccountData
+    );
     // Q: Why is escrowed_x_token NOT initialized and has no 'amount'?
     // UPDATE: May be a test-validator thing... If I shutdown, I was able to
     // find the account using spl-token account-info --address <ADDRESS>:
@@ -314,11 +317,11 @@ describe("non-custodial-escrow", () => {
   });
 
   it("Accept the trade", async () => {
-    // FIXME
+    // Q: Why isn't escrowed_x_token NOT initialized?
     // Program log: AnchorError caused by account: escrowed_x_token. Error Code: AccountNotInitialized. Error Number: 3012.
     // Error Message: The program expected this account to be already initialized.
-    // Q: Why isn't escrowed_x_token NOT initialized?
     // Shouldn't escrowed_x_token be a TokenAccount with an 'amount' property?
+    // A: Two reasons: wrong Program ID and need to restart validator before tests
 
     const tx = await program.methods
       .accept()
@@ -335,5 +338,37 @@ describe("non-custodial-escrow", () => {
       .rpc({ skipPreflight: true });
 
     console.log("TxHash ::", tx);
+
+    const escrowedXTokenAccountData = await provider.connection.getAccountInfo(
+      escrowed_x_token.publicKey
+    );
+    console.log(
+      "ACCEPT::escrowedXTokenAccountData: ",
+      escrowedXTokenAccountData
+    );
+  });
+
+  it("Cancel the trade", async () => {
+    const tx = await program.methods
+      .cancel()
+      .accounts({
+        seller: seller.publicKey,
+        escrow: escrow,
+        escrowedXToken: escrowed_x_token.publicKey,
+        sellerXToken: seller_x_token,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([seller.payer])
+      .rpc({ skipPreflight: true });
+
+    console.log("TxHash ::", tx);
+
+    const escrowedXTokenAccountData = await provider.connection.getAccountInfo(
+      escrowed_x_token.publicKey
+    );
+    console.log(
+      "CANCEL::escrowedXTokenAccountData: ",
+      escrowedXTokenAccountData
+    );
   });
 });
