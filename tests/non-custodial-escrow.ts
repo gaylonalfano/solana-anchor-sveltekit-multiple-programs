@@ -5,6 +5,7 @@ import {
   createAssociatedTokenAccount,
   mintToChecked,
   TOKEN_2022_PROGRAM_ID,
+  getAccount,
 } from "@solana/spl-token";
 import { Program } from "@project-serum/anchor";
 import { PublicKey, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
@@ -253,13 +254,44 @@ describe("non-custodial-escrow", () => {
 
       data = await program.account.escrow.fetch(escrow);
     }
+
+    // const escrowedXTokenData = await provider.connection.getAccountInfo(
+    //   escrowed_x_token.publicKey
+    // );
+    // console.log("escrowedXTokenData: ", escrowedXTokenData);
+    // Q: Why is escrowed_x_token NOT initialized and has no 'amount'?
     console.log("Our Escrow PDA has account with data:\n");
     console.log(`{
+      data: ${data}
       authority: ${data.authority},
-      escrowedXToken: ${data.escrowedXToken},
+      escrowedXToken.amount: ${data.escrowedXToken.amount},
+      escrowedXToken.state: ${data.escrowedXToken.state},
       yMint: ${data.yMint},
       yAmount: ${data.yAmount},
     }`);
+    // NOTE spl_token::state::Account has the following struct:
+    // pub struct Account {
+    // /// The mint associated with this account
+    // pub mint: Pubkey,
+    // /// The owner of this account.
+    // pub owner: Pubkey,
+    // /// The amount of tokens this account holds.
+    // pub amount: u64,
+    // /// If `delegate` is `Some` then `delegated_amount` represents
+    // /// the amount authorized by the delegate
+    // pub delegate: COption<Pubkey>,
+    // /// The account's state
+    // pub state: AccountState, (NOTE enum Uninitialized, Initialized, Frozen)
+    // /// If is_native.is_some, this is a native token, and the value logs the rent-exempt reserve. An
+    // /// Account is required to be rent-exempt, so the value is used by the Processor to ensure that
+    // /// wrapped SOL accounts do not drop below this threshold.
+    // pub is_native: COption<u64>,
+    // /// The amount delegated
+    // pub delegated_amount: u64,
+    // /// Optional authority to close the account.
+    // pub close_authority: COption<Pubkey>,
+    // }
+
     // {
     //     authority: HCpmSRydSxpnybDDi51hNb9hjowvAqdpwprKL2ufh5PE,
     //     escrowedXToken: Dcp4JVmrGncru1etSih5JFdooWK3BZDP8h5QK7qTgxA7,
@@ -269,6 +301,12 @@ describe("non-custodial-escrow", () => {
   });
 
   it("Accept the trade", async () => {
+    // FIXME
+    // Program log: AnchorError caused by account: escrowed_x_token. Error Code: AccountNotInitialized. Error Number: 3012.
+    // Error Message: The program expected this account to be already initialized.
+    // Q: Why isn't escrowed_x_token NOT initialized?
+    // Shouldn't escrowed_x_token be a TokenAccount with an 'amount' property?
+
     const tx = await program.methods
       .accept()
       .accounts({

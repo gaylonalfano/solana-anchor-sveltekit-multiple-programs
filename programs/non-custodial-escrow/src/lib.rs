@@ -163,6 +163,9 @@ pub struct Initialize<'info> {
 
     // Q: This isn't a PDA, right? But making the escrow PDA account
     // the authority, so guess the escrow PDA grants permission?
+    // FIXME For some reason this account isn't getting initialized
+    // according to my tests. If if spl-token account-info --address <TOKEN_ACCOUNT_ADDRESS>
+    // it doesn't exist. Somehow this 'init' isn't working...
     #[account(
         init,
         payer = seller,
