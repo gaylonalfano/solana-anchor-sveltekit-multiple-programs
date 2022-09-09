@@ -210,6 +210,7 @@ describe("non-custodial-escrow", () => {
     // Create some associated token accounts for x and y tokens for buyer and seller
     // Call our on-chain program's initialize() method and set escrow properties values
     console.log("STARTED: Initialize escrow test...");
+    // NOTE Results in 0.0000004 in escrowed_x_token balance
     const x_amount = new anchor.BN(40);
     const y_amount = new anchor.BN(40); // number of token seller wants in exchange for x_amount
     // Check whether escrow account already has data
@@ -260,6 +261,18 @@ describe("non-custodial-escrow", () => {
     // );
     // console.log("escrowedXTokenData: ", escrowedXTokenData);
     // Q: Why is escrowed_x_token NOT initialized and has no 'amount'?
+    // UPDATE: May be a test-validator thing... If I shutdown, I was able to
+    // find the account using spl-token account-info --address <ADDRESS>:
+    // Address: E66iwqshxQgtvBLGueezLZEYGTviB12ecSJPWizbeszB  (Aux*)
+    // Balance: 0.0000004
+    // Mint: E8iZHzr8pXpW7nwiYbbAzFoXHUEtAnRJDMFnTL1jgLjc
+    // Owner: Cyc8FcKWYH7DBeGj6WKBJn8kagnCJdSwFPHsaPnLXVfS
+    // State: Initialized
+    // Delegation: (not set)
+    // Close authority: (not set)
+    // A: YEP! test-validator issue! Need to hard restart the validator
+    // before running the tests.
+
     console.log("Our Escrow PDA has account with data:\n");
     console.log(`{
       data: ${data}
