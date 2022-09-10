@@ -154,6 +154,7 @@
 
 	// TODO Refactor this to submit a general purpose Vote. Need to see how this Enum looks in JS,
 	// as I want to display the total voteAccount data in the UI
+	// NOTE Check docs for enum in JS examples
 	async function handleVoteGmi() {
 		const [voteAccountPDA, voteAccountBump] = await anchor.web3.PublicKey.findProgramAddress(
 			[anchor.utils.bytes.utf8.encode('vote-account')],

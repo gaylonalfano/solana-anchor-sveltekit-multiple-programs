@@ -96,6 +96,7 @@
 			<a href="/mint" class="btn btn-ghost btn-sm rounded-btn">Mint</a>
 			<a href="/vote" class="btn btn-ghost btn-sm rounded-btn">Vote</a>
 			<a href="/pdas" class="btn btn-ghost btn-sm rounded-btn">PDAs</a>
+			<a href="/escrow" class="btn btn-ghost btn-sm rounded-btn">Escrow</a>
 			<a href="/p1" class="btn btn-ghost btn-sm rounded-btn">P1</a>
 			<a href="/p2" class="btn btn-ghost btn-sm rounded-btn">P2</a>
 			<a href="/p3" class="btn btn-ghost btn-sm rounded-btn">P3</a>

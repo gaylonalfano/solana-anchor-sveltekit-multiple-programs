@@ -415,14 +415,14 @@ describe("non-custodial-escrow", () => {
 
     console.log("TxHash ::", tx);
 
-    const escrowedXTokenAccountBalance =
-      await provider.connection.getTokenAccountBalance(
-        escrowed_x_token.publicKey
-      );
+    // const escrowedXTokenAccountBalance =
+    //   await provider.connection.getTokenAccountBalance(
+    //     escrowed_x_token.publicKey
+    //   );
     // console.log(
     //   "CANCEL::escrowedXTokenAccountBalance: ",
     //   escrowedXTokenAccountBalance
-    // ); // ERROR since the account no longer exists (closed)!
+    // ); // Errors since the account no longer exists (closed)!
     // const escrowedXTokenAccountData = await provider.connection.getAccountInfo(
     //   escrowed_x_token.publicKey
     // );
