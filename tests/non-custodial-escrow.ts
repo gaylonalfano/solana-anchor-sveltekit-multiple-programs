@@ -256,13 +256,42 @@ describe("non-custodial-escrow", () => {
       data = await program.account.escrow.fetch(escrow);
     }
 
-    const escrowedXTokenAccountData = await provider.connection.getAccountInfo(
-      escrowed_x_token.publicKey
-    );
+    const escrowedXTokenAccountBalance =
+      await provider.connection.getTokenAccountBalance(
+        escrowed_x_token.publicKey
+      );
     console.log(
-      "INITIALIZE::escrowedXTokenAccountData: ",
-      escrowedXTokenAccountData
+      "INITIALIZE::escrowedXTokenAccountBalance: ",
+      escrowedXTokenAccountBalance
     );
+    // INITIALIZE::escrowedXTokenAccountBalance:  {
+    //   context: { apiVersion: '1.10.38', slot: 80 },
+    //   value: {
+    //     amount: '40',
+    //     decimals: 8,
+    //     uiAmount: 4e-7,
+    //     uiAmountString: '0.0000004'
+    //   }
+    // }
+
+    // const escrowedXTokenAccountData = await provider.connection.getAccountInfo(
+    //   escrowed_x_token.publicKey
+    // );
+    // console.log(
+    //   "INITIALIZE::escrowedXTokenAccountData: ",
+    //   escrowedXTokenAccountData
+    // );
+    // INITIALIZE::escrowedXTokenAccountData:  {
+    //   data: <Buffer e2 bd 5c 49 60 9d 4b 7d 64 2e 61 e0 a0 a5 b3 44 e0 4d 24 98 5a 43 3c 10 9c cd e1 6d 69 01 a1 9e b1 f0 cc 28 e1 e2 41 58 0f 62 c
+    // c 70 0f 9c cb d2 bb 7d ... 115 more bytes>,
+    //   executable: false,
+    //   lamports: 2039280,
+    //   owner: PublicKey {
+    //     _bn: <BN: 6ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9>
+    //   },
+    //   rentEpoch: 0
+    // }
+
     // Q: Why is escrowed_x_token NOT initialized and has no 'amount'?
     // UPDATE: May be a test-validator thing... If I shutdown, I was able to
     // find the account using spl-token account-info --address <ADDRESS>:
@@ -339,13 +368,36 @@ describe("non-custodial-escrow", () => {
 
     console.log("TxHash ::", tx);
 
-    const escrowedXTokenAccountData = await provider.connection.getAccountInfo(
-      escrowed_x_token.publicKey
-    );
+    const escrowedXTokenAccountBalance =
+      await provider.connection.getTokenAccountBalance(
+        escrowed_x_token.publicKey
+      );
     console.log(
-      "ACCEPT::escrowedXTokenAccountData: ",
-      escrowedXTokenAccountData
+      "ACCEPT::escrowedXTokenAccountBalance: ",
+      escrowedXTokenAccountBalance
     );
+    // ACCEPT::escrowedXTokenAccountBalance:  {
+    //   context: { apiVersion: '1.10.38', slot: 81 },
+    //   value: { amount: '0', decimals: 8, uiAmount: 0, uiAmountString: '0' }
+    // }
+
+    // const escrowedXTokenAccountData = await provider.connection
+    //   .getAccountInfo(escrowed_x_token.publicKey)
+    //   .then((res) => res.data.toJSON());
+    // console.log(
+    //   "ACCEPT::escrowedXTokenAccountData: ",
+    //   escrowedXTokenAccountData
+    // );
+    // ACCEPT::escrowedXTokenAccountData:  {
+    //   data: <Buffer e2 bd 5c 49 60 9d 4b 7d 64 2e 61 e0 a0 a5 b3 44 e0 4d 24 98 5a 43 3c 10 9c cd e1 6d 69 01 a1 9e b1 f0 cc 28 e1 e2 41 58 0f 62 c
+    // c 70 0f 9c cb d2 bb 7d ... 115 more bytes>,
+    //   executable: false,
+    //   lamports: 2039280,
+    //   owner: PublicKey {
+    //     _bn: <BN: 6ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9>
+    //   },
+    //   rentEpoch: 0
+    // }
   });
 
   it("Cancel the trade", async () => {
@@ -363,12 +415,21 @@ describe("non-custodial-escrow", () => {
 
     console.log("TxHash ::", tx);
 
-    const escrowedXTokenAccountData = await provider.connection.getAccountInfo(
-      escrowed_x_token.publicKey
-    );
-    console.log(
-      "CANCEL::escrowedXTokenAccountData: ",
-      escrowedXTokenAccountData
-    );
+    const escrowedXTokenAccountBalance =
+      await provider.connection.getTokenAccountBalance(
+        escrowed_x_token.publicKey
+      );
+    // console.log(
+    //   "CANCEL::escrowedXTokenAccountBalance: ",
+    //   escrowedXTokenAccountBalance
+    // ); // ERROR since the account no longer exists (closed)!
+    // const escrowedXTokenAccountData = await provider.connection.getAccountInfo(
+    //   escrowed_x_token.publicKey
+    // );
+    // console.log(
+    //   "CANCEL::escrowedXTokenAccountData: ",
+    //   escrowedXTokenAccountData
+    // );
+    // CANCEL::escrowedXTokenAccountData:  null
   });
 });
