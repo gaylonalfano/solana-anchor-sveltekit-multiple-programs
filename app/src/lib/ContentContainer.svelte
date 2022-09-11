@@ -30,12 +30,6 @@
 			<li>
 				<a href="/p1">P1</a>
 			</li>
-			<li>
-				<a href="/p2">P2</a>
-			</li>
-			<li>
-				<a href="/p3">P3</a>
-			</li>
 		</ul>
 	</div>
 </div>

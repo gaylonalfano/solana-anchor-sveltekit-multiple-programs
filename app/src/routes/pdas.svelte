@@ -7,7 +7,8 @@
 	import idl from '../../../target/idl/pdas_instruction_data.json';
 	import { notificationStore } from '../stores/notification';
 
-	const network = clusterApiUrl('devnet'); // localhost or mainnet */
+	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
+	const network = 'http://localhost:8899';
 
 	let color = '';
 	let newBalance = '';

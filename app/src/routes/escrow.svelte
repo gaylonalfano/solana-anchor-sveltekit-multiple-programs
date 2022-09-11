@@ -1,17 +1,21 @@
 <script lang="ts">
+	import { clusterApiUrl, Keypair, SystemProgram, Transaction } from '@solana/web3.js';
 	import * as anchor from '@project-serum/anchor';
 	import {
 		TOKEN_PROGRAM_ID,
+		MINT_SIZE,
 		createMint,
 		createAssociatedTokenAccount,
+		createInitializeMintInstruction,
+		getMinimumBalanceForRentExemptMint,
 		mintToChecked,
-		getAccount
+		getAccount,
+		getMint
 	} from '@solana/spl-token';
 
 	import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 	import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 	import { AnchorConnectionProvider } from '@svelte-on-solana/wallet-adapter-anchor';
-	import { clusterApiUrl } from '@solana/web3.js';
 	// NOTE Anchor.toml setting can copy IDL to specified dir. However, the 'idl' prop
 	// on AnchorConnectionProvider wants a JSON instead.
 	// import { IDL as idl } from '../idl/non_custodial_escrow';
@@ -20,34 +24,92 @@
 	import { onMount } from 'svelte';
 	import { notificationStore } from '../stores/notification';
 	import { Button } from '$lib/index';
+	import type NodeWallet from '@project-serum/anchor/dist/cjs/nodewallet';
 
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
 	const network = 'http://localhost:8899';
 
 	// NOTE Need to type anchor.Wallet to get 'payer' property or errors
-	let seller = ($workspaceStore.provider as anchor.AnchorProvider).wallet as anchor.Wallet;
-	let buyer = anchor.web3.Keypair.generate();
-	let x_mint;
+	const seller = ($workspaceStore.provider as anchor.AnchorProvider).wallet as anchor.Wallet;
+	const buyer = anchor.web3.Keypair.generate();
+	let x_mint: anchor.web3.PublicKey;
+	let xMintAccount;
 	let y_mint;
+	let yMintAccount;
 	let seller_x_token; // Associated Token Accounts
 	let seller_y_token;
 	let buyer_x_token;
 	let buyer_y_token;
 	// NOTE This is just saving the Pubkey, since program creates actual account
-	let escrowed_x_token = anchor.web3.Keypair.generate();
+	const escrowed_x_token = anchor.web3.Keypair.generate();
 	console.log(`escrowed_x_token: ${escrowed_x_token.publicKey}`);
 	// NOTE This is a PDA that we'll get below
 	let escrow: anchor.web3.PublicKey;
 
+	// Q: What is workspaceStore.baseAccount? It changes on each refresh...
+	// Q: How am I supposed to pass AnchorProvider with simple solana/spl-token methods?
+	// Getting issues with Signer vs. Wallet...
+	$: {
+		console.log('seller.publicKey: ', seller.publicKey.toBase58());
+		// console.log('baseAccount: ', $workspaceStore.baseAccount?.publicKey.toBase58());
+	}
+
 	async function handleCreateTokenX() {
-		x_mint = await createMint(
-			($workspaceStore.provider as anchor.AnchorProvider).connection, // connection
-			seller.payer, // payer
-			seller.publicKey, // mintAuthority
-			seller.publicKey, // freezeAuthority?
-			8 // decimals location of the decimal place
+		// IMPORTANT: Using built-in createMint() will fail bc Anchor Signer clashes. Have to build manually!
+		// Q: How do I pass an Anchor Signer to pay for tx?
+		// Q: How could I turn createMint() into a tx to then pass to AnchorProvider.sendAndConfirm()?
+		// A: Check out Cookbook using new Transaction.add(). Could then use provider to send???
+		// REF Cookbook: https://solanacookbook.com/references/token.html#how-to-create-a-new-token
+		// A: You have to build it manually! Follow Cookbook example and read Discord:
+		// REF: https://discord.com/channels/889577356681945098/889702325231427584/979766795730821200
+		// NOTE The built-in works for testing bc we use Anchor directly, but NOT in frontend!
+		// x_mint = await createMint(
+		// 	$workspaceStore.connection,
+		// 	seller.payer, // payer (type Signer) - ERROR undefined!
+		// 	seller.publicKey, // mintAuthority
+		// 	seller.publicKey, // freezeAuthority?
+		// 	8 // decimals location of the decimal place
+		// );
+		// console.log(`x_mint: ${x_mint.toBase58()}`);
+
+		const mint = Keypair.generate();
+		x_mint = mint.publicKey;
+		console.log(`x_mint: ${x_mint}`);
+
+		const tx = new Transaction().add(
+			// create mint account
+			SystemProgram.createAccount({
+				fromPubkey: $walletStore.publicKey as anchor.web3.PublicKey,
+				newAccountPubkey: mint.publicKey,
+				space: MINT_SIZE,
+				lamports: await getMinimumBalanceForRentExemptMint($workspaceStore.connection),
+				programId: TOKEN_PROGRAM_ID
+			}),
+			// init mint account
+			createInitializeMintInstruction(
+				x_mint, // mint publicKey
+				8, // decimals
+				seller.publicKey, // mint authority
+				seller.publicKey // freeze authority
+			)
 		);
-		console.log(`x_mint: ${x_mint.toBase58()}`);
+
+		// console.log(`TxHash :: ${await $workspaceStore.connection.sendTransaction(tx, [mint])}`); // ERROR: signature verification failed
+		console.log(
+			`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
+				signers: [mint]
+			})}`
+		); // WORKS! Need to use walletStore instead of workspaceStore!
+
+		// Below errors for some reason but works if I place inside separate function. Weird.
+		// ERROR: TokenAccountNotFoundError
+		// xMintAccount = await getMint($workspaceStore.connection, x_mint);
+		// console.log(xMintAccount);
+	}
+
+	async function getXMint() {
+		xMintAccount = await getMint($workspaceStore.connection, x_mint);
+		console.log(xMintAccount);
 	}
 
 	/* async function handleCreateEscrowAccount() { */
@@ -153,26 +215,62 @@
 		</h1>
 		<div class="grid grid-cols-2 gap-6 pt-2">
 			<div class="form-control">
-				<button class="btn btn-accent">Create Token X</button>
-				<label class="input-group input-group-vertical pt-1">
-					<span>Mint Address</span>
-					<input type="text" placeholder="" class="input input-bordered" disabled />
-				</label>
-				<label class="input-group input-group-vertical pt-1">
-					<span>Mint Authority</span>
-					<input type="text" placeholder="" class="input input-bordered" disabled />
-				</label>
-				<label class="input-group input-group-vertical pt-1">
-					<span>Freeze Authority</span>
-					<input type="text" placeholder="" class="input input-bordered" disabled />
-				</label>
-				<label class="input-group input-group-vertical pt-1">
-					<span>Decimals</span>
-					<input type="text" placeholder="" class="input input-bordered" disabled />
-				</label>
+				<button class="btn btn-accent" on:click={handleCreateTokenX}>Create Token X</button>
+				{#if xMintAccount}
+					<label class="input-group input-group-vertical pt-1">
+						<span>Mint Address</span>
+						<input
+							type="text"
+							placeholder=""
+							class="input input-bordered"
+							disabled
+							bind:value={xMintAccount.address}
+						/>
+					</label>
+					<label class="input-group input-group-vertical pt-1">
+						<span>Mint Authority</span>
+						<input
+							type="text"
+							placeholder=""
+							class="input input-bordered"
+							disabled
+							value={xMintAccount.mintAuthority}
+						/>
+					</label>
+					<label class="input-group input-group-vertical pt-1">
+						<span>Freeze Authority</span>
+						<input
+							type="text"
+							placeholder=""
+							class="input input-bordered"
+							disabled
+							bind:value={xMintAccount.freezeAuthority}
+						/>
+					</label>
+					<label class="input-group input-group-vertical pt-1">
+						<span>Supply</span>
+						<input
+							type="text"
+							placeholder=""
+							class="input input-bordered"
+							disabled
+							bind:value={xMintAccount.supply}
+						/>
+					</label>
+					<label class="input-group input-group-vertical pt-1">
+						<span>Decimals</span>
+						<input
+							type="text"
+							placeholder=""
+							class="input input-bordered"
+							disabled
+							bind:value={xMintAccount.decimals}
+						/>
+					</label>
+				{/if}
 			</div>
 			<div class="form-control">
-				<button class="btn btn-info">Create Token Y</button>
+				<button class="btn btn-info" on:click={getXMint}>Get X Mint</button>
 				<label class="input-group input-group-vertical pt-1">
 					<span>Color</span>
 					<input type="text" placeholder="" class="input input-bordered" />

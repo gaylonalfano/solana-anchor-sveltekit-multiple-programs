@@ -11,8 +11,8 @@
 	import { notificationStore } from '../stores/notification';
 	import { Button } from '$lib/index';
 
-	const network = clusterApiUrl('devnet'); // localhost or mainnet */
-	// const network = 'http://localhost:8899';
+	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
+	const network = 'http://localhost:8899';
 
 	// Let's fetch the vote account data
 	// const program = $workspaceStore.program as anchor.Program;
