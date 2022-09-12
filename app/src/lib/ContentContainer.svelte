@@ -25,7 +25,7 @@
 				<a href="/pdas">PDAs</a>
 			</li>
 			<li>
-				<a href="/pdas">Escrow</a>
+				<a href="/escrow">Escrow</a>
 			</li>
 			<li>
 				<a href="/p1">P1</a>

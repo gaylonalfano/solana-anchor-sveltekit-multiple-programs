@@ -7,6 +7,7 @@
 
 <script lang="ts">
 	import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
+	import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 	import { AppBar, ContentContainer, Footer, NotificationList } from '$lib/index';
 	import { WalletProvider } from '@svelte-on-solana/wallet-adapter-ui';
 	import { AnchorConnectionProvider } from '@svelte-on-solana/wallet-adapter-anchor';
@@ -20,6 +21,11 @@
 	const network = 'http://localhost:8899';
 
 	let wallets = [new PhantomWalletAdapter(), new SolflareWalletAdapter()];
+
+	$: {
+		console.log('walletStore: ', $walletStore);
+		console.log('workspaceStore: ', $workspaceStore);
+	}
 
 	/* === ORIGINAL === */
 	/* import { clusterApiUrl } from '@solana/web3.js'; */

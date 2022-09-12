@@ -248,6 +248,7 @@ describe("non-custodial-escrow", () => {
         // Q: Which accounts are Signers?
         // A: Check IDL! Wallet and escrowed_x_token!
         // Q: Why is escrowed_x_token a Signer? It's just a type TokenAccount...
+        // I believe it's because it gets created and we set its props?
         .signers([escrowed_x_token])
         .rpc({ skipPreflight: true });
 

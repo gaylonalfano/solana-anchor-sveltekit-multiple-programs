@@ -166,6 +166,8 @@ pub struct Initialize<'info> {
     // FIXME For some reason this account isn't getting initialized
     // according to my tests. If if spl-token account-info --address <TOKEN_ACCOUNT_ADDRESS>
     // it doesn't exist. Somehow this 'init' isn't working...
+    // A: YEP! test-validator issue! Need to hard restart the validator
+    // before running the tests.
     #[account(
         init,
         payer = seller,

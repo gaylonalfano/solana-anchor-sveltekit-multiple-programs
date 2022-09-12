@@ -7,10 +7,6 @@
 
 	$: $walletStore.connected &&
 		balanceStore.getUserSOLBalance($walletStore.publicKey as PublicKey, $workspaceStore.connection);
-
-	$: {
-		console.log(`walletStore.publicKey: ${$walletStore.publicKey}`);
-	}
 </script>
 
 <div class="p-4 mx-auto md:hero">
