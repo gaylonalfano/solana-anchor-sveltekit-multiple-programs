@@ -152,7 +152,7 @@
 		yMintAccount = await getMint($workspaceStore.connection, yMint);
 	}
 
-	async function createAssociatedTokenAccounts() {
+	async function createSellerTokenXAssociatedTokenAccount() {
 		// NOTE Again, can't use the handy built-in methods using spl-token w/ Anchor.
 		// Instead, need to build the tx manually and send with walletStore and connection
 		// sellerXToken = await createAssociatedTokenAccount(
@@ -167,7 +167,7 @@
 			xMint, // mint
 			seller.publicKey // owner
 		);
-		console.log(`sellerXToken ${sellerXToken.toBase58()}`);
+		console.log(`sellerXToken: ${sellerXToken.toBase58()}`);
 
 		const tx = new Transaction().add(
 			createAssociatedTokenAccountInstruction(
@@ -181,8 +181,46 @@
 		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
 	}
 
-	async function mintYTokenAndTransferToBuyerYTokenAccount() {
+	async function createBuyerTokenYAssociatedTokenAccount() {
+		buyerYToken = await getAssociatedTokenAddress(
+			yMint, // mint
+			buyer.publicKey // owner
+		);
+		console.log(`buyerYToken: ${buyerYToken.toBase58()}`);
+
+		const tx = new Transaction().add(
+			createAssociatedTokenAccountInstruction(
+				$walletStore.publicKey as anchor.web3.PublicKey, // payer
+				buyerYToken, // ata
+				buyer.publicKey, // owner
+				yMint // mint
+			)
+		);
+
+		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
+	}
+
+	async function mintTokenXAndTransferToSellerTokenXAssociatedTokenAccount() {
 		// test
+		await mintToChecked(
+			$workspaceStore.connection, //connection,
+			// Q: How do I get type anchor.web3.Signer?
+			// NOTE payer is Keypair, but need type Signer
+			// REF https://stackoverflow.com/questions/70206015/solana-web3-js-getting-web3-signer-from-wallet
+			// A: Still don't know, BUT type Keypair seems to work...
+			seller.payer, // payer, // NOTE need anchor.web3.Signer
+			xMint, // mint,
+			sellerXToken, // destination ata,
+			seller.publicKey, // mint authority,
+			1e8, // amount,
+			8 // decimals
+			// [signer1, signer2...], // only multisig account will use
+		);
+		console.log(
+			`sellerXToken: ${await $workspaceStore.connection
+				.getTokenAccountBalance(sellerXToken)
+				.then((r) => r.value.amount)}`
+		);
 	}
 
 	async function handleCreateEscrowAccount() {
@@ -386,7 +424,14 @@
 				{/if}
 			</div>
 			<div class="form-control">
-				<button class="btn btn-accent" on:click={createAssociatedTokenAccounts}>Create ATAs</button>
+				<button class="btn btn-accent" on:click={createSellerTokenXAssociatedTokenAccount}
+					>Create Seller Token X</button
+				>
+			</div>
+			<div class="form-control">
+				<button class="btn btn-warning" on:click={createBuyerTokenYAssociatedTokenAccount}
+					>Create Buyer Token Y</button
+				>
 			</div>
 		</div>
 	</div>
