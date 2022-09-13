@@ -35,7 +35,9 @@
 	// FIXME Need to only render UI AFTER AnchorProvider is loaded. Getting errors
 	// on /escrow page reload since provider can't be found.
 	// NOTE Need to type anchor.Wallet to get 'payer' property or errors
-	const seller = ($workspaceStore.provider as anchor.AnchorProvider).wallet as anchor.Wallet;
+	// FIXME Losing reactivity in UI. Not sure why. Just seems like after I sendTransaction(),
+	// no other async/awaits really work unless I add to button onclick handler...
+	// const seller = ($workspaceStore.provider as anchor.AnchorProvider).wallet as anchor.Wallet;
 	const buyer = anchor.web3.Keypair.generate();
 	let xMint: anchor.web3.PublicKey;
 	let xMintAccountData;
@@ -57,9 +59,10 @@
 	// Q: What is workspaceStore.baseAccount? It changes on each refresh...
 	// Q: How am I supposed to pass AnchorProvider with simple solana/spl-token methods?
 	// Getting issues with Signer vs. Wallet...
+	// A: You CAN'T! Have to compose ix and txs manually following Cookbook
 	$: {
-		console.log('seller.publicKey: ', seller.publicKey.toBase58());
 		// console.log('baseAccount: ', $workspaceStore.baseAccount?.publicKey.toBase58());
+		console.log('xMintAccountData: ', xMintAccountData);
 	}
 
 	async function createTokenX() {
@@ -97,26 +100,46 @@
 			createInitializeMintInstruction(
 				xMint, // mint publicKey
 				8, // decimals
-				seller.publicKey, // mint authority
-				seller.publicKey // freeze authority
+				$walletStore.publicKey as anchor.web3.PublicKey, // seller.publicKey, // mint authority
+				$walletStore.publicKey as anchor.web3.PublicKey // seller.publicKey // freeze authority
 			)
 		);
 
 		// console.log(`TxHash :: ${await $workspaceStore.connection.sendTransaction(tx, [mint])}`); // ERROR: signature verification failed
-		console.log(
-			`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
-				signers: [mint]
-			})}`
-		); // WORKS! Need to use walletStore instead of workspaceStore!
+		// console.log(
+		// 	`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
+		// 		signers: [mint]
+		// 	})}`
+		// ); // WORKS! Need to use walletStore instead of workspaceStore!
+
+		await $walletStore.sendTransaction(tx, $workspaceStore.connection, { signers: [mint] });
+		console.log('Okay, sent tx... next trying to get updated data...');
 
 		// FIXME
 		// Q: Why can't I get the token mint inside this function? Think it's async error...
+		// Q: Is it because the above console.log() isn't async, and that's why it
+		// it returns TokenAccountNotFoundError?
+		// Q: Do I need to do wait for sendTransaction() to complete or something?
 		// Below errors for some reason but works if I place inside separate function. Weird.
 		// ERROR: TokenAccountNotFoundError
-		// xMintAccountData = await getMint($workspaceStore.connection, xMint); // error
-		// NOTE Doesn't error but doesn't really have data either...
+		// NOTE Doesn't error but data isn't Mint data...
 		// xMintAccountData = await $workspaceStore.connection.getAccountInfo(xMint);
-		// console.log(xMintAccountData);
+		// const currentXMintAccountData = await getMint($workspaceStore.connection, xMint); // error
+		// const currentXMintAccountData = await getMint($workspaceStore.connection, xMint).then(
+		// 	(res) => res.address
+		// ); // Uncaught (in promise) TokenAccountNotFoundError
+		// Q: Do I need to simply reassign back to xMintAccountData to get reactivity?
+		let currentXMintAccountDataGetAccountInfo: anchor.web3.AccountInfo<Buffer> | null =
+			await $workspaceStore.connection.getAccountInfo(xMint);
+		let currentXMintAccountDataGetParsedAccountInfo =
+			await $workspaceStore.connection.getParsedAccountInfo(xMint);
+		// let currentXMintAccountDataGetAccount = await getAccount($workspaceStore.connection, xMint); // Error TokenAccountNotFoundError
+		// let currentXMintAccountDataGetMint = await getMint($workspaceStore.connection, xMint).then(
+		// let currentXMintAccountDataGetMint = await getMint(connection, xMint).then(
+		// 	(value) => (xMintAccountData = value)
+		// );
+		xMintAccountData = currentXMintAccountDataGetParsedAccountInfo;
+		console.log(xMintAccountData); // null
 	}
 
 	async function createTokenY() {
@@ -137,8 +160,8 @@
 			createInitializeMintInstruction(
 				yMint, // mint publicKey
 				8, // decimals
-				seller.publicKey, // mint authority
-				seller.publicKey // freeze authority
+				$walletStore.publicKey as anchor.web3.PublicKey, // seller.publicKey, // mint authority
+				$walletStore.publicKey as anchor.web3.PublicKey // seller.publicKey // freeze authority
 			)
 		);
 
@@ -156,7 +179,9 @@
 
 	// TODO Refactor
 	async function getXMintAccount() {
+		// NOTE Currently getMint() only works when I add to onclick event...
 		xMintAccountData = await getMint($workspaceStore.connection, xMint);
+		// xMintAccountData = await $workspaceStore.connection.getAccountInfo(xMint); // Promise
 	}
 
 	async function getYMintAccount() {
@@ -192,7 +217,7 @@
 
 		sellerXToken = await getAssociatedTokenAddress(
 			xMint, // mint
-			seller.publicKey // owner
+			$walletStore.publicKey as anchor.web3.PublicKey // seller.publicKey // owner
 		);
 		console.log(`sellerXToken: ${sellerXToken.toBase58()}`);
 
@@ -200,7 +225,7 @@
 			createAssociatedTokenAccountInstruction(
 				$walletStore.publicKey as anchor.web3.PublicKey, // payer
 				sellerXToken, // ata
-				seller.publicKey, // owner
+				$walletStore.publicKey as anchor.web3.PublicKey, // seller.publicKey, // owner
 				xMint // mint
 			)
 		);
@@ -211,7 +236,7 @@
 	async function createSellerTokenYAssociatedTokenAccount() {
 		sellerYToken = await getAssociatedTokenAddress(
 			yMint, // mint
-			seller.publicKey // owner
+			$walletStore.publicKey as anchor.web3.PublicKey // seller.publicKey // owner
 		);
 		console.log(`sellerYToken: ${sellerYToken.toBase58()}`);
 
@@ -219,7 +244,7 @@
 			createAssociatedTokenAccountInstruction(
 				$walletStore.publicKey as anchor.web3.PublicKey, // payer
 				sellerYToken, // ata
-				seller.publicKey, // owner
+				$walletStore.publicKey as anchor.web3.PublicKey, // seller.publicKey, // owner
 				yMint // mint
 			)
 		);
@@ -282,6 +307,8 @@
 		// 	// NOTE payer is Keypair, but need type Signer
 		// 	// REF https://stackoverflow.com/questions/70206015/solana-web3-js-getting-web3-signer-from-wallet
 		// 	// A: Still don't know, BUT type Keypair seems to work...
+		//  // A: CAN'T from frontend! Must compose raw TransactionInstructions
+		//  // and use $walletStore.sendTransaction()!
 		// 	seller.payer, // payer, // NOTE need anchor.web3.Signer
 		// 	xMint, // mint,
 		// 	sellerXToken, // destination ata,
@@ -292,7 +319,13 @@
 		// );
 
 		const tx = new Transaction().add(
-			createMintToCheckedInstruction(xMint, sellerXToken, seller.publicKey, 1e8, 8)
+			createMintToCheckedInstruction(
+				xMint, // mint
+				sellerXToken, // destination ata
+				$walletStore.publicKey as anchor.web3.PublicKey, // mint authority
+				1e8, // amount
+				8 // decimals
+			)
 		);
 		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
 
@@ -310,7 +343,13 @@
 
 	async function mintTokenYAndTransferToBuyerTokenYAssociatedTokenAccount() {
 		const tx = new Transaction().add(
-			createMintToCheckedInstruction(yMint, buyerYToken, seller.publicKey, 1e8, 8)
+			createMintToCheckedInstruction(
+				yMint,
+				buyerYToken,
+				$walletStore.publicKey as anchor.web3.PublicKey,
+				1e8,
+				8
+			)
 		);
 		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
 
@@ -342,7 +381,7 @@
 		}
 
 		const [escrowPDA, escrowBump] = await anchor.web3.PublicKey.findProgramAddress(
-			[Buffer.from('escrow2'), seller.publicKey.toBuffer()],
+			[Buffer.from('escrow2'), ($walletStore.publicKey as anchor.web3.PublicKey).toBuffer()],
 			$workspaceStore.program?.programId as anchor.web3.PublicKey
 		);
 		escrow = escrowPDA;
@@ -423,7 +462,12 @@
 		</h1>
 		<ul class="steps">
 			<li class="step" class:step-accent={xMint && yMint}>Create Tokens</li>
-			<li class="step" class:step-accent={buyerXToken && buyerYToken && sellerXToken && sellerYToken}>Create ATAs</li>
+			<li
+				class="step"
+				class:step-accent={buyerXToken && buyerYToken && sellerXToken && sellerYToken}
+			>
+				Create ATAs
+			</li>
 			<li class="step" class:step-accent={sellerXBalance && buyerYBalance}>Mint Tokens</li>
 			<li class="step">Create Escrow</li>
 		</ul>
@@ -432,10 +476,14 @@
 				<button class="btn btn-info" on:click={createTokenXAndTokenY}>Create Tokens</button>
 			</div>
 			<div class="form-control">
-				<button class="btn btn-info" on:click={createAllBuyerAndSellerAssociatedTokenAccounts}>Create ATAs</button>
+				<button class="btn btn-info" on:click={createAllBuyerAndSellerAssociatedTokenAccounts}
+					>Create ATAs</button
+				>
 			</div>
 			<div class="form-control">
-				<button class="btn btn-info" on:click={mintAllTokensAndTransferToAssociatedTokenAccounts}>Mint Tokens</button>
+				<button class="btn btn-info" on:click={mintAllTokensAndTransferToAssociatedTokenAccounts}
+					>Mint Tokens</button
+				>
 			</div>
 			<div class="form-control">
 				<button class="btn btn-info" on:click={handleCreateEscrowAccount}>Create Escrow</button>
@@ -567,16 +615,16 @@
 			</div>
 			<div class="form-control">
 				<button class="btn mt-1" on:click={getBuyerYTokenAccountBalance}>Get Buyer Y</button>
-					<label class="input-group input-group-vertical pt-1">
-						<span>Balance</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							disabled
-							bind:value={buyerYBalance}
-						/>
-					</label>
+				<label class="input-group input-group-vertical pt-1">
+					<span>Balance</span>
+					<input
+						type="text"
+						placeholder=""
+						class="input input-bordered"
+						disabled
+						bind:value={buyerYBalance}
+					/>
+				</label>
 			</div>
 		</div>
 	</div>
