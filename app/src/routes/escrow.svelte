@@ -100,7 +100,7 @@
 		console.log(`xMint: ${xMint}`);
 
 		// console.log('provider BEFORE create Token: ', $workspaceStore.provider);
-		console.log('connection BEFORE create Token: ', $workspaceStore.connection);
+		// console.log('connection BEFORE create Token: ', $workspaceStore.connection);
 		const tx = new Transaction().add(
 			// create mint account
 			SystemProgram.createAccount({
@@ -120,7 +120,7 @@
 		);
 
 		// console.log('provider AFTER create Token: ', $workspaceStore.provider);
-		console.log('connection AFTER create Token: ', $workspaceStore.connection);
+		// console.log('connection AFTER create Token: ', $workspaceStore.connection);
 		// console.log(`TxHash :: ${await $workspaceStore.connection.sendTransaction(tx, [mint])}`); // ERROR: signature verification failed
 		console.log(
 			`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
@@ -508,6 +508,8 @@
 		<div class="grid grid-cols-4 gap-6 pt-2">
 			<div class="form-control">
 				<button class="btn btn-info" on:click={createTokenXAndTokenY}>Create Tokens</button>
+				<button class="btn btn-info" on:click={createTokenX}>Create Token X</button>
+				<button class="btn btn-info" on:click={createTokenY}>Create Token Y</button>
 			</div>
 			<div class="form-control">
 				<button class="btn btn-info" on:click={createAllBuyerAndSellerAssociatedTokenAccounts}
