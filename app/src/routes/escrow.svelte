@@ -1,5 +1,12 @@
 <script lang="ts">
-	import { clusterApiUrl, Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
+	import {
+		clusterApiUrl,
+		Connection,
+		Keypair,
+		PublicKey,
+		SystemProgram,
+		Transaction
+	} from '@solana/web3.js';
 	import * as anchor from '@project-serum/anchor';
 	import {
 		TOKEN_PROGRAM_ID,
@@ -63,6 +70,8 @@
 	$: {
 		// console.log('baseAccount: ', $workspaceStore.baseAccount?.publicKey.toBase58());
 		console.log('xMintAccountData: ', xMintAccountData);
+		console.log('provider.connection: ', $workspaceStore.provider?.connection);
+		console.log('connection: ', $workspaceStore.connection);
 	}
 
 	async function createTokenX() {
@@ -113,9 +122,11 @@
 		// ); // WORKS! Need to use walletStore instead of workspaceStore!
 
 		await $walletStore.sendTransaction(tx, $workspaceStore.connection, { signers: [mint] });
-		console.log('Okay, sent tx... next trying to get updated data...');
 
 		// FIXME
+		// UPDATE 9/14: Still not sure. However, for TokenAccountNotFoundError,
+		// it may not be needed, or perhaps need to try and fetch after creating ATAs.
+		// REF: https://solana.stackexchange.com/questions/1202/spl-token-solana-create-token-account-with-wallet-adapter-react-js
 		// Q: Why can't I get the token mint inside this function? Think it's async error...
 		// Q: Is it because the above console.log() isn't async, and that's why it
 		// it returns TokenAccountNotFoundError?
@@ -129,17 +140,28 @@
 		// 	(res) => res.address
 		// ); // Uncaught (in promise) TokenAccountNotFoundError
 		// Q: Do I need to simply reassign back to xMintAccountData to get reactivity?
-		let currentXMintAccountDataGetAccountInfo: anchor.web3.AccountInfo<Buffer> | null =
-			await $workspaceStore.connection.getAccountInfo(xMint);
-		let currentXMintAccountDataGetParsedAccountInfo =
-			await $workspaceStore.connection.getParsedAccountInfo(xMint);
+		// let currentXMintAccountDataGetAccountInfo: anchor.web3.AccountInfo<Buffer> | null =
+		// 	await $workspaceStore.connection.getAccountInfo(xMint);
+		// let currentXMintAccountDataGetAccountInfo = await $workspaceStore.provider?.connection
+		// 	.getAccountInfo(xMint)
+		// 	.then((res) => res?.data);
+		// let currentXMintAccountDataGetParsedAccountInfo =
+		// 	await $workspaceStore.connection.getParsedAccountInfo(xMint);
 		// let currentXMintAccountDataGetAccount = await getAccount($workspaceStore.connection, xMint); // Error TokenAccountNotFoundError
-		// let currentXMintAccountDataGetMint = await getMint($workspaceStore.connection, xMint).then(
+		// let currentXMintAccountDataGetMint = await getMint($workspaceStore.connection, xMint); // TokenAccountNotFoundError
 		// let currentXMintAccountDataGetMint = await getMint(connection, xMint).then(
 		// 	(value) => (xMintAccountData = value)
 		// );
-		xMintAccountData = currentXMintAccountDataGetParsedAccountInfo;
-		console.log(xMintAccountData); // null
+		// TODO Is there a getMintInfo() to try? Grasping here......
+		// Q: Try building a fresh Connection? NOPE...
+		// Q: Try making it an IIFE? NOPE...
+		(async () => {
+			let connection = new Connection('http://localhost:8899', 'confirmed');
+			let currentXMintAccountDataGetMint = await getMint(connection, mint.publicKey);
+			// let currentXMintAccountDataGetMint = await getMintInfo($workspaceStore.connection, xMint);
+			xMintAccountData = currentXMintAccountDataGetMint;
+			console.log(xMintAccountData); // null
+		})();
 	}
 
 	async function createTokenY() {
