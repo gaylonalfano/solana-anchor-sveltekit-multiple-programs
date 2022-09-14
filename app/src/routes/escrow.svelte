@@ -38,12 +38,15 @@
 
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
 	const network = 'http://localhost:8899';
+	const config = 'confirmed';
 
 	// FIXME Need to only render UI AFTER AnchorProvider is loaded. Getting errors
 	// on /escrow page reload since provider can't be found.
 	// NOTE Need to type anchor.Wallet to get 'payer' property or errors
 	// FIXME Losing reactivity in UI. Not sure why. Just seems like after I sendTransaction(),
 	// no other async/awaits really work unless I add to button onclick handler...
+	// Q: Is it my connection's commitment level? Default is 'processed' I think,
+	// but maybe I need to set to 'confirmed'?
 	// const seller = ($workspaceStore.provider as anchor.AnchorProvider).wallet as anchor.Wallet;
 	const buyer = anchor.web3.Keypair.generate();
 	let xMint: anchor.web3.PublicKey;
@@ -96,6 +99,8 @@
 		xMint = mint.publicKey;
 		console.log(`xMint: ${xMint}`);
 
+		// console.log('provider BEFORE create Token: ', $workspaceStore.provider);
+		console.log('connection BEFORE create Token: ', $workspaceStore.connection);
 		const tx = new Transaction().add(
 			// create mint account
 			SystemProgram.createAccount({
@@ -114,14 +119,14 @@
 			)
 		);
 
+		// console.log('provider AFTER create Token: ', $workspaceStore.provider);
+		console.log('connection AFTER create Token: ', $workspaceStore.connection);
 		// console.log(`TxHash :: ${await $workspaceStore.connection.sendTransaction(tx, [mint])}`); // ERROR: signature verification failed
-		// console.log(
-		// 	`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
-		// 		signers: [mint]
-		// 	})}`
-		// ); // WORKS! Need to use walletStore instead of workspaceStore!
-
-		await $walletStore.sendTransaction(tx, $workspaceStore.connection, { signers: [mint] });
+		console.log(
+			`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
+				signers: [mint]
+			})}`
+		); // WORKS! Need to use walletStore instead of workspaceStore!
 
 		// FIXME
 		// UPDATE 9/14: Still not sure. However, for TokenAccountNotFoundError,
@@ -134,7 +139,11 @@
 		// Below errors for some reason but works if I place inside separate function. Weird.
 		// ERROR: TokenAccountNotFoundError
 		// NOTE Doesn't error but data isn't Mint data...
-		// xMintAccountData = await $workspaceStore.connection.getAccountInfo(xMint);
+		// xMintAccountData = await $workspaceStore.connection.getAccountInfo(xMint, 'confirmed');
+		// const currentXMintAccountDataGetAccountInfo = await new Connection(
+		// 	'http://localhost:8899',
+		// 	'confirmed'
+		// ).getAccountInfo(xMint);
 		// const currentXMintAccountData = await getMint($workspaceStore.connection, xMint); // error
 		// const currentXMintAccountData = await getMint($workspaceStore.connection, xMint).then(
 		// 	(res) => res.address
@@ -152,16 +161,17 @@
 		// let currentXMintAccountDataGetMint = await getMint(connection, xMint).then(
 		// 	(value) => (xMintAccountData = value)
 		// );
-		// TODO Is there a getMintInfo() to try? Grasping here......
+		// Q: Is there a getMintInfo() to try? Grasping here......
+		// A: NOPE. Perhaps in an older version there was.
 		// Q: Try building a fresh Connection? NOPE...
 		// Q: Try making it an IIFE? NOPE...
-		(async () => {
-			let connection = new Connection('http://localhost:8899', 'confirmed');
-			let currentXMintAccountDataGetMint = await getMint(connection, mint.publicKey);
-			// let currentXMintAccountDataGetMint = await getMintInfo($workspaceStore.connection, xMint);
-			xMintAccountData = currentXMintAccountDataGetMint;
-			console.log(xMintAccountData); // null
-		})();
+		// (async () => {
+		// 	let connection = new Connection('http://localhost:8899', 'confirmed');
+		// 	let currentXMintAccountDataGetMint = await getMint(connection, mint.publicKey);
+		// 	// let currentXMintAccountDataGetMint = await getMintInfo($workspaceStore.connection, xMint);
+		// xMintAccountData = currentXMintAccountDataGetAccountInfo;
+		// console.log(xMintAccountData); // null
+		// })();
 	}
 
 	async function createTokenY() {
@@ -340,6 +350,7 @@
 		// 	// [signer1, signer2...], // only multisig account will use
 		// );
 
+		console.log('provider BEFORE Mint: ', $workspaceStore.provider);
 		const tx = new Transaction().add(
 			createMintToCheckedInstruction(
 				xMint, // mint
@@ -350,6 +361,7 @@
 			)
 		);
 		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
+		console.log('provider AFTER Mint: ', $workspaceStore.provider);
 
 		// FIXME
 		// Q: Why don't any other async calls work after sending a transaction?
@@ -461,7 +473,7 @@
 				// A: Check IDL! Wallet and escrowedXToken!
 				// Q: Why is escrowedXToken a Signer? It's just a type TokenAccount...
 				.signers([escrowedXToken])
-				.rpc({ skipPreflight: true });
+				.rpc();
 
 			console.log('TxHash ::', tx);
 
