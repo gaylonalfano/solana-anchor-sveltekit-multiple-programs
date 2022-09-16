@@ -37,9 +37,9 @@
 
 	// Q: Use lifecycle hook or perhaps SSR? Here or in __layout?
 	// Q: How to pre-fetch existing onchain data?
-	if ($workspaceStore) {
-		onMount(handleGetAccountData);
-	}
+	// if ($workspaceStore) {
+	// 	onMount(handleGetAccountData);
+	// }
 
 	$: {
 		console.log('voteAccount: ', voteAccount);

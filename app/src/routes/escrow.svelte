@@ -35,6 +35,7 @@
 	import { notificationStore } from '../stores/notification';
 	import { Button } from '$lib/index';
 	import type NodeWallet from '@project-serum/anchor/dist/cjs/nodewallet';
+	import P1 from './p1.svelte';
 
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
 	const network = 'http://localhost:8899';
@@ -47,8 +48,10 @@
 	// no other async/awaits really work unless I add to button onclick handler...
 	// Q: Is it my connection's commitment level? Default is 'processed' I think,
 	// but maybe I need to set to 'confirmed'?
+	// A: NOPE. Commitment level didn't have any impact.
 	// const seller = ($workspaceStore.provider as anchor.AnchorProvider).wallet as anchor.Wallet;
 	const buyer = anchor.web3.Keypair.generate();
+	const buyerSolflare = new PublicKey('HzgMBJvpsKgTRe84q7BgdYbf3w4hBCWoy384rZBF9viy');
 	let xMint: anchor.web3.PublicKey;
 	let xMintAccountData;
 	let yMint: anchor.web3.PublicKey;
@@ -73,8 +76,9 @@
 	$: {
 		// console.log('baseAccount: ', $workspaceStore.baseAccount?.publicKey.toBase58());
 		console.log('xMintAccountData: ', xMintAccountData);
-		console.log('provider.connection: ', $workspaceStore.provider?.connection);
-		console.log('connection: ', $workspaceStore.connection);
+		// console.log('provider.connection: ', $workspaceStore.provider?.connection);
+		// console.log('connection: ', $workspaceStore.connection);
+		console.log('walletStore.publicKey: ', $walletStore.publicKey?.toBase58());
 	}
 
 	async function createTokenX() {
@@ -121,12 +125,29 @@
 
 		// console.log('provider AFTER create Token: ', $workspaceStore.provider);
 		// console.log('connection AFTER create Token: ', $workspaceStore.connection);
-		// console.log(`TxHash :: ${await $workspaceStore.connection.sendTransaction(tx, [mint])}`); // ERROR: signature verification failed
-		console.log(
-			`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
-				signers: [mint]
-			})}`
-		); // WORKS! Need to use walletStore instead of workspaceStore!
+		// Q: Why doesn't workspaceStore.connection.sendTransaction() work?
+		// It may be missing the Wallet. When using wallet-adapter, the wallet is a Default
+		// Signer, but you don't have access to it. So, maybe the workspaceStore won't work
+		// because it doesn't have access to the Wallet? Need to test...
+		// NOTE You need to pass in BOTH keypairs of the signer, AND the keypairs
+		// of the accounts you're creating.
+		// console.log(`TxHash :: ${await $workspaceStore.connection.sendTransaction(tx, [mint])}`); // ERROR: signature verification failed (also deprecated?)
+		// console.log(
+		// 	`TxHash :: ${await $workspaceStore.provider?.connection.sendTransaction(tx, [mint])}`
+		// ); // ERROR: signature verification failed (also deprecated?)
+
+		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
+			signers: [mint]
+		});
+		console.log('signature:	', signature);
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction(signature, 'confirmed');
+		console.log('confirmedTx: ', confirmedTx);
+
+		// console.log(
+		// 	`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
+		// 		signers: [mint]
+		// 	})}`
+		// ); // WORKS! Need to use walletStore instead of workspaceStore!
 
 		// FIXME
 		// UPDATE 9/14: Still not sure. However, for TokenAccountNotFoundError,
@@ -172,6 +193,24 @@
 		// xMintAccountData = currentXMintAccountDataGetAccountInfo;
 		// console.log(xMintAccountData); // null
 		// })();
+		// ==== UPDATE 9/14 ===== Maybe on to something...
+		// Q: Do you FIRST have to create the ATA for the Token BEFORE you
+		// can get the Mint account info?
+		// NOTE I noticed that createTokenX() still doesn't let me find the
+		// account using spl-token account-info <ID>. However, when running
+		// my Anchor tests, I'm able to find the Mint, BUT this happens AFTER
+		// the ATAs are created... So, I should try creating the ATA first and
+		// then try to getMint() possibly?
+		// A: After createTokenX() and then createSellerTokenXAssociatedTokenAccount(),
+		// I STILL cannot find xMint, but I CAN find sellerXToken ATA...
+		// Q: Does this mean I need to actually mint some supply in order to
+		// finally find Token X Mint info using spl-token account-info <ID>?
+		// A: NOPE... still not able to find the Mint account after creating ATAs
+		// and even minting new supply to the ATAs. It's like I'm on the wrong network...
+		// IMPORTANT: Even creating a token with the CLI, you can't find the account-info
+		// right afterwards! (spl-token create-token => spl-token account-info <ID>)
+		// Q: Is my Provider or Connection wrong? Why can I find the ATA, but I
+		// cannot find the actual Mint using spl-token account-info <ID>?
 	}
 
 	async function createTokenY() {
@@ -287,7 +326,7 @@
 	async function createBuyerTokenXAssociatedTokenAccount() {
 		buyerXToken = await getAssociatedTokenAddress(
 			xMint, // mint
-			buyer.publicKey // owner
+			buyerSolflare //buyer.publicKey // owner
 		);
 		console.log(`buyerXToken: ${buyerXToken.toBase58()}`);
 
@@ -295,7 +334,7 @@
 			createAssociatedTokenAccountInstruction(
 				$walletStore.publicKey as anchor.web3.PublicKey, // payer
 				buyerXToken, // ata
-				buyer.publicKey, // owner
+				buyerSolflare, //  buyer.publicKey, // owner
 				xMint // mint
 			)
 		);
@@ -306,7 +345,7 @@
 	async function createBuyerTokenYAssociatedTokenAccount() {
 		buyerYToken = await getAssociatedTokenAddress(
 			yMint, // mint
-			buyer.publicKey // owner
+			buyerSolflare // buyer.publicKey // owner
 		);
 		console.log(`buyerYToken: ${buyerYToken.toBase58()}`);
 
@@ -314,7 +353,7 @@
 			createAssociatedTokenAccountInstruction(
 				$walletStore.publicKey as anchor.web3.PublicKey, // payer
 				buyerYToken, // ata
-				buyer.publicKey, // owner
+				buyerSolflare, // buyer.publicKey, // owner
 				yMint // mint
 			)
 		);
