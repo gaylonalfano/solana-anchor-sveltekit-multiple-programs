@@ -279,6 +279,7 @@ pub struct Escrow {
     escrowed_x_token: Pubkey, // Token Account Address
     y_mint: Pubkey, // Mint Address
     y_amount: u64, // Amount seller is wanting in exchange of x_amount of x_token
+                   // TODO Consider adding a status or isInitialized field
 }
 
 

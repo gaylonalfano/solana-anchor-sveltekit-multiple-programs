@@ -1,4 +1,6 @@
 <script lang="ts">
+	// REF: UI idea from: https://github.com/paul-schaaf/escrow-ui/blob/master/src/Alice.vue
+	// REF: Good example of web3/spl-token use: https://github.com/paul-schaaf/escrow-ui/blob/master/src/util/initEscrow.ts
 	import {
 		clusterApiUrl,
 		Connection,
@@ -41,17 +43,15 @@
 	const network = 'http://localhost:8899';
 	const config = 'confirmed';
 
-	// FIXME Need to only render UI AFTER AnchorProvider is loaded. Getting errors
-	// on /escrow page reload since provider can't be found.
-	// NOTE Need to type anchor.Wallet to get 'payer' property or errors
 	// FIXME Losing reactivity in UI. Not sure why. Just seems like after I sendTransaction(),
 	// no other async/awaits really work unless I add to button onclick handler...
 	// Q: Is it my connection's commitment level? Default is 'processed' I think,
 	// but maybe I need to set to 'confirmed'?
 	// A: NOPE. Commitment level didn't have any impact.
+	// NOTE Need to type anchor.Wallet to get 'payer' property or errors
 	// const seller = ($workspaceStore.provider as anchor.AnchorProvider).wallet as anchor.Wallet;
-	const buyer = anchor.web3.Keypair.generate();
-	const buyerSolflare = new PublicKey('HzgMBJvpsKgTRe84q7BgdYbf3w4hBCWoy384rZBF9viy');
+	// const buyer = anchor.web3.Keypair.generate();
+	const buyer = new PublicKey('HzgMBJvpsKgTRe84q7BgdYbf3w4hBCWoy384rZBF9viy');
 	let xMint: anchor.web3.PublicKey;
 	let xMintAccountData;
 	let yMint: anchor.web3.PublicKey;
@@ -72,13 +72,71 @@
 	// Q: What is workspaceStore.baseAccount? It changes on each refresh...
 	// Q: How am I supposed to pass AnchorProvider with simple solana/spl-token methods?
 	// Getting issues with Signer vs. Wallet...
-	// A: You CAN'T! Have to compose ix and txs manually following Cookbook
+	// A: You CAN'T because frontend never has access to Keypairs!
+	// MUST to compose ix and txs manually following Cookbook
+
+	let formState = {
+		escrow: '',
+		programId: '',
+		seller: '',
+		buyer: '',
+		sellerXToken: '',
+		buyerYToken: '',
+		xAmountFromSeller: 0,
+		yAmountFromBuyer: 0
+	};
+
+	// $: formState = {
+	// 	escrowPublicKey: escrow?.toString(),
+	// 	programId: $workspaceStore ? $workspaceStore.program?.programId.toString() : '',
+	// 	sellerXTokenPublicKey: sellerXToken?.toString(),
+	// 	buyerYTokenPublicKey: buyerYToken?.toString(),
+	// 	xAmountFromSeller: 0,
+	// 	yAmountFromBuyer: 0
+	// };
+
+	interface EscrowState {
+		escrow: undefined | string;
+		programId: undefined | string;
+		seller: undefined | string;
+		buyer: undefined | string;
+		sellerXToken: undefined | string;
+		buyerYToken: undefined | string;
+		xAmountFromSeller: undefined | number;
+		yAmountFromBuyer: undefined | number;
+		escrowedXToken: undefined | string;
+	}
+
+	let escrowState: EscrowState;
+
+	// escrowState = {
+	// 	escrow: '',
+	// 	programId: '',
+	// 	seller: '',
+	// 	buyer: '',
+	// 	sellerXToken: '',
+	// 	buyerYToken: '',
+	// 	xAmountFromSeller: 0,
+	// 	yAmountFromBuyer: 0,
+	// 	escrowedXToken: ''
+	// };
+
+	// $: escrowState = {
+	// 	escrowPublicKey: escrow?.toString(),
+	// 	programId: $workspaceStore.program?.programId?.toString(),
+	// 	sellerXTokenPublicKey: sellerXToken?.toString(),
+	// 	buyerYTokenPublicKey: buyerYToken?.toString(),
+	// 	xAmountFromSeller: formState.xAmountFromSeller,
+	// 	yAmountFromBuyer: formState.yAmountFromBuyer
+	// };
+
 	$: {
 		// console.log('baseAccount: ', $workspaceStore.baseAccount?.publicKey.toBase58());
 		console.log('xMintAccountData: ', xMintAccountData);
 		// console.log('provider.connection: ', $workspaceStore.provider?.connection);
 		// console.log('connection: ', $workspaceStore.connection);
 		console.log('walletStore.publicKey: ', $walletStore.publicKey?.toBase58());
+		console.log('formState: ', formState);
 	}
 
 	async function createTokenX() {
@@ -302,6 +360,9 @@
 		);
 
 		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
+
+		// Update UI
+		formState.sellerXToken = sellerXToken.toBase58();
 	}
 
 	async function createSellerTokenYAssociatedTokenAccount() {
@@ -326,7 +387,7 @@
 	async function createBuyerTokenXAssociatedTokenAccount() {
 		buyerXToken = await getAssociatedTokenAddress(
 			xMint, // mint
-			buyerSolflare //buyer.publicKey // owner
+			buyer //buyer.publicKey // owner
 		);
 		console.log(`buyerXToken: ${buyerXToken.toBase58()}`);
 
@@ -334,7 +395,7 @@
 			createAssociatedTokenAccountInstruction(
 				$walletStore.publicKey as anchor.web3.PublicKey, // payer
 				buyerXToken, // ata
-				buyerSolflare, //  buyer.publicKey, // owner
+				buyer, //  buyer.publicKey, // owner
 				xMint // mint
 			)
 		);
@@ -345,7 +406,7 @@
 	async function createBuyerTokenYAssociatedTokenAccount() {
 		buyerYToken = await getAssociatedTokenAddress(
 			yMint, // mint
-			buyerSolflare // buyer.publicKey // owner
+			buyer // buyer.publicKey // owner
 		);
 		console.log(`buyerYToken: ${buyerYToken.toBase58()}`);
 
@@ -353,12 +414,15 @@
 			createAssociatedTokenAccountInstruction(
 				$walletStore.publicKey as anchor.web3.PublicKey, // payer
 				buyerYToken, // ata
-				buyerSolflare, // buyer.publicKey, // owner
+				buyer, // buyer.publicKey, // owner
 				yMint // mint
 			)
 		);
 
 		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
+
+		// Update UI
+		formState.buyerYToken = buyerYToken.toBase58();
 	}
 
 	async function createAllBuyerAndSellerAssociatedTokenAccounts() {
@@ -443,7 +507,7 @@
 		await mintTokenYAndTransferToBuyerTokenYAssociatedTokenAccount();
 	}
 
-	async function handleCreateEscrowAccount() {
+	async function handleInitializeEscrowAccount() {
 		if (escrow) {
 			notificationStore.add({
 				type: 'error',
@@ -458,6 +522,7 @@
 			$workspaceStore.program?.programId as anchor.web3.PublicKey
 		);
 		escrow = escrowPDA;
+		formState.escrowPublicKey = escrow.toString();
 		console.log(`escrow: ${escrow}`);
 
 		console.log(
@@ -467,12 +532,8 @@
 			escrowPDA.toBase58()
 		);
 
-		// Create some associated token accounts for x and y tokens for buyer and seller
-		// Call our on-chain program's initialize() method and set escrow properties values
-		console.log('STARTED: Initialize escrow test...');
-		// NOTE Results in 0.0000004 in escrowedXToken balance
-		const x_amount = new anchor.BN(40);
-		const y_amount = new anchor.BN(40); // number of token seller wants in exchange for x_amount
+		const xAmount = new anchor.BN(formState.xAmountFromSeller);
+		const yAmount = new anchor.BN(formState.yAmountFromBuyer); // number of token seller wants in exchange for xAmount
 		// Check whether escrow account already has data
 		let data;
 
@@ -487,9 +548,10 @@
 			console.log('Creating account...');
 
 			escrowedXToken = anchor.web3.Keypair.generate();
+			// TODO Update escrowState (or w/e to display to UI)
 
 			const tx = await $workspaceStore.program?.methods
-				.initialize(x_amount, y_amount)
+				.initialize(xAmount, yAmount)
 				// NOTE We only provide the PublicKeys for all the accounts.
 				// We do NOT have to deal with isSigner, isWritable, etc. like in RAW
 				// since we already declared that in the program Context struct.
@@ -522,6 +584,43 @@
 		const escrowedXTokenAccountBalance =
 			await $workspaceStore.provider?.connection.getTokenAccountBalance(escrowedXToken.publicKey);
 		console.log('INITIALIZE::escrowedXTokenAccountBalance: ', escrowedXTokenAccountBalance);
+
+		// NOTE After running this and looking at solana logs, I can search the escrowedXToken
+		//❯ solana-anchor-sveltekit-multiple-programs main [!] spl-token account-info --address H4v4RYzNqVPAV88Zus9j1GYYiUf64hsFFBScTYvmdYQh
+		//
+		//Address: H4v4RYzNqVPAV88Zus9j1GYYiUf64hsFFBScTYvmdYQh  (Aux*)
+		//Balance: 0.0000004  // After transferring 40 for xAmountFromSeller
+		//Mint: BxJkZJY5waBqE2CafUYSrTRne5UHkGBTzBcxzfZNXMde
+		//Owner: ADncSp91geB71DgSVF6QjQKFQBAtVt4gH7B2mEZjspby // Escrow PDA
+		//State: Initialized
+		//Delegation: (not set)
+		//Close authority: (not set)
+		//
+		//* Please run `spl-token gc` to clean up Aux accounts
+
+		// Update escrowState for UI
+		// Q: Why does this error / say 'escrow' is undefined?
+		// escrowState.escrow = escrow.toBase58();
+		// escrowState.programId = $workspaceStore.program?.programId.toBase58();
+		// escrowState.seller = $walletStore.publicKey?.toBase58();
+		// escrowState.buyer = buyer.toBase58();
+		// escrowState.sellerXToken = sellerXToken.toBase58();
+		// escrowState.buyerYToken = buyerYToken.toBase58();
+		// escrowState.xAmountFromSeller = xAmount.toNumber();
+		// escrowState.yAmountFromBuyer = yAmount.toNumber();
+		// escrowState.escrowedXToken = escrowedXToken.publicKey.toBase58();
+
+		escrowState = {
+			escrow: escrow.toBase58(),
+			programId: $workspaceStore.program?.programId.toBase58(),
+			seller: $walletStore.publicKey?.toBase58(),
+			buyer: buyer.toBase58(),
+			sellerXToken: sellerXToken.toBase58(),
+			buyerYToken: buyerYToken.toBase58(),
+			xAmountFromSeller: xAmount.toNumber(),
+			yAmountFromBuyer: yAmount.toNumber(),
+			escrowedXToken: escrowedXToken.publicKey.toBase58()
+		};
 	}
 </script>
 
@@ -547,8 +646,6 @@
 		<div class="grid grid-cols-4 gap-6 pt-2">
 			<div class="form-control">
 				<button class="btn btn-info" on:click={createTokenXAndTokenY}>Create Tokens</button>
-				<button class="btn btn-info" on:click={createTokenX}>Create Token X</button>
-				<button class="btn btn-info" on:click={createTokenY}>Create Token Y</button>
 			</div>
 			<div class="form-control">
 				<button class="btn btn-info" on:click={createAllBuyerAndSellerAssociatedTokenAccounts}
@@ -561,7 +658,7 @@
 				>
 			</div>
 			<div class="form-control">
-				<button class="btn btn-info" on:click={handleCreateEscrowAccount}>Create Escrow</button>
+				<button class="btn btn-info" on:click={handleInitializeEscrowAccount}>Create Escrow</button>
 			</div>
 			<div class="form-control">
 				<button class="btn mt-1" on:click={getXMintAccount}>Get X Mint</button>
@@ -690,16 +787,146 @@
 			</div>
 			<div class="form-control">
 				<button class="btn mt-1" on:click={getBuyerYTokenAccountBalance}>Get Buyer Y</button>
-				<label class="input-group input-group-vertical pt-1">
-					<span>Balance</span>
-					<input
-						type="text"
-						placeholder=""
-						class="input input-bordered"
-						disabled
-						bind:value={buyerYBalance}
-					/>
-				</label>
+				{#if buyerYBalance}
+					<label class="input-group input-group-vertical pt-1">
+						<span>Balance</span>
+						<input
+							type="text"
+							placeholder=""
+							class="input input-bordered"
+							disabled
+							bind:value={buyerYBalance}
+						/>
+					</label>
+				{/if}
+			</div>
+		</div>
+		<div class="divider" />
+		<div class="flex w-full justify-evenly">
+			<div class="grid flex-grow card bg-base-300 rounded-box place-items-center">
+				<div class="form-control">
+					<div class="stat place-items-center">
+						<div class="stat-title">Initialize</div>
+					</div>
+					<label class="input-group input-group-vertical pt-1">
+						<span class="bg-info">Seller X Account</span>
+						<input
+							type="text"
+							placeholder=""
+							class="input input-bordered"
+							bind:value={formState.sellerXToken}
+							disabled
+						/>
+					</label>
+					<label class="input-group input-group-vertical pt-1">
+						<span class="bg-info">Buyer Y Account</span>
+						<input
+							type="text"
+							placeholder=""
+							class="input input-bordered"
+							bind:value={formState.buyerYToken}
+							disabled
+						/>
+					</label>
+					<label class="input-group input-group-vertical pt-1">
+						<span class="bg-info">X Amount From Seller</span>
+						<input
+							type="text"
+							placeholder=""
+							class="input input-bordered"
+							bind:value={formState.xAmountFromSeller}
+						/>
+					</label>
+					<label class="input-group input-group-vertical pt-1">
+						<span class="bg-info">Y Amount From Buyer</span>
+						<input
+							type="text"
+							placeholder=""
+							class="input input-bordered"
+							bind:value={formState.yAmountFromBuyer}
+						/>
+					</label>
+					<button class="btn btn-accent mt-1" on:click={handleInitializeEscrowAccount}
+						>Create Escrow</button
+					>
+				</div>
+			</div>
+			<div class="divider divider-horizontal" />
+			<div class="grid flex-grow card bg-base-300 rounded-box place-items-center">
+				<div class="form-control">
+					{#if !escrowState}
+						<div class="stat place-items-center">
+							<div class="stat-title">Please initialize...</div>
+						</div>
+					{:else}
+						<div class="stat place-items-center">
+							<div class="stat-title">Escrow</div>
+						</div>
+						<label class="input-group input-group-vertical pt-1">
+							<span>Escrow PDA</span>
+							<input
+								type="text"
+								placeholder=""
+								class="input input-bordered"
+								bind:value={escrowState.escrow}
+								disabled
+							/>
+						</label>
+						<label class="input-group input-group-vertical pt-1">
+							<span>Program ID</span>
+							<input
+								type="text"
+								placeholder=""
+								class="input input-bordered"
+								bind:value={escrowState.programId}
+								disabled
+							/>
+						</label>
+						<label class="input-group input-group-vertical pt-1">
+							<span>Seller X Account</span>
+							<input
+								type="text"
+								placeholder=""
+								class="input input-bordered"
+								bind:value={escrowState.sellerXToken}
+								disabled
+							/>
+						</label>
+						<label class="input-group input-group-vertical pt-1">
+							<span>Buyer Y Account</span>
+							<input
+								type="text"
+								placeholder=""
+								class="input input-bordered"
+								bind:value={escrowState.buyerYToken}
+								disabled
+							/>
+						</label>
+						<label class="input-group input-group-vertical pt-1">
+							<span>X Amount</span>
+							<input
+								type="text"
+								placeholder=""
+								class="input input-bordered"
+								bind:value={escrowState.xAmountFromSeller}
+								disabled
+							/>
+						</label>
+						<label class="input-group input-group-vertical pt-1">
+							<span>Y Amount</span>
+							<input
+								type="text"
+								placeholder=""
+								class="input input-bordered"
+								bind:value={escrowState.yAmountFromBuyer}
+								disabled
+							/>
+						</label>
+						<button class="btn btn-accent mt-1" on:click={handleInitializeEscrowAccount}
+							>Accept Escrow</button
+						>
+					{/if}
+				</div>
 			</div>
 		</div>
 	</div>
