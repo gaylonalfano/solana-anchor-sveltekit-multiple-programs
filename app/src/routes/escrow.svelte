@@ -599,17 +599,6 @@
 		//* Please run `spl-token gc` to clean up Aux accounts
 
 		// Update escrowState for UI
-		// Q: Why does this error / say 'escrow' is undefined?
-		// escrowState.escrow = escrow.toBase58();
-		// escrowState.programId = $workspaceStore.program?.programId.toBase58();
-		// escrowState.seller = $walletStore.publicKey?.toBase58();
-		// escrowState.buyer = buyer.toBase58();
-		// escrowState.sellerXToken = sellerXToken.toBase58();
-		// escrowState.buyerYToken = buyerYToken.toBase58();
-		// escrowState.xAmountFromSeller = xAmount.toNumber();
-		// escrowState.yAmountFromBuyer = yAmount.toNumber();
-		// escrowState.escrowedXToken = escrowedXToken.publicKey.toBase58();
-
 		escrowState = {
 			escrow: escrow.toBase58(),
 			programId: $workspaceStore.program?.programId.toBase58(),
@@ -621,6 +610,34 @@
 			yAmountFromBuyer: yAmount.toNumber(),
 			escrowedXToken: escrowedXToken.publicKey.toBase58()
 		};
+	}
+
+	async function handleAcceptTrade() {
+		const tx = await $workspaceStore.program?.methods
+			.accept()
+			.accounts({
+				buyer: $walletStore.publicKey as PublicKey,
+				escrow: escrow,
+				escrowedXToken: escrowedXToken.publicKey,
+				sellerYToken: sellerYToken,
+				buyerXToken: buyerXToken,
+				buyerYToken: buyerYToken,
+				tokenProgram: TOKEN_PROGRAM_ID
+			})
+			.signers([]) // NOTE buyer is wallet, so don't need!
+			.rpc({ skipPreflight: true });
+
+		console.log('TxHash ::', tx);
+
+		const escrowedXTokenAccountBalance =
+			await $workspaceStore.provider?.connection.getTokenAccountBalance(escrowedXToken.publicKey);
+		console.log('ACCEPT::escrowedXTokenAccountBalance: ', escrowedXTokenAccountBalance);
+		// ACCEPT::escrowedXTokenAccountBalance:  {
+		//   context: { apiVersion: '1.10.38', slot: 81 },
+		//   value: { amount: '0', decimals: 8, uiAmount: 0, uiAmountString: '0' }
+		// }
+
+		// Update UI
 	}
 </script>
 
@@ -922,9 +939,7 @@
 								disabled
 							/>
 						</label>
-						<button class="btn btn-accent mt-1" on:click={handleInitializeEscrowAccount}
-							>Accept Escrow</button
-						>
+						<button class="btn btn-accent mt-1" on:click={handleAcceptTrade}>Accept Escrow</button>
 					{/if}
 				</div>
 			</div>
