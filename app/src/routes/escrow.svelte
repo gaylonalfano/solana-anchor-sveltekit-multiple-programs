@@ -5,6 +5,7 @@
 		clusterApiUrl,
 		Connection,
 		Keypair,
+		LAMPORTS_PER_SOL,
 		PublicKey,
 		SystemProgram,
 		Transaction
@@ -86,15 +87,6 @@
 		yAmountFromBuyer: 0
 	};
 
-	// $: formState = {
-	// 	escrowPublicKey: escrow?.toString(),
-	// 	programId: $workspaceStore ? $workspaceStore.program?.programId.toString() : '',
-	// 	sellerXTokenPublicKey: sellerXToken?.toString(),
-	// 	buyerYTokenPublicKey: buyerYToken?.toString(),
-	// 	xAmountFromSeller: 0,
-	// 	yAmountFromBuyer: 0
-	// };
-
 	interface EscrowState {
 		escrow: undefined | string;
 		programId: undefined | string;
@@ -105,32 +97,20 @@
 		xAmountFromSeller: undefined | number;
 		yAmountFromBuyer: undefined | number;
 		escrowedXToken: undefined | string;
+		escrowedXTokenBalance: undefined | number;
 	}
 
 	let escrowState: EscrowState;
 
-	// escrowState = {
-	// 	escrow: '',
-	// 	programId: '',
-	// 	seller: '',
-	// 	buyer: '',
-	// 	sellerXToken: '',
-	// 	buyerYToken: '',
-	// 	xAmountFromSeller: 0,
-	// 	yAmountFromBuyer: 0,
-	// 	escrowedXToken: ''
-	// };
-
+	// Q: How should I create reactive state?
 	// $: escrowState = {
-	// 	escrowPublicKey: escrow?.toString(),
-	// 	programId: $workspaceStore.program?.programId?.toString(),
-	// 	sellerXTokenPublicKey: sellerXToken?.toString(),
-	// 	buyerYTokenPublicKey: buyerYToken?.toString(),
-	// 	xAmountFromSeller: formState.xAmountFromSeller,
-	// 	yAmountFromBuyer: formState.yAmountFromBuyer
+	// 	escrow: escrow.toBase58(),
+	// 	programId: $workspaceStore.program?.programId.toBase58(),
+	// 	seller: new PublicKey("2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE").toBase58(),
+
 	// };
 
-	$: {
+	$: if ($workspaceStore && $walletStore) {
 		// console.log('baseAccount: ', $workspaceStore.baseAccount?.publicKey.toBase58());
 		console.log('xMintAccountData: ', xMintAccountData);
 		// console.log('provider.connection: ', $workspaceStore.provider?.connection);
@@ -302,6 +282,18 @@
 	}
 
 	async function createTokenXAndTokenY() {
+		// NOTE For testing ONLY. Let's airdrop both wallets some SOL
+		await $workspaceStore.connection.confirmTransaction(
+			await $workspaceStore.connection.requestAirdrop(
+				$walletStore.publicKey as PublicKey, // seller
+				LAMPORTS_PER_SOL
+			)
+		);
+		await $workspaceStore.connection.confirmTransaction(
+			await $workspaceStore.connection.requestAirdrop(buyer, LAMPORTS_PER_SOL)
+		);
+
+		// Create our Tokens
 		await createTokenX();
 		await createTokenY();
 	}
@@ -522,7 +514,7 @@
 			$workspaceStore.program?.programId as anchor.web3.PublicKey
 		);
 		escrow = escrowPDA;
-		formState.escrowPublicKey = escrow.toString();
+		formState.escrow = escrow.toString();
 		console.log(`escrow: ${escrow}`);
 
 		console.log(
@@ -598,7 +590,7 @@
 		//
 		//* Please run `spl-token gc` to clean up Aux accounts
 
-		// Update escrowState for UI
+		// Update escrowState
 		escrowState = {
 			escrow: escrow.toBase58(),
 			programId: $workspaceStore.program?.programId.toBase58(),
@@ -608,7 +600,8 @@
 			buyerYToken: buyerYToken.toBase58(),
 			xAmountFromSeller: xAmount.toNumber(),
 			yAmountFromBuyer: yAmount.toNumber(),
-			escrowedXToken: escrowedXToken.publicKey.toBase58()
+			escrowedXToken: escrowedXToken.publicKey.toBase58(),
+			escrowedXTokenBalance: escrowedXTokenAccountBalance?.value.uiAmount as number
 		};
 	}
 
@@ -638,6 +631,19 @@
 		// }
 
 		// Update UI
+		// Q: How to make this reactive instead? Use a Store?
+		// escrowState = {
+		// 	escrow: escrow.toBase58(),
+		// 	programId: $workspaceStore.program?.programId.toBase58(),
+		// 	seller: $walletStore.publicKey?.toBase58(),
+		// 	buyer: buyer.toBase58(),
+		// 	sellerXToken: sellerXToken.toBase58(),
+		// 	buyerYToken: buyerYToken.toBase58(),
+		// 	xAmountFromSeller: xAmount.toNumber(),
+		// 	yAmountFromBuyer: yAmount.toNumber(),
+		// 	escrowedXToken: escrowedXToken.publicKey.toBase58(),
+		// 	escrowedXTokenBalance: escrowedXTokenAccountBalance?.value.uiAmount as number
+		// };
 	}
 </script>
 
