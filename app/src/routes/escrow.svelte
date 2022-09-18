@@ -57,6 +57,8 @@
 	let xMintAccountData;
 	let yMint: anchor.web3.PublicKey;
 	let yMintAccountData;
+	let xAmountFromSeller = 0;
+	let yAmountFromBuyer = 0;
 	let sellerXToken: anchor.web3.PublicKey; // Associated Token Accounts
 	let sellerXBalance: number;
 	let sellerYToken: anchor.web3.PublicKey;
@@ -67,6 +69,7 @@
 	let buyerYBalance: number;
 	// NOTE This is just saving the Pubkey, since program creates actual account
 	let escrowedXToken: anchor.web3.Keypair;
+	let escrowedXTokenBalance = 0;
 	// NOTE This is a PDA that we'll get below
 	let escrow: anchor.web3.PublicKey;
 
@@ -107,8 +110,25 @@
 	// 	escrow: escrow.toBase58(),
 	// 	programId: $workspaceStore.program?.programId.toBase58(),
 	// 	seller: new PublicKey("2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE").toBase58(),
+	//	...
 
 	// };
+
+	function updateEscrowState() {
+		// Escrow has been initialized
+		escrowState = {
+			escrow: escrow.toBase58(),
+			programId: $workspaceStore.program?.programId.toBase58(),
+			seller: new PublicKey('2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE').toBase58(),
+			buyer: buyer.toBase58(),
+			sellerXToken: sellerXToken.toBase58(),
+			buyerYToken: buyerYToken.toBase58(),
+			xAmountFromSeller: xAmountFromSeller,
+			yAmountFromBuyer: yAmountFromBuyer,
+			escrowedXToken: escrowedXToken.publicKey.toBase58(),
+			escrowedXTokenBalance: escrowedXTokenBalance
+		};
+	}
 
 	$: if ($workspaceStore && $walletStore) {
 		// console.log('baseAccount: ', $workspaceStore.baseAccount?.publicKey.toBase58());
@@ -117,6 +137,10 @@
 		// console.log('connection: ', $workspaceStore.connection);
 		console.log('walletStore.publicKey: ', $walletStore.publicKey?.toBase58());
 		console.log('formState: ', formState);
+	}
+
+	$: if (escrowState) {
+		console.log('escrowState: ', escrowState);
 	}
 
 	async function createTokenX() {
@@ -526,6 +550,8 @@
 
 		const xAmount = new anchor.BN(formState.xAmountFromSeller);
 		const yAmount = new anchor.BN(formState.yAmountFromBuyer); // number of token seller wants in exchange for xAmount
+		xAmountFromSeller = xAmount.toNumber();
+		yAmountFromBuyer = yAmount.toNumber();
 		// Check whether escrow account already has data
 		let data;
 
@@ -576,6 +602,7 @@
 		const escrowedXTokenAccountBalance =
 			await $workspaceStore.provider?.connection.getTokenAccountBalance(escrowedXToken.publicKey);
 		console.log('INITIALIZE::escrowedXTokenAccountBalance: ', escrowedXTokenAccountBalance);
+		escrowedXTokenBalance = escrowedXTokenAccountBalance?.value.uiAmount as number;
 
 		// NOTE After running this and looking at solana logs, I can search the escrowedXToken
 		//❯ solana-anchor-sveltekit-multiple-programs main [!] spl-token account-info --address H4v4RYzNqVPAV88Zus9j1GYYiUf64hsFFBScTYvmdYQh
@@ -591,18 +618,7 @@
 		//* Please run `spl-token gc` to clean up Aux accounts
 
 		// Update escrowState
-		escrowState = {
-			escrow: escrow.toBase58(),
-			programId: $workspaceStore.program?.programId.toBase58(),
-			seller: $walletStore.publicKey?.toBase58(),
-			buyer: buyer.toBase58(),
-			sellerXToken: sellerXToken.toBase58(),
-			buyerYToken: buyerYToken.toBase58(),
-			xAmountFromSeller: xAmount.toNumber(),
-			yAmountFromBuyer: yAmount.toNumber(),
-			escrowedXToken: escrowedXToken.publicKey.toBase58(),
-			escrowedXTokenBalance: escrowedXTokenAccountBalance?.value.uiAmount as number
-		};
+		updateEscrowState();
 	}
 
 	async function handleAcceptTrade() {
@@ -629,21 +645,46 @@
 		//   context: { apiVersion: '1.10.38', slot: 81 },
 		//   value: { amount: '0', decimals: 8, uiAmount: 0, uiAmountString: '0' }
 		// }
+		escrowedXTokenBalance = escrowedXTokenAccountBalance?.value.uiAmount as number;
 
-		// Update UI
+		// Update Escrow State
 		// Q: How to make this reactive instead? Use a Store?
-		// escrowState = {
-		// 	escrow: escrow.toBase58(),
-		// 	programId: $workspaceStore.program?.programId.toBase58(),
-		// 	seller: $walletStore.publicKey?.toBase58(),
-		// 	buyer: buyer.toBase58(),
-		// 	sellerXToken: sellerXToken.toBase58(),
-		// 	buyerYToken: buyerYToken.toBase58(),
-		// 	xAmountFromSeller: xAmount.toNumber(),
-		// 	yAmountFromBuyer: yAmount.toNumber(),
-		// 	escrowedXToken: escrowedXToken.publicKey.toBase58(),
-		// 	escrowedXTokenBalance: escrowedXTokenAccountBalance?.value.uiAmount as number
-		// };
+		// I'm going to just use a helper for now...
+		updateEscrowState();
+
+		// Add to notificationStore
+		notificationStore.add({
+			type: 'success',
+			message: 'Transaction successful!',
+			txid: tx
+		});
+	}
+
+	async function handleCancelTrade() {
+		const tx = await $workspaceStore.program?.methods
+			.cancel()
+			.accounts({
+				seller: $walletStore.publicKey as PublicKey,
+				escrow: escrow,
+				escrowedXToken: escrowedXToken.publicKey,
+				sellerXToken: sellerXToken,
+				tokenProgram: TOKEN_PROGRAM_ID
+			})
+			.signers([]) // NOTE seller is wallet, so don't need!
+			.rpc({ skipPreflight: true });
+
+		console.log('TxHash ::', tx);
+
+		// Update Escrow State
+		// TODO Need to add a status/isActive field to this account
+		updateEscrowState();
+
+		// Add to notificationStore
+		notificationStore.add({
+			type: 'success',
+			message: 'Transaction successful!',
+			txid: tx
+		});
 	}
 </script>
 
@@ -945,7 +986,18 @@
 								disabled
 							/>
 						</label>
+						<label class="input-group input-group-vertical pt-1">
+							<span>Escrowed X Balance</span>
+							<input
+								type="text"
+								placeholder=""
+								class="input input-bordered"
+								bind:value={escrowState.escrowedXTokenBalance}
+								disabled
+							/>
+						</label>
 						<button class="btn btn-accent mt-1" on:click={handleAcceptTrade}>Accept Escrow</button>
+						<button class="btn btn-accent mt-1" on:click={handleCancelTrade}>Cancel Escrow</button>
 					{/if}
 				</div>
 			</div>
