@@ -19,6 +19,8 @@ pub mod non_custodial_escrow {
         escrow.escrowed_x_token = ctx.accounts.escrowed_x_token.key();
         escrow.y_amount = y_amount; // number of token sellers wants in exchange
         escrow.y_mint = ctx.accounts.y_mint.key(); // token seller wants in exchange
+        escrow.is_active = true;
+        escrow.has_exchanged = false;
         msg!("escrow BEFORE transfer: {:?}", ctx.accounts.escrow);
 
 
@@ -85,6 +87,12 @@ pub mod non_custodial_escrow {
             ),
             ctx.accounts.escrow.y_amount,
         )?;
+
+        // Update the escrow account is_active and has_exchanged fields
+        ctx.accounts.escrow.is_active = false;
+        ctx.accounts.escrow.has_exchanged = true;
+        // Q: Should I also close the account?
+        // NOTE We close the escrowed_x_token account with cancel()
         
         Ok(())
     }
@@ -129,6 +137,12 @@ pub mod non_custodial_escrow {
                 // &[&["escrow".as_bytes(), ctx.accounts.seller.as_ref()], &[ctx.accounts.escrow.bump]]
             )
         )?;
+
+        // Update the escrow account is_active and has_exchanged fields
+        // Q: Is 'escrow' still available after closing 'escrowed_x_token'?
+        // A: NOPE! It's completely closed so no need to update!
+        // ctx.accounts.escrow.is_active = false;
+        // ctx.accounts.escrow.has_exchanged = false;
 
         Ok(())
     }
@@ -279,7 +293,8 @@ pub struct Escrow {
     escrowed_x_token: Pubkey, // Token Account Address
     y_mint: Pubkey, // Mint Address
     y_amount: u64, // Amount seller is wanting in exchange of x_amount of x_token
-                   // TODO Consider adding a status or isInitialized field
+    is_active: bool,
+    has_exchanged: bool, // If is_active == false && has_exchanged == false => CANCELED
 }
 
 
@@ -290,5 +305,7 @@ impl Escrow {
     // 32 X Token Account Address
     // 32 Y Mint Address
     // 8 Y Amount
-    pub const LEN: usize = 8 + 1 + 32 + 32 + 32 + 8;
+    // 1 Is Active
+    // 1 Has Exchanged
+    pub const LEN: usize = 8 + 1 + 32 + 32 + 32 + 8 + 1 + 1;
 }

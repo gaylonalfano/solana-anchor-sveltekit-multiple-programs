@@ -344,6 +344,9 @@ describe("non-custodial-escrow", () => {
     //     yMint: GEkKTvAmnpkRhvftq6sbcKcDWnGXByky9Fbt1kBm99Qi,
     //     yAmount: 40,
     //   }
+
+    expect(data.isActive).to.equal(true);
+    expect(data.hasExchanged).to.equal(false);
   });
 
   it("Accept the trade", async () => {
@@ -368,6 +371,9 @@ describe("non-custodial-escrow", () => {
       .rpc({ skipPreflight: true });
 
     console.log("TxHash ::", tx);
+
+    // Get account data to verify is_active and has_exchanged values
+    const data = await program.account.escrow.fetch(escrow);
 
     const escrowedXTokenAccountBalance =
       await provider.connection.getTokenAccountBalance(
@@ -399,6 +405,9 @@ describe("non-custodial-escrow", () => {
     //   },
     //   rentEpoch: 0
     // }
+
+    expect(data.isActive).to.equal(false);
+    expect(data.hasExchanged).to.equal(true);
   });
 
   it("Cancel the trade", async () => {
@@ -415,6 +424,13 @@ describe("non-custodial-escrow", () => {
       .rpc({ skipPreflight: true });
 
     console.log("TxHash ::", tx);
+
+    // Get the updated account data to verify is_active and has_exchanged updated
+    // Q: Is 'escrow' still available after closing 'escrowed_x_token'?
+    // A: NOPE! It's completely closed so no need to update!
+    // const data = await program.account.escrow.fetch(escrow);
+    // console.log("data.isActive: ", data.isActive);
+    // console.log("data.hasExchanged: ", data.hasExchanged);
 
     // const escrowedXTokenAccountBalance =
     //   await provider.connection.getTokenAccountBalance(

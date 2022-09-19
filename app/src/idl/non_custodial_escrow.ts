@@ -160,6 +160,14 @@ export type NonCustodialEscrow = {
           {
             "name": "yAmount",
             "type": "u64"
+          },
+          {
+            "name": "isActive",
+            "type": "bool"
+          },
+          {
+            "name": "hasExchanged",
+            "type": "bool"
           }
         ]
       }
@@ -329,6 +337,14 @@ export const IDL: NonCustodialEscrow = {
           {
             "name": "yAmount",
             "type": "u64"
+          },
+          {
+            "name": "isActive",
+            "type": "bool"
+          },
+          {
+            "name": "hasExchanged",
+            "type": "bool"
           }
         ]
       }

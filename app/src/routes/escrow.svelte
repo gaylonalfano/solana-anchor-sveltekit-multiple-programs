@@ -1,6 +1,8 @@
 <script lang="ts">
 	// REF: UI idea from: https://github.com/paul-schaaf/escrow-ui/blob/master/src/Alice.vue
 	// REF: Good example of web3/spl-token use: https://github.com/paul-schaaf/escrow-ui/blob/master/src/util/initEscrow.ts
+	// TODO Fetch all active Escrows involving wallet and display
+	// TODO Add a Token select menu rather than hardcoding X/Y
 	import {
 		clusterApiUrl,
 		Connection,
@@ -72,6 +74,10 @@
 	let escrowedXTokenBalance = 0;
 	// NOTE This is a PDA that we'll get below
 	let escrow: anchor.web3.PublicKey;
+	let escrowIsActive: boolean;
+	let escrowHasExchanged: boolean;
+
+	let isDisabled = false;
 
 	// Q: What is workspaceStore.baseAccount? It changes on each refresh...
 	// Q: How am I supposed to pass AnchorProvider with simple solana/spl-token methods?
@@ -82,6 +88,8 @@
 	let formState = {
 		escrow: '',
 		programId: '',
+		escrowIsActive: '',
+		escrowHasExchanged: '',
 		seller: '',
 		buyer: '',
 		sellerXToken: '',
@@ -93,6 +101,8 @@
 	interface EscrowState {
 		escrow: undefined | string;
 		programId: undefined | string;
+		isActive: undefined | boolean;
+		hasExchanged: undefined | boolean;
 		seller: undefined | string;
 		buyer: undefined | string;
 		sellerXToken: undefined | string;
@@ -119,6 +129,8 @@
 		escrowState = {
 			escrow: escrow.toBase58(),
 			programId: $workspaceStore.program?.programId.toBase58(),
+			isActive: escrowIsActive,
+			hasExchanged: escrowHasExchanged,
 			seller: new PublicKey('2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE').toBase58(),
 			buyer: buyer.toBase58(),
 			sellerXToken: sellerXToken.toBase58(),
@@ -129,6 +141,8 @@
 			escrowedXTokenBalance: escrowedXTokenBalance
 		};
 	}
+
+	// $: hasCreatedTokens = if(yMint != null && xMint != null) return true;
 
 	$: if ($workspaceStore && $walletStore) {
 		// console.log('baseAccount: ', $workspaceStore.baseAccount?.publicKey.toBase58());
@@ -521,6 +535,8 @@
 	async function mintAllTokensAndTransferToAssociatedTokenAccounts() {
 		await mintTokenXAndTransferToSellerTokenXAssociatedTokenAccount();
 		await mintTokenYAndTransferToBuyerTokenYAssociatedTokenAccount();
+		await getSellerXTokenAccountBalance();
+		await getBuyerYTokenAccountBalance();
 	}
 
 	async function handleInitializeEscrowAccount() {
@@ -566,7 +582,6 @@
 			console.log('Creating account...');
 
 			escrowedXToken = anchor.web3.Keypair.generate();
-			// TODO Update escrowState (or w/e to display to UI)
 
 			const tx = await $workspaceStore.program?.methods
 				.initialize(xAmount, yAmount)
@@ -597,6 +612,12 @@
 			console.log('TxHash ::', tx);
 
 			data = await $workspaceStore.program?.account.escrow.fetch(escrow);
+
+			escrowIsActive = data?.isActive as boolean;
+			escrowHasExchanged = data?.hasExchanged as boolean;
+
+			// Disable input xAmount and yAmount input fields
+			isDisabled = true;
 		}
 
 		const escrowedXTokenAccountBalance =
@@ -645,11 +666,13 @@
 		//   context: { apiVersion: '1.10.38', slot: 81 },
 		//   value: { amount: '0', decimals: 8, uiAmount: 0, uiAmountString: '0' }
 		// }
-		escrowedXTokenBalance = escrowedXTokenAccountBalance?.value.uiAmount as number;
 
 		// Update Escrow State
 		// Q: How to make this reactive instead? Use a Store?
 		// I'm going to just use a helper for now...
+		escrowedXTokenBalance = escrowedXTokenAccountBalance?.value.uiAmount as number;
+		escrowIsActive = false;
+		escrowHasExchanged = true;
 		updateEscrowState();
 
 		// Add to notificationStore
@@ -676,7 +699,8 @@
 		console.log('TxHash ::', tx);
 
 		// Update Escrow State
-		// TODO Need to add a status/isActive field to this account
+		escrowIsActive = false;
+		escrowHasExchanged = false;
 		updateEscrowState();
 
 		// Add to notificationStore
@@ -722,7 +746,9 @@
 				>
 			</div>
 			<div class="form-control">
-				<button class="btn btn-info" on:click={handleInitializeEscrowAccount}>Create Escrow</button>
+				<button class="btn btn-info" on:click={handleInitializeEscrowAccount} disabled={isDisabled}
+					>Create Escrow</button
+				>
 			</div>
 			<div class="form-control">
 				<button class="btn mt-1" on:click={getXMintAccount}>Get X Mint</button>
@@ -899,6 +925,7 @@
 							placeholder=""
 							class="input input-bordered"
 							bind:value={formState.xAmountFromSeller}
+							disabled={isDisabled}
 						/>
 					</label>
 					<label class="input-group input-group-vertical pt-1">
@@ -908,6 +935,7 @@
 							placeholder=""
 							class="input input-bordered"
 							bind:value={formState.yAmountFromBuyer}
+							disabled={isDisabled}
 						/>
 					</label>
 					<button class="btn btn-accent mt-1" on:click={handleInitializeEscrowAccount}
@@ -999,6 +1027,25 @@
 						<button class="btn btn-accent mt-1" on:click={handleAcceptTrade}>Accept Escrow</button>
 						<button class="btn btn-accent mt-1" on:click={handleCancelTrade}>Cancel Escrow</button>
 					{/if}
+				</div>
+			</div>
+			<div class="horizontal-divider" />
+		</div>
+		<div class="stats bg-primary text-primary-content">
+			<div class="stat">
+				<div class="stat-title">Account balance</div>
+				<div class="stat-value">$89,400</div>
+				<div class="stat-actions">
+					<button class="btn btn-sm btn-success">Add funds</button>
+				</div>
+			</div>
+
+			<div class="stat">
+				<div class="stat-title">Current balance</div>
+				<div class="stat-value">$89,400</div>
+				<div class="stat-actions">
+					<button class="btn btn-sm">Withdrawal</button>
+					<button class="btn btn-sm">deposit</button>
 				</div>
 			</div>
 		</div>
