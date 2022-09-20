@@ -122,6 +122,7 @@ pub struct VoteState {
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub enum VoteType {
+    // TODO Allow custom vote types/options so you can have several polls open
     GMI,
     NGMI
 }
