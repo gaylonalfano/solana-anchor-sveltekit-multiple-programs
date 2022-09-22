@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::state::CustomProgram;
+use crate::state::CustomProgram; // OR: use super::state::CustomProgram
 
 pub fn create_custom_program(
     ctx: Context<CreateCustomProgram>, 

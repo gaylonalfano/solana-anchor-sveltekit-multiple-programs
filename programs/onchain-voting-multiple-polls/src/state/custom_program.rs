@@ -13,6 +13,7 @@ pub struct CustomProgram {
     // A: Gonna try adding some high level props
     total_poll_count: u64, // 8 bytes Track how many unique Polls have been created
     total_profile_count: u64, // 8 bytes Track unique users/profiles created
+    total_vote_count: u64,
     authority: Pubkey, // 32 bytes Initializer/Payer
     bump: u8, // 1 byte
 }
@@ -28,6 +29,7 @@ impl CustomProgram {
         CustomProgram {
             total_poll_count: 0, // Starting point
             total_profile_count: 0, // Starting point
+            total_vote_count: 0,
             authority, 
             bump,
         }
