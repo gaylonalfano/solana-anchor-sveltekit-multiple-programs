@@ -10,6 +10,9 @@ use anchor_lang::prelude::*;
 #[derive(Default)]
 pub struct Poll {
     // 8 bytes for Discrimator
+    // Q: How could I keep track of all unique Polls created?
+    // A: Trying to add another PDA for CustomProgram...
+    poll_number: u32, // 4 bytes Track how many unique Polls have been created
     is_active: bool, // 1 byte
     option_a_display_label: String, // 40 bytes
     option_b_display_label: String, // 40 bytes
@@ -22,11 +25,12 @@ pub struct Poll {
 
 impl Poll {
 
-    pub const ACCOUNT_SPACE: usize = 8 + 1 + 40 + 40 + 8 + 8 + 4 + 32 + 1;
+    pub const ACCOUNT_SPACE: usize = 8 + 4 + 1 + 40 + 40 + 8 + 8 + 4 + 32 + 1;
 
     pub const SEED_PREFIX: &'static str = "poll";
 
     pub fn new(
+        poll_number: u32,
         option_a_display_label: String,
         option_b_display_label: String,
         authority: Pubkey,
@@ -34,11 +38,13 @@ impl Poll {
     ) -> Self {
 
         Poll {
+            poll_number,
             is_active: true,
             option_a_display_label,
             option_b_display_label,
             option_a_count: 0,
             option_b_count: 0,
+            vote_count: 0,
             authority,
             bump,
         }
