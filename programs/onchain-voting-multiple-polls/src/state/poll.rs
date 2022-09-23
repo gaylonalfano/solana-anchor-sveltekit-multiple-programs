@@ -12,6 +12,7 @@ pub struct Poll {
     // 8 bytes for Discrimator
     // Q: How could I keep track of all unique Polls created?
     // A: Trying to add another PDA for CustomProgram...
+    // Q: Do I need to add a 'profile_pubkey' field?
     poll_number: u32, // 4 bytes Track how many unique Polls have been created
     is_active: bool, // 1 byte
     option_a_display_label: String, // 40 bytes

@@ -66,7 +66,9 @@ pub struct CreatePoll<'info> {
         space = Poll::ACCOUNT_SPACE, 
         seeds = [
             Poll::SEED_PREFIX.as_ref(), 
-            authority.key().as_ref(), 
+            // Q: Do I need authority or profile for seed?
+            // Q: Won't this limit who can WRITE to this Poll PDA?
+            // authority.key().as_ref(),
             (custom_program.total_poll_count + 1).to_string().as_ref()
         ], 
         bump
@@ -78,6 +80,7 @@ pub struct CreatePoll<'info> {
     // Q: What is has_one = authority?
     #[account(
         mut,
+        constraint = profile.authority.key() == authority.key(),
         seeds = [
             Profile::SEED_PREFIX.as_ref(),
             authority.key().as_ref(),
