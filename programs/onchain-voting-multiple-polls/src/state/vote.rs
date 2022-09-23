@@ -18,14 +18,14 @@ pub struct Vote {
     pub authority: Pubkey, // 32 for wallet
     pub profile_pubkey: Pubkey, // 32 User Profile PDA
     pub poll_pubkey: Pubkey, // 32 Poll PDA
-    pub vote_number: u32, // 4 Vote number for Poll
+    pub vote_number: u64, // 8 Vote number for Poll
     pub vote_option: VoteOption, // 2 Q: Size for Enums? A: 1 + Largest Variant Size
     pub bump: u8, // 1
 }
 
 impl Vote {
 
-    pub const ACCOUNT_SPACE: usize = 8 + 32 + 32 + 32 + 4 + 2 + 1; // Q: Size for Enums? A: 1 + Largest Variant Size
+    pub const ACCOUNT_SPACE: usize = 8 + 32 + 32 + 32 + 8 + 2 + 1; // Q: Size for Enums? A: 1 + Largest Variant Size
 
     pub const SEED_PREFIX: &'static str = "vote";
 
@@ -33,7 +33,7 @@ impl Vote {
         authority: Pubkey,
         profile_pubkey: Pubkey,
         poll_pubkey: Pubkey,
-        vote_number: u32,
+        vote_number: u64,
         vote_option: VoteOption,
         bump: u8,
     ) -> Self {

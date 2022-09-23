@@ -13,25 +13,25 @@ pub struct Poll {
     // Q: How could I keep track of all unique Polls created?
     // A: Trying to add another PDA for CustomProgram...
     // Q: Do I need to add a 'profile_pubkey' field?
-    poll_number: u32, // 4 bytes Track how many unique Polls have been created
-    is_active: bool, // 1 byte
-    option_a_display_label: String, // 40 bytes
-    option_b_display_label: String, // 40 bytes
-    option_a_count: u64, // 8 bytes
-    option_b_count: u64, // 8 bytes
-    vote_count: u32, // 4 bytes
-    authority: Pubkey, // 32 bytes. NOTE Use as a seed for Poll PDA
-    bump: u8, // 1 byte
+    pub poll_number: u64, // 8 bytes Track how many unique Polls have been created
+    pub is_active: bool, // 1 byte
+    pub option_a_display_label: String, // 40 bytes
+    pub option_b_display_label: String, // 40 bytes
+    pub option_a_count: u64, // 8 bytes
+    pub option_b_count: u64, // 8 bytes
+    pub vote_count: u64, // 8 bytes
+    pub authority: Pubkey, // 32 bytes. NOTE Use as a seed for Poll PDA
+    pub bump: u8, // 1 byte
 }
 
 impl Poll {
 
-    pub const ACCOUNT_SPACE: usize = 8 + 4 + 1 + 40 + 40 + 8 + 8 + 4 + 32 + 1;
+    pub const ACCOUNT_SPACE: usize = 8 + 8 + 1 + 40 + 40 + 8 + 8 + 8 + 32 + 1;
 
     pub const SEED_PREFIX: &'static str = "poll";
 
     pub fn new(
-        poll_number: u32,
+        poll_number: u64,
         option_a_display_label: String,
         option_b_display_label: String,
         authority: Pubkey,

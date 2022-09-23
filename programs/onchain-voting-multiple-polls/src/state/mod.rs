@@ -1,6 +1,6 @@
 pub mod custom_program;
-pub mod poll;
 pub mod profile;
+pub mod poll;
 pub mod vote;
 
 pub use custom_program::*;

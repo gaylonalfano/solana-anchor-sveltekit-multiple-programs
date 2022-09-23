@@ -4,10 +4,11 @@ use crate::state::CustomProgram;
 use crate::state::Profile;
 use crate::state::Poll;
 use crate::state::Vote;
+use crate::state::VoteOption;
 
 pub fn create_vote(
     ctx: Context<CreateVote>, 
-    vote_option: Vote::VoteOption
+    vote_option: VoteOption
 ) -> Result<()> {
     // Q: We simply just pass the VoteOption Variant as the
     // argument, right?
@@ -112,6 +113,7 @@ pub struct CreateVote<'info> {
     )]
     pub profile: Account<'info, Profile>,
 
+    #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
 }

@@ -11,11 +11,11 @@ pub struct CustomProgram {
     // 8 bytes for Discrimator
     // Q: How could I keep track of all unique Polls created?
     // A: Gonna try adding some high level props
-    total_poll_count: u64, // 8 bytes Track how many unique Polls have been created
-    total_profile_count: u64, // 8 bytes Track unique users/profiles created
-    total_vote_count: u64,
-    authority: Pubkey, // 32 bytes Initializer/Payer
-    bump: u8, // 1 byte
+    pub total_poll_count: u64, // 8 bytes Track how many unique Polls have been created
+    pub total_profile_count: u64, // 8 bytes Track unique users/profiles created
+    pub total_vote_count: u64,
+    pub authority: Pubkey, // 32 bytes Initializer/Payer
+    pub bump: u8, // 1 byte
 }
 
 impl CustomProgram {
