@@ -172,11 +172,11 @@ export type OnchainVotingMultiplePolls = {
         "kind": "struct",
         "fields": [
           {
-            "name": "totalPollCount",
+            "name": "totalProfileCount",
             "type": "u64"
           },
           {
-            "name": "totalProfileCount",
+            "name": "totalPollCount",
             "type": "u64"
           },
           {
@@ -505,11 +505,11 @@ export const IDL: OnchainVotingMultiplePolls = {
         "kind": "struct",
         "fields": [
           {
-            "name": "totalPollCount",
+            "name": "totalProfileCount",
             "type": "u64"
           },
           {
-            "name": "totalProfileCount",
+            "name": "totalPollCount",
             "type": "u64"
           },
           {

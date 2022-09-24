@@ -15,7 +15,8 @@ pub fn create_profile(
         handle,
         display_name,
         ctx.accounts.authority.key(),
-        *ctx.bumps.get(Profile::SEED_PREFIX).expect("Bump not found."),
+        // NOTE bumps.get("account_name"), NOT seed!
+        *ctx.bumps.get("profile").expect("Bump not found."),
     );
     // Update our account data
     ctx.accounts.profile.set_inner(profile.clone());

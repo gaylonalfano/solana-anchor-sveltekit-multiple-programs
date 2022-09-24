@@ -11,29 +11,28 @@ pub struct CustomProgram {
     // 8 bytes for Discrimator
     // Q: How could I keep track of all unique Polls created?
     // A: Gonna try adding some high level props
-    pub total_poll_count: u64, // 8 bytes Track how many unique Polls have been created
     pub total_profile_count: u64, // 8 bytes Track unique users/profiles created
-    pub total_vote_count: u64,
+    pub total_poll_count: u64, // 8 bytes Track how many unique Polls have been created
+    pub total_vote_count: u64, // 8 
     pub authority: Pubkey, // 32 bytes Initializer/Payer
     pub bump: u8, // 1 byte
 }
 
 impl CustomProgram {
 
-    pub const ACCOUNT_SPACE: usize = 8 + 8 + 8 + 32 + 1;
+    pub const ACCOUNT_SPACE: usize = 8 + 8 + 8 + 8 + 32 + 1;
 
     pub const SEED_PREFIX: &'static str = "custom-program";
 
     pub fn new(authority: Pubkey, bump: u8) -> Self {
 
         CustomProgram {
-            total_poll_count: 0, // Starting point
             total_profile_count: 0, // Starting point
+            total_poll_count: 0, // Starting point
             total_vote_count: 0,
             authority, 
             bump,
         }
-
     }
 }
 

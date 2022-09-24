@@ -32,7 +32,8 @@ pub fn create_vote(
         poll.key(), // poll_pubkey PDA
         poll.vote_count + 1, // vote_number
         vote_option, // VoteOption
-        *ctx.bumps.get(Vote::SEED_PREFIX).expect("Bump not found.") // bump
+        // NOTE bumps.get("account_name"), NOT seed!
+        *ctx.bumps.get("vote").expect("Bump not found.") // bump
     );
 
     // Update Poll option counts based on vote_option

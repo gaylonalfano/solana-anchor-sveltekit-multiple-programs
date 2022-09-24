@@ -8,7 +8,8 @@ pub fn create_custom_program(
 
     let custom_program = CustomProgram::new(
         ctx.accounts.authority.key(),
-        *ctx.bumps.get(CustomProgram::SEED_PREFIX).expect("Bump not found."),
+        // NOTE bumps.get("account_name"), NOT seed!
+        *ctx.bumps.get("custom_program").expect("Bump not found."),
     );
     ctx.accounts.custom_program.set_inner(custom_program.clone());
     Ok(())
@@ -21,10 +22,10 @@ pub struct CreateCustomProgram<'info> {
     #[account(
         init, 
         payer = authority, 
+        space = CustomProgram::ACCOUNT_SPACE, 
         seeds = [
             CustomProgram::SEED_PREFIX.as_ref(), 
         ], 
-        space = CustomProgram::ACCOUNT_SPACE, 
         bump
     )]
     pub custom_program: Account<'info, CustomProgram>,

@@ -19,8 +19,6 @@ mod onchain_voting_multiple_polls {
     use super::*;
 
     pub fn create_custom_program(ctx: Context<CreateCustomProgram>) -> Result<()> {
-        // Q: instructions::create_custom_program::create_custom_program()?
-        // OR instructions::create_custom_program()?
         instructions::create_custom_program::create_custom_program(ctx)
 
     }

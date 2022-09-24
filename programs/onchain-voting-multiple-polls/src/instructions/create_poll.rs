@@ -23,7 +23,8 @@ pub fn create_poll(
         option_a_display_label,
         option_b_display_label,
         ctx.accounts.authority.key(),
-        *ctx.bumps.get(Poll::SEED_PREFIX).expect("Bump not found."),
+        // NOTE bumps.get("account_name"), NOT seed!
+        *ctx.bumps.get("poll").expect("Bump not found."),
     );
     // Update poll account data with new Poll
     ctx.accounts.poll.set_inner(poll.clone());
