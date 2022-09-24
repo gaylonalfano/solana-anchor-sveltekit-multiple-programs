@@ -1,10 +1,9 @@
 use anchor_lang::prelude::*;
 
 
-// TODO
 // Q: How to limit a profile (user) from voting more than once
 // for the same Poll?
-// REF: https://discord.com/channels/889577356681945098/889702325231427584/1022026860328136735
+// U: REF: https://discord.com/channels/889577356681945098/889702325231427584/1022026860328136735
 // NOTE: Suggested to store each Vote into a PDA, and then can use
 // getProgramAccounts or fetchMultiple from program.account.
 // When you init a new Vote with user and voting session (poll?) as SEEDS,
@@ -50,7 +49,7 @@ impl Vote {
 }
 
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy)]
 pub enum VoteOption {
     A,
     B 

@@ -6,6 +6,7 @@ skip-lint = false
 solana_anchor_sveltekit_multiple_programs = "B29aHXp7o9Aa4PUwHsNxYREXP5vzw4KmAJbivfntTZ6X"
 nfts_mint_sell = "BxkVzPHMxjtPqwipVHqmUyw1Ftr33Vd8FFxcRByDHMgJ"
 onchain_voting = "7SxznnN7ztjk4W9xx5FP7GbjkydxUPzXzFthoMvLMdSs"
+onchain_voting_multiple_polls = "2abHAR3JLTTtm1M8SsuWCriuJBmSXvSApMyszuVKTDJo"
 pdas_instruction_data = "FsQ7Br8rjcPMmL9BCQnDwnvVEYqYWoiF4gAX6HZ69S2L"
 non_custodial_escrow = "2StMWoVSWWjefwhoFsvjXVcaFABDBeMaFH2pKarQGjdW"
 program_1 = "4wF9FmzBGs1oCYPMfdCXEbrhajWHdCQePjqAgqX52HUJ"
@@ -16,6 +17,7 @@ program_3 = "E9zwFX6bW5HdxtrpjoAYrNNmLSK48HaJ7g1HDeu51hvf"
 solana_anchor_sveltekit_multiple_programs = "B29aHXp7o9Aa4PUwHsNxYREXP5vzw4KmAJbivfntTZ6X"
 nfts_mint_sell = "BxkVzPHMxjtPqwipVHqmUyw1Ftr33Vd8FFxcRByDHMgJ"
 onchain_voting = "7SxznnN7ztjk4W9xx5FP7GbjkydxUPzXzFthoMvLMdSs"
+onchain_voting_multiple_polls = "2abHAR3JLTTtm1M8SsuWCriuJBmSXvSApMyszuVKTDJo"
 pdas_instruction_data = "FsQ7Br8rjcPMmL9BCQnDwnvVEYqYWoiF4gAX6HZ69S2L"
 non_custodial_escrow = "2StMWoVSWWjefwhoFsvjXVcaFABDBeMaFH2pKarQGjdW"
 program_1 = "4wF9FmzBGs1oCYPMfdCXEbrhajWHdCQePjqAgqX52HUJ"
@@ -23,7 +25,7 @@ program_2 = "3i5S58AWdLzpSbXaiEQp1pQvZBH4ybCdCeCNpDcgeFaf"
 program_3 = "E9zwFX6bW5HdxtrpjoAYrNNmLSK48HaJ7g1HDeu51hvf"
 
 [workspace]
-types = "app/src/idl/"  # Will copy IDL to frontend app
+types = "app/src/idl/"  # Will copy IDL to frontend app as TS (not JSON!)
 
 # [registry]
 # url = "https://api.apr.dev"

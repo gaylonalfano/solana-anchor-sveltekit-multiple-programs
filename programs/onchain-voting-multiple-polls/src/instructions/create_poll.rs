@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 
 use crate::state::CustomProgram;
+use crate::state::Profile;
 use crate::state::Poll;
 
 pub fn create_poll(

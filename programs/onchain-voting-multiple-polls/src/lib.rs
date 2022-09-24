@@ -8,7 +8,7 @@ pub mod instructions;
 pub mod state;
 
 
-declare_id!("7SxznnN7ztjk4W9xx5FP7GbjkydxUPzXzFthoMvLMdSs");
+declare_id!("2abHAR3JLTTtm1M8SsuWCriuJBmSXvSApMyszuVKTDJo");
 /// The Program ID can be found in /target/idl/[your_project_name].json
 // 
 /// This is where the magic happens. We define our program!
