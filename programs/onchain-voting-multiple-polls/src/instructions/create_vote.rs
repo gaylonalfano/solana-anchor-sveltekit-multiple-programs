@@ -60,6 +60,9 @@ pub fn create_vote(
 
 #[derive(Accounts)]
 pub struct CreateVote<'info> {
+    // REF: https://github.com/solana-developers/workshop-dapps/tree/main/solana-twitter
+    // vote#1: vote_pda = hash("vote" + poll_pda + wallet_address)
+    // vote#2: vote_pda = hash("vote" + poll_pda + wallet_address)
     #[account(
         init,
         payer = authority,
@@ -74,7 +77,7 @@ pub struct CreateVote<'info> {
             // U: Think I'm going to try just using 'authority' since 
             // it's the actual connected wallet
             poll.key().as_ref(),
-            authority.key().as_ref(), // profile.key().as_ref(),
+            authority.key().as_ref(), 
             // Q: Should I use the increment as seed? Won't this allow the
             // same wallet to vote again for same Poll?
             // U: I believe so, so I'm NOT using for now.
@@ -112,6 +115,13 @@ pub struct CreateVote<'info> {
         bump
     )]
     pub profile: Account<'info, Profile>,
+
+    #[account(
+        mut,
+        seeds = [CustomProgram::SEED_PREFIX.as_ref()],
+        bump = custom_program.bump,
+    )]
+    pub custom_program: Account<'info, CustomProgram>,
 
     #[account(mut)]
     pub authority: Signer<'info>,

@@ -60,6 +60,9 @@ pub struct CreatePoll<'info> {
     // Q: For seeds, do I use poll.poll_number or custom_program.total_poll_count?
     // A: I BELIEVE I won't have access to poll.poll_number YET, since this is creating the Poll,
     // so this means I should probably use custom_program.poll_count...
+    // REF: https://github.com/solana-developers/workshop-dapps/tree/main/solana-twitter
+    // poll#1: poll_pda = hash("poll" + 0)
+    // poll#2: poll_pda = hash("poll" + 1)
     #[account(
         init, 
         payer = authority, 

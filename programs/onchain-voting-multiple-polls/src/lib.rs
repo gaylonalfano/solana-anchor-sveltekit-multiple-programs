@@ -1,4 +1,4 @@
-// REF: https://github.com/solana-developers/workshop-dapps/tree/main/solana-twitter/programs/solana-twitter-v2/src/state
+// REF: https://github.com/solana-developers/workshop-dapps/tree/main/solana-twitter
 use anchor_lang::prelude::*;
 
 use instructions::*;

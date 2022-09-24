@@ -31,6 +31,9 @@ pub struct CreateProfile<'info> {
     // Q: profile.profile_number OR custom_program.total_profile_count + 1 for seed?
     // A: I BELIEVE I need to use custom_program.total_profile_count since I won't have
     // access to profile.profile_number just yet...
+    // REF: https://github.com/solana-developers/workshop-dapps/tree/main/solana-twitter
+    // profile#1: profile_pda = hash("profile" + 0 + wallet_address)
+    // profile#2: profile_pda = hash("profile" + 1 + wallet_address)
     #[account(
         init,
         payer = authority,
