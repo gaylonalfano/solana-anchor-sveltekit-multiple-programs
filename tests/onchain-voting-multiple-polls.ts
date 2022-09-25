@@ -32,6 +32,10 @@ describe("onchain-voting-multiple-polls", () => {
   const testUser2Handle = "testUser2Handle";
   const testUser2DisplayName = "User 2 DN";
 
+  // Test polls
+  let testPoll1Pda: anchor.web3.PublicKey;
+  let testPoll2Pda: anchor.web3.PublicKey;
+
   // Use the before() hook for setup
   before(async () => {
     // 1. Ensure our wallets have SOL
@@ -151,69 +155,81 @@ describe("onchain-voting-multiple-polls", () => {
     expect(customProgram.totalProfileCount.toNumber()).to.equal(1);
   });
 
-  // it("Initializes with 0 votes for GMI and NGMI and is active", async () => {
-  //   // NOTE From Anchor PDA example: https://book.anchor-lang.com/anchor_in_depth/PDAs.html#how-to-build-pda-hashmaps-in-anchor
-  //   // NOTE They find the PDA address INSIDE the it() test!
-  //   const [voteAccountPDA, voteAccountBump] =
-  //     await PublicKey.findProgramAddress(
-  //       // Q: Would toBuffer() be better than encode()?
-  //       // NOTE See solana-pdas example
-  //       [
-  //         anchor.utils.bytes.utf8.encode("vote-account"),
-  //         // Q: Need wallet publicKey? Won't this restrict to only that user
-  //         // being able to write to PDA?
-  //         // A: YES! The original crunchy-vs-smooth didn't use wallet pubkeys,
-  //         // since that would create a unique PDA for the user (not users!).
-  //         // provider.wallet.publicKey.toBuffer(),
-  //       ],
-  //       program.programId
-  //     );
+  it("Create new poll with testUser1", async () => {
+    // Need to access current customProgram.totalPollCount
+    const pollCount: string = (
+      customProgram.totalPollCount.toNumber() + 1
+    ).toString();
+    console.log("pollCount: ", pollCount);
 
-  //   console.log(
-  //     "PDA for program",
-  //     program.programId.toBase58(),
-  //     "is generated :",
-  //     voteAccountPDA.toBase58()
-  //   );
+    // NOTE From Anchor PDA example: https://book.anchor-lang.com/anchor_in_depth/PDAs.html#how-to-build-pda-hashmaps-in-anchor
+    // NOTE They find the PDA address INSIDE the it() test!
+    const [pda, bump] = await PublicKey.findProgramAddress(
+      [
+        anchor.utils.bytes.utf8.encode(POLL_SEED_PREFIX),
+        // Q: Need wallet publicKey? Won't this restrict to only that user
+        // being able to write to PDA?
+        // A: YES! The original crunchy-vs-smooth didn't use wallet pubkeys,
+        // since that would create a unique PDA for the user (not users!).
+        anchor.utils.bytes.utf8.encode(pollCount),
+      ],
+      program.programId
+    );
+    // Update global state
+    testPoll1Pda = pda;
 
-  //   // Following this example to call the methods:
-  //   // https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
-  //   const tx = await program.methods
-  //     .initialize()
-  //     .accounts({
-  //       // Q: I believe the order of accounts need to be consistent
-  //       // Doesn't seem to make any difference so far...
-  //       // A: In lib.rs > Initialize struct, if I put user before vote_account
-  //       // it seems to work, even if order isn't consistent here in test.
-  //       // NOTE It may not be the order, but something up with resetting
-  //       // the test-validator before running the tests...
-  //       voteAccount: voteAccountPDA,
-  //       user: provider.wallet.publicKey,
-  //       // Q: Which programId to pass? Is it my program's or the systemProgram's?
-  //       // NOTE I BELIEVE it should be the SystemProgram's based on this SO thread AND
-  //       // the fact that when I use my program's ID, the error shows it should be 111111...
-  //       // A: I don't think I need to provide the SystemProgramID,
-  //       // since it's a PDA, AND since it doesn't seem needed at all (see below)
-  //       // NOTE https://stackoverflow.com/questions/70675404/cross-program-invocation-with-unauthorized-signer-or-writable-account
-  //       // Q: Do I even need to pass systemProgram? The Anchor PDA tutorial doesn't...
-  //       // A: I didn't need it when just running 'anchor test' (w/o test-validator)
-  //       // systemProgram: program.programId, // ERROR CPI
-  //       systemProgram: anchor.web3.SystemProgram.programId, // ERROR CPI
-  //     })
-  //     .rpc();
-  //   console.log("TxHash ::", tx);
+    console.log(
+      "PDA for program",
+      program.programId.toBase58(),
+      "is generated :",
+      testPoll1Pda.toBase58()
+    );
 
-  //   // 3. After the transaction returns, we can fetch the state of the vote account
-  //   let currentVoteAccountState = await program.account.voteState.fetch(
-  //     voteAccountPDA
-  //   );
-  //   // console.log("currentVoteAccountState: ", currentVoteAccountState);
+    // Following this example to call the methods:
+    // https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
+    const tx = await program.methods
+      .createPoll("GMI", "NGMI")
+      .accounts({
+        poll: testPoll1Pda,
+        profile: testUser1ProfilePda,
+        customProgram: customProgramPda,
+        authority: testUser1.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([testUser1])
+      .rpc();
+    console.log("TxHash ::", tx);
 
-  //   // 4. Verify the vote account has set up correctly
-  //   expect(currentVoteAccountState.gmi.toNumber()).to.equal(0);
-  //   expect(currentVoteAccountState.ngmi.toNumber()).to.equal(0);
-  //   expect(currentVoteAccountState.isActive).to.equal(true);
-  // });
+    // Fetch data after tx confirms & update global state
+    const currentTestPoll1 = await program.account.poll.fetch(testPoll1Pda);
+    const currentProfile = await program.account.profile.fetch(
+      testUser1ProfilePda
+    );
+    const currentCustomProgram = await program.account.customProgram.fetch(
+      customProgramPda
+    );
+    customProgram = currentCustomProgram;
+
+    // Verify the vote account has set up correctly
+    expect(currentTestPoll1.pollNumber.toNumber()).to.equal(
+      parseInt(pollCount)
+    );
+    expect(currentTestPoll1.isActive).to.equal(true);
+    expect(currentTestPoll1.optionADisplayLabel.toString()).to.equal("GMI");
+    expect(currentTestPoll1.optionBDisplayLabel.toString()).to.equal("NGMI");
+    expect(currentTestPoll1.optionACount.toNumber()).to.equal(0);
+    expect(currentTestPoll1.optionBCount.toNumber()).to.equal(0);
+    expect(currentTestPoll1.voteCount.toNumber()).to.equal(0);
+    expect(currentTestPoll1.authority.toString()).to.equal(
+      currentProfile.authority.toString()
+    );
+
+    expect(currentProfile.pollCount.toNumber()).to.equal(1);
+
+    expect(customProgram.totalPollCount.toNumber()).to.equal(
+      parseInt(pollCount)
+    );
+  });
 
   // it("INIT USER Votes correctly for GMI", async () => {
   //   const [voteAccountPDA, voteAccountBump] =
