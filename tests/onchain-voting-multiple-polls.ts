@@ -5,7 +5,7 @@ import { OnchainVotingMultiplePolls } from "../target/types/onchain_voting_multi
 import { expect } from "chai";
 import { BN } from "bn.js";
 
-describe("onchain-voting", () => {
+describe("onchain-voting-multiple-polls", () => {
   const CUSTOM_PROGRAM_SEED_PREFIX = "custom-program";
   const PROFILE_SEED_PREFIX = "profile";
   const POLL_SEED_PREFIX = "poll";
@@ -16,6 +16,10 @@ describe("onchain-voting", () => {
   anchor.setProvider(provider);
   const program = anchor.workspace
     .OnchainVotingMultiplePolls as Program<OnchainVotingMultiplePolls>;
+
+  // Global customProgram
+  let customProgram: anchor.IdlTypes<anchor.Idl>["CustomProgram"];
+  let customProgramPda: anchor.web3.PublicKey;
 
   // Build some test users
   const testUser1 = anchor.web3.Keypair.generate();
@@ -47,11 +51,13 @@ describe("onchain-voting", () => {
   });
 
   it("Create custom program (dApp) account", async () => {
-    const [customProgramPda, customProgramBump] =
-      await PublicKey.findProgramAddress(
-        [anchor.utils.bytes.utf8.encode(CUSTOM_PROGRAM_SEED_PREFIX)],
-        program.programId
-      );
+    const [pda, bump] = await PublicKey.findProgramAddress(
+      [anchor.utils.bytes.utf8.encode(CUSTOM_PROGRAM_SEED_PREFIX)],
+      program.programId
+    );
+
+    // Update global state
+    customProgramPda = pda;
 
     console.log(
       "PDA for program",
@@ -70,18 +76,79 @@ describe("onchain-voting", () => {
       .rpc();
     console.log("TxHash ::", tx);
 
-    // Fetch data after tx confirms
-    const customProgramDataAccount = await program.account.customProgram.fetch(
+    // Fetch data after tx confirms and update our account
+    const currentCustomProgram = await program.account.customProgram.fetch(
       customProgramPda
     );
+    customProgram = currentCustomProgram;
 
     // Verify the account has set up correctly
-    expect(customProgramDataAccount.totalProfileCount.toNumber()).to.equal(0);
-    expect(customProgramDataAccount.totalPollCount.toNumber()).to.equal(0);
-    expect(customProgramDataAccount.totalVoteCount.toNumber()).to.equal(0);
-    expect(customProgramDataAccount.authority.toString()).to.equal(
+    expect(customProgram.totalProfileCount.toNumber()).to.equal(0);
+    expect(customProgram.totalPollCount.toNumber()).to.equal(0);
+    expect(customProgram.totalVoteCount.toNumber()).to.equal(0);
+    expect(customProgram.authority.toString()).to.equal(
       provider.wallet.publicKey.toString()
     );
+  });
+
+  it("Create user 1 profile", async () => {
+    const profileCount = (
+      customProgram.totalProfileCount.toNumber() + 1
+    ).toString();
+    console.log("profileCount: ", profileCount);
+
+    // NOTE Error processing Instruction 0: Cross-program invocation
+    // with unauthorized signer or writable account
+    // REF: https://stackoverflow.com/questions/72849618/transaction-simulation-failed-error-processing-instruction-0-cross-program-inv
+    // U: Check the seeds!
+    const [pda, bump] = await PublicKey.findProgramAddress(
+      [
+        anchor.utils.bytes.utf8.encode(PROFILE_SEED_PREFIX),
+        testUser1.publicKey.toBuffer(),
+        anchor.utils.bytes.utf8.encode(profileCount),
+      ],
+      program.programId
+    );
+    // Update global state
+    testUser1ProfilePda = pda;
+
+    console.log(
+      "PDA for program",
+      program.programId.toBase58(),
+      "is generated :",
+      testUser1ProfilePda.toBase58()
+    );
+
+    const tx = await program.methods
+      .createProfile(testUser1Handle, testUser1DisplayName)
+      .accounts({
+        profile: testUser1ProfilePda,
+        customProgram: customProgramPda,
+        authority: testUser1.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([testUser1])
+      .rpc();
+    console.log("TxHash ::", tx);
+
+    // Fetch data after tx confirms & update global state
+    const currentProfile = await program.account.profile.fetch(
+      testUser1ProfilePda
+    );
+    const currentCustomProgram = await program.account.customProgram.fetch(
+      customProgramPda
+    );
+    customProgram = currentCustomProgram;
+
+    // Verify the account has set up correctly
+    expect(currentProfile.handle).to.equal(testUser1Handle);
+    expect(currentProfile.displayName).to.equal(testUser1DisplayName);
+    expect(currentProfile.authority.toString()).to.equal(
+      testUser1.publicKey.toString()
+    );
+    expect(currentProfile.pollCount.toNumber()).to.equal(0);
+    expect(currentProfile.voteCount.toNumber()).to.equal(0);
+    expect(customProgram.totalProfileCount.toNumber()).to.equal(1);
   });
 
   // it("Initializes with 0 votes for GMI and NGMI and is active", async () => {
