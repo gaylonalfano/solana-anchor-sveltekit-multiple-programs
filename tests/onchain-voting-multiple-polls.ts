@@ -242,6 +242,7 @@ describe("onchain-voting-multiple-polls", () => {
   it("Create new vote:optionA for poll with testUser1", async () => {
     // Need to access current poll.voteCount
     // Q: Need profile and/or customProgram? Or, just pass as accounts?
+    // A: Eventually will need to increment/update values, but not yet!
     let currentTestPoll1 = await program.account.poll.fetch(testPoll1Pda);
     const voteCount: string = (
       currentTestPoll1.voteCount.toNumber() + 1
@@ -284,12 +285,12 @@ describe("onchain-voting-multiple-polls", () => {
     // Fetch data after tx confirms & update global state
     const currentVote: anchor.IdlTypes<anchor.Idl>["Vote"] =
       await program.account.vote.fetch(pda);
-    console.log("currentVote:", currentVote);
     currentTestPoll1 = await program.account.poll.fetch(testPoll1Pda);
     testPoll1 = currentTestPoll1;
     const currentProfile = await program.account.profile.fetch(
       testUser1ProfilePda
     );
+    testUser1Profile = currentProfile;
     const currentCustomProgram = await program.account.customProgram.fetch(
       customProgramPda
     );
@@ -312,6 +313,138 @@ describe("onchain-voting-multiple-polls", () => {
       currentProfile.authority.toString()
     );
   });
+
+  it("Try to vote again on testPoll1 with testUser1", async () => {
+    try {
+      // Need to access current poll.voteCount
+      let currentTestPoll1 = await program.account.poll.fetch(testPoll1Pda);
+      const voteCount: string = (
+        currentTestPoll1.voteCount.toNumber() + 1
+      ).toString();
+      console.log("voteCount: ", voteCount);
+
+      const [pda, bump] = await PublicKey.findProgramAddress(
+        [
+          anchor.utils.bytes.utf8.encode(VOTE_SEED_PREFIX),
+          testPoll1Pda.toBuffer(),
+          testUser1.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+      // Update global state for vote?
+
+      console.log(
+        "PDA for program",
+        program.programId.toBase58(),
+        "is generated :",
+        pda.toBase58()
+      );
+
+      // NOTE This should ERROR
+      const tx = await program.methods
+        .createVote({ a: {} })
+        .accounts({
+          vote: pda,
+          poll: testPoll1Pda,
+          profile: testUser1ProfilePda,
+          customProgram: customProgramPda,
+          authority: testUser1.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([testUser1])
+        .rpc();
+      console.log("TxHash ::", tx);
+
+      // Fetch data after tx confirms & update global state
+      const currentVote: anchor.IdlTypes<anchor.Idl>["Vote"] =
+        await program.account.vote.fetch(pda);
+
+      currentTestPoll1 = await program.account.poll.fetch(testPoll1Pda);
+      testPoll1 = currentTestPoll1;
+      const currentProfile = await program.account.profile.fetch(
+        testUser1ProfilePda
+      );
+      testUser1Profile = currentProfile;
+      const currentCustomProgram = await program.account.customProgram.fetch(
+        customProgramPda
+      );
+      customProgram = currentCustomProgram;
+
+      // Q: How to write tests that should fail?
+      expect(currentTestPoll1.voteCount.toNumber()).to.equal(
+        parseInt(voteCount) - 1
+      );
+      expect(currentTestPoll1.optionACount.toNumber()).to.equal(1);
+      expect(currentProfile.voteCount.toNumber()).to.equal(1);
+    } catch (error) {
+      console.log("Vote failed. User has already voted on this poll!");
+      console.warn(error);
+    }
+  });
+
+  it("Create user 2 profile", async () => {
+    const profileCount = (
+      customProgram.totalProfileCount.toNumber() + 1
+    ).toString();
+    console.log("profileCount: ", profileCount);
+
+    // NOTE Error processing Instruction 0: Cross-program invocation
+    // with unauthorized signer or writable account
+    // REF: https://stackoverflow.com/questions/72849618/transaction-simulation-failed-error-processing-instruction-0-cross-program-inv
+    // U: Check the seeds!
+    const [pda, bump] = await PublicKey.findProgramAddress(
+      [
+        anchor.utils.bytes.utf8.encode(PROFILE_SEED_PREFIX),
+        testUser2.publicKey.toBuffer(),
+        anchor.utils.bytes.utf8.encode(profileCount),
+      ],
+      program.programId
+    );
+    // Update global state
+    testUser2ProfilePda = pda;
+
+    console.log(
+      "PDA for program",
+      program.programId.toBase58(),
+      "is generated :",
+      testUser2ProfilePda.toBase58()
+    );
+
+    const tx = await program.methods
+      .createProfile(testUser2Handle, testUser2DisplayName)
+      .accounts({
+        profile: testUser2ProfilePda,
+        customProgram: customProgramPda,
+        authority: testUser2.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([testUser2])
+      .rpc();
+    console.log("TxHash ::", tx);
+
+    // Fetch data after tx confirms & update global state
+    const currentProfile = await program.account.profile.fetch(
+      testUser2ProfilePda
+    );
+    testUser2Profile = currentProfile;
+    const currentCustomProgram = await program.account.customProgram.fetch(
+      customProgramPda
+    );
+    customProgram = currentCustomProgram;
+
+    // Verify the account has set up correctly
+    expect(currentProfile.handle).to.equal(testUser2Handle);
+    expect(currentProfile.displayName).to.equal(testUser2DisplayName);
+    expect(currentProfile.authority.toString()).to.equal(
+      testUser2.publicKey.toString()
+    );
+    expect(currentProfile.pollCount.toNumber()).to.equal(0);
+    expect(currentProfile.voteCount.toNumber()).to.equal(0);
+    expect(customProgram.totalProfileCount.toNumber()).to.equal(2);
+  });
+
+  // TODO Have testUser2 vote:optionA on testPoll1
+  // TODO Have testUser2 vote:optionB on testPoll1
 
   // it("INIT USER Votes correctly for NGMI", async () => {
   //   const [voteAccountPDA, _] = await PublicKey.findProgramAddress(
