@@ -294,16 +294,12 @@ describe("onchain-voting-multiple-polls", () => {
     // ERROR: AssertionError: expected { a: {} } to equal { a: {} }
     // expect(currentVote.voteOption).to.equal({ a: {} });
 
-    // TODO
-    // Test that poll.voteCount incremented
-    // Test that poll.optionACount incremented
-    // Test that profile.voteCount incremented
-    // Test that vote.authority is matches profile.authority???
-    // expect(currentTestPoll1.pollNumber.toNumber()).to.equal(
-    //   parseInt(pollCount)
-    // );
-    // expect(currentTestPoll1.isActive).to.equal(true);
-    // expect(currentTestPoll1.optionADisplayLabel.toString()).to.equal("GMI");
+    expect(currentTestPoll1.voteCount.toNumber()).to.equal(parseInt(voteCount));
+    expect(currentTestPoll1.optionACount.toNumber()).to.equal(1);
+    expect(currentProfile.voteCount.toNumber()).to.equal(1);
+    expect(currentVote.authority.toString()).to.equal(
+      currentProfile.authority.toString()
+    );
   });
 
   // it("INIT USER Votes correctly for NGMI", async () => {

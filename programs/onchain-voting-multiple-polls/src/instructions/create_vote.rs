@@ -95,7 +95,7 @@ pub struct CreateVote<'info> {
         // Any constraints I add return this error...
         // Q: Constraints using 'vote' not allowed since it's not initialized yet??
         // constraint = poll.key() == vote.poll_pubkey.key(), // ERROR
-        constraint = poll.is_active == true,
+        constraint = poll.is_active == true, // WORKS
         seeds = [
             Poll::SEED_PREFIX.as_ref(),
             // Q: Do I need authority or profile for seed?
