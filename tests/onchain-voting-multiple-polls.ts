@@ -239,6 +239,86 @@ describe("onchain-voting-multiple-polls", () => {
     );
   });
 
+  it("Create new testPoll2 with testUser1", async () => {
+    // Need to access current customProgram.totalPollCount
+    const pollCount: string = (
+      customProgram.totalPollCount.toNumber() + 1
+    ).toString();
+    console.log("pollCount: ", pollCount);
+
+    // NOTE From Anchor PDA example: https://book.anchor-lang.com/anchor_in_depth/PDAs.html#how-to-build-pda-hashmaps-in-anchor
+    // NOTE They find the PDA address INSIDE the it() test!
+    const [pda, bump] = await PublicKey.findProgramAddress(
+      [
+        anchor.utils.bytes.utf8.encode(POLL_SEED_PREFIX),
+        // Q: Need wallet publicKey? Won't this restrict to only that user
+        // being able to write to PDA?
+        // A: YES! The original crunchy-vs-smooth didn't use wallet pubkeys,
+        // since that would create a unique PDA for the user (not users!).
+        anchor.utils.bytes.utf8.encode(pollCount),
+      ],
+      program.programId
+    );
+    // Update global state
+    testPoll2Pda = pda;
+
+    console.log(
+      "PDA for program",
+      program.programId.toBase58(),
+      "is generated :",
+      testPoll2Pda.toBase58()
+    );
+
+    // Following this example to call the methods:
+    // https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
+    const tx = await program.methods
+      .createPoll("Chocolate", "Vanilla")
+      .accounts({
+        poll: testPoll2Pda,
+        profile: testUser1ProfilePda,
+        customProgram: customProgramPda,
+        authority: testUser1.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([testUser1])
+      .rpc();
+    console.log("TxHash ::", tx);
+
+    // Fetch data after tx confirms & update global state
+    const currentTestPoll2 = await program.account.poll.fetch(testPoll2Pda);
+    testPoll2 = currentTestPoll2;
+    const currentProfile = await program.account.profile.fetch(
+      testUser1ProfilePda
+    );
+    testUser1Profile = currentProfile;
+    const currentCustomProgram = await program.account.customProgram.fetch(
+      customProgramPda
+    );
+    customProgram = currentCustomProgram;
+
+    // Verify the vote account has set up correctly
+    expect(currentTestPoll2.pollNumber.toNumber()).to.equal(
+      parseInt(pollCount)
+    );
+    expect(currentTestPoll2.isActive).to.equal(true);
+    expect(currentTestPoll2.optionADisplayLabel.toString()).to.equal(
+      "Chocolate"
+    );
+    expect(currentTestPoll2.optionBDisplayLabel.toString()).to.equal("Vanilla");
+    expect(currentTestPoll2.optionACount.toNumber()).to.equal(0);
+    expect(currentTestPoll2.optionBCount.toNumber()).to.equal(0);
+    expect(currentTestPoll2.voteCount.toNumber()).to.equal(0);
+    expect(currentTestPoll2.authority.toString()).to.equal(
+      currentProfile.authority.toString()
+    );
+
+    expect(currentProfile.pollCount.toNumber()).to.equal(2);
+
+    expect(customProgram.totalPollCount.toNumber()).to.equal(
+      parseInt(pollCount)
+    );
+  });
+
   it("Create new vote:optionA for testPoll1 with testUser1", async () => {
     // Need to access current poll.voteCount
     // Q: Need profile and/or customProgram? Or, just pass as accounts?
@@ -523,148 +603,82 @@ describe("onchain-voting-multiple-polls", () => {
     expect(customProgram.totalVoteCount.toNumber()).to.equal(2); // 2 votes, 1 failed
   });
 
-  // TODO Have testUser2 vote:optionB on testPoll1
+  it("Create new vote:optionB for testPoll2 with testUser2", async () => {
+    // Need to access current poll.voteCount
+    // Q: Need profile and/or customProgram? Or, just pass as accounts?
+    // A: Eventually will need to increment/update values, but not yet!
+    let currentTestPoll2 = await program.account.poll.fetch(testPoll2Pda);
+    const voteCount: string = (
+      currentTestPoll2.voteCount.toNumber() + 1
+    ).toString();
+    console.log("voteCount: ", voteCount);
 
-  // it("INIT USER Votes correctly for NGMI", async () => {
-  //   const [voteAccountPDA, _] = await PublicKey.findProgramAddress(
-  //     [
-  //       anchor.utils.bytes.utf8.encode("vote-account"),
-  //       // provider.wallet.publicKey.toBuffer(),
-  //     ],
-  //     program.programId
-  //   );
-  //   console.log(voteAccountPDA.toBase58());
+    const [pda, bump] = await PublicKey.findProgramAddress(
+      [
+        anchor.utils.bytes.utf8.encode(VOTE_SEED_PREFIX),
+        testPoll2Pda.toBuffer(),
+        testUser2.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
+    // Update global state for vote?
 
-  //   console.log(
-  //     "PDA for program",
-  //     program.programId.toBase58(),
-  //     "is generated :",
-  //     voteAccountPDA.toBase58()
-  //   );
+    console.log(
+      "PDA for program",
+      program.programId.toBase58(),
+      "is generated :",
+      pda.toBase58()
+    );
 
-  //   // Following this example to call the methods:
-  //   // https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
-  //   const tx = await program.methods
-  //     .vote({ ngmi: {} }) // Custom Instruction Data struct passed like this
-  //     .accounts({
-  //       voteAccount: voteAccountPDA,
-  //     })
-  //     .rpc();
-  //   console.log("TxHash ::", tx);
-  //   console.log("Provider Wallet:", provider.wallet.publicKey.toBase58());
+    // Following this example to call the methods:
+    // https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
+    const tx = await program.methods
+      .createVote({ b: {} })
+      .accounts({
+        vote: pda,
+        poll: testPoll2Pda,
+        profile: testUser2ProfilePda,
+        customProgram: customProgramPda,
+        authority: testUser2.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([testUser2])
+      .rpc();
+    console.log("TxHash ::", tx);
 
-  //   // 3. After the transaction returns, we can fetch the state of the vote account
-  //   let currentVoteAccountState = await program.account.voteState.fetch(
-  //     voteAccountPDA
-  //   );
-  //   console.log("currentVoteAccountState: ", currentVoteAccountState);
+    // Fetch data after tx confirms & update global state
+    const currentVote: anchor.IdlTypes<anchor.Idl>["Vote"] =
+      await program.account.vote.fetch(pda);
+    currentTestPoll2 = await program.account.poll.fetch(testPoll2Pda);
+    testPoll2 = currentTestPoll2;
+    const currentProfile = await program.account.profile.fetch(
+      testUser2ProfilePda
+    );
+    testUser2Profile = currentProfile;
+    const currentCustomProgram = await program.account.customProgram.fetch(
+      customProgramPda
+    );
+    customProgram = currentCustomProgram;
 
-  //   // 4. Verify the NGMI vote incremented
-  //   expect(currentVoteAccountState.ngmi.toNumber()).to.equal(1);
-  //   // NOTE Because we're using the same PDA to track the votes over time
-  //   // then the previous voteCrunchy() test vote will increment/persist!
-  //   expect(currentVoteAccountState.gmi.toNumber()).to.equal(1);
-  // });
+    // Verify the vote account has set up correctly
+    expect(currentVote.voteNumber.toNumber()).to.equal(parseInt(voteCount));
+    expect(currentVote.profilePubkey.toString()).to.equal(
+      testUser2ProfilePda.toString()
+    );
+    expect(currentVote.pollPubkey.toString()).to.equal(testPoll2Pda.toString());
+    // Q: How do you check Enum structure?
+    // ERROR: AssertionError: expected { a: {} } to equal { a: {} }
+    // expect(currentVote.voteOption).to.equal({ a: {} });
 
-  // it("TESTUSER 1 votes correctly for NGMI", async () => {
-  //   // Q: Need to reset the Provider with a different wallet? Think so...
-  //   // The reason is that you only need the user/wallet to SIGN to vote...
-  //   // A: YES! Otherwise, Provider Wallet remains the same Signer!
-  //   const newConnection = new anchor.web3.Connection("http://localhost:8899");
-  //   const newWallet = new anchor.Wallet(testUser1);
-  //   const newProvider = new anchor.AnchorProvider(newConnection, newWallet, {
-  //     commitment: "confirmed",
-  //   });
-  //   anchor.setProvider(newProvider);
+    expect(currentTestPoll2.voteCount.toNumber()).to.equal(parseInt(voteCount));
+    expect(currentTestPoll2.optionACount.toNumber()).to.equal(0);
+    expect(currentTestPoll2.optionBCount.toNumber()).to.equal(1);
+    expect(currentProfile.voteCount.toNumber()).to.equal(2);
+    expect(currentVote.authority.toString()).to.equal(
+      currentProfile.authority.toString()
+    );
 
-  //   const [voteAccountPDA, _] = await PublicKey.findProgramAddress(
-  //     [
-  //       anchor.utils.bytes.utf8.encode("vote-account"),
-  //       // provider.wallet.publicKey.toBuffer(),
-  //     ],
-  //     program.programId
-  //   );
-  //   console.log(voteAccountPDA.toBase58());
-
-  //   console.log(
-  //     "PDA for program",
-  //     program.programId.toBase58(),
-  //     "is generated :",
-  //     voteAccountPDA.toBase58()
-  //   );
-
-  //   // Following this example to call the methods:
-  //   // https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
-  //   const tx = await program.methods
-  //     .vote({ ngmi: {} })
-  //     .accounts({
-  //       voteAccount: voteAccountPDA,
-  //     })
-  //     .rpc();
-  //   console.log("TxHash ::", tx);
-  //   console.log("Provider Wallet:", newProvider.wallet.publicKey.toBase58());
-
-  //   // 3. After the transaction returns, we can fetch the state of the vote account
-  //   let currentVoteAccountState = await program.account.voteState.fetch(
-  //     voteAccountPDA
-  //   );
-  //   console.log("currentVoteAccountState: ", currentVoteAccountState);
-
-  //   // 4. Verify the NGMI vote incremented
-  //   expect(currentVoteAccountState.ngmi.toNumber()).to.equal(2);
-  //   // NOTE Because we're using the same PDA to track the votes over time
-  //   // then the previous vote() test vote will increment/persist!
-  //   expect(currentVoteAccountState.gmi.toNumber()).to.equal(1);
-  // });
-
-  // it("TESTUSER 2 votes correctly for GMI", async () => {
-  //   // Q: Need to reset the Provider with a different wallet? Think so...
-  //   // The reason is that you only need the user/wallet to SIGN to vote...
-  //   // A: YES! Otherwise, Provider Wallet remains the same Signer!
-  //   const newConnection = new anchor.web3.Connection("http://localhost:8899");
-  //   const newWallet = new anchor.Wallet(testUser2);
-  //   const newProvider = new anchor.AnchorProvider(newConnection, newWallet, {
-  //     commitment: "confirmed",
-  //   });
-  //   anchor.setProvider(newProvider);
-
-  //   const [voteAccountPDA, _] = await PublicKey.findProgramAddress(
-  //     [
-  //       anchor.utils.bytes.utf8.encode("vote-account"),
-  //       // provider.wallet.publicKey.toBuffer(),
-  //     ],
-  //     program.programId
-  //   );
-  //   console.log(voteAccountPDA.toBase58());
-
-  //   console.log(
-  //     "PDA for program",
-  //     program.programId.toBase58(),
-  //     "is generated :",
-  //     voteAccountPDA.toBase58()
-  //   );
-
-  //   // Following this example to call the methods:
-  //   // https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
-  //   const tx = await program.methods
-  //     .vote({ gmi: {} })
-  //     .accounts({
-  //       voteAccount: voteAccountPDA,
-  //     })
-  //     .rpc();
-  //   console.log("TxHash ::", tx);
-  //   console.log("Provider Wallet:", newProvider.wallet.publicKey.toBase58());
-
-  //   // 3. After the transaction returns, we can fetch the state of the vote account
-  //   let currentVoteAccountState = await program.account.voteState.fetch(
-  //     voteAccountPDA
-  //   );
-  //   console.log("currentVoteAccountState: ", currentVoteAccountState);
-
-  //   // 4. Verify the smooth vote incremented
-  //   expect(currentVoteAccountState.ngmi.toNumber()).to.equal(2);
-  //   // NOTE Because we're using the same PDA to track the votes over time
-  //   // then the previous voteCrunchy() test vote will increment/persist!
-  //   expect(currentVoteAccountState.gmi.toNumber()).to.equal(2);
-  // });
+    expect(customProgram.totalVoteCount.toNumber()).to.equal(3);
+  });
+  // TODO Have testUser1 create testPoll2 and then vote
 });
