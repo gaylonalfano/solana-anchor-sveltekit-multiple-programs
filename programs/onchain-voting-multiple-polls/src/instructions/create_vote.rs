@@ -68,7 +68,10 @@ pub struct CreateVote<'info> {
         payer = authority,
         space = Vote::ACCOUNT_SPACE,
         // Q: Can you add constraints with init?
-        // constraint = vote.profile_pubkey.key() == profile.key(),
+        // A: I don't believe so! Any constraints I've added (see below) that
+        // involves the 'vote' account error!
+        // constraint = vote.profile_pubkey.key() == profile.key(), // ERROR
+        // has_one = authority, // ERROR
         seeds = [
             Vote::SEED_PREFIX.as_ref(),
             // Q: Use authority or profile or poll?
@@ -88,8 +91,11 @@ pub struct CreateVote<'info> {
 
     #[account(
         mut, 
-        //constraint = seller_x_token.mint == x_mint.key(),
-        // constraint = poll.key() == vote.poll_pubkey.key(),
+        // FIXME Error Number: 2003. Error Message: A raw constraint was violated
+        // Any constraints I add return this error...
+        // Q: Constraints using 'vote' not allowed since it's not initialized yet??
+        // constraint = poll.key() == vote.poll_pubkey.key(), // ERROR
+        constraint = poll.is_active == true,
         seeds = [
             Poll::SEED_PREFIX.as_ref(),
             // Q: Do I need authority or profile for seed?
@@ -105,8 +111,11 @@ pub struct CreateVote<'info> {
     // Q: Would I use an Anchor constraint = profile.authority == wallet_pubkey?
     #[account(
         mut,
-        // constraint = profile.key() == vote.profile_pubkey.key(),
-        // constraint = profile.authority.key() == authority.key(),
+        // FIXME Error Number: 2003. Error Message: A raw constraint was violated
+        // Any constraints I add return this error...
+        // Q: Constraints using 'vote' not allowed since it's not initialized yet??
+        // constraint = profile.key() == vote.profile_pubkey.key(), // ERROR Same profile voting
+        constraint = profile.authority.key() == authority.key(), // WORKS Same wallet voting
         seeds = [
             Profile::SEED_PREFIX.as_ref(),
             authority.key().as_ref(),
