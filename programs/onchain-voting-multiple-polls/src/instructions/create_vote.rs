@@ -22,7 +22,6 @@ pub fn create_vote(
     // seeds collide.
     // Q: Which accounts are we going to need to access?
     // --- CustomProgram, Profile, Poll
-
     let custom_program = &mut ctx.accounts.custom_program;
     let profile = &mut ctx.accounts.profile;
     let poll = &mut ctx.accounts.poll;
@@ -69,7 +68,7 @@ pub struct CreateVote<'info> {
         payer = authority,
         space = Vote::ACCOUNT_SPACE,
         // Q: Can you add constraints with init?
-        constraint = vote.profile_pubkey.key() == profile.key(),
+        // constraint = vote.profile_pubkey.key() == profile.key(),
         seeds = [
             Vote::SEED_PREFIX.as_ref(),
             // Q: Use authority or profile or poll?
@@ -90,7 +89,7 @@ pub struct CreateVote<'info> {
     #[account(
         mut, 
         //constraint = seller_x_token.mint == x_mint.key(),
-        constraint = poll.key() == vote.poll_pubkey.key(),
+        // constraint = poll.key() == vote.poll_pubkey.key(),
         seeds = [
             Poll::SEED_PREFIX.as_ref(),
             // Q: Do I need authority or profile for seed?
@@ -106,8 +105,8 @@ pub struct CreateVote<'info> {
     // Q: Would I use an Anchor constraint = profile.authority == wallet_pubkey?
     #[account(
         mut,
-        constraint = profile.key() == vote.profile_pubkey.key(),
-        constraint = profile.authority.key() == authority.key(),
+        // constraint = profile.key() == vote.profile_pubkey.key(),
+        // constraint = profile.authority.key() == authority.key(),
         seeds = [
             Profile::SEED_PREFIX.as_ref(),
             authority.key().as_ref(),

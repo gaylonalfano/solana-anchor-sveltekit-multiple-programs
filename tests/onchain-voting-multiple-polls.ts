@@ -231,69 +231,80 @@ describe("onchain-voting-multiple-polls", () => {
     );
   });
 
-  // it("INIT USER Votes correctly for GMI", async () => {
-  //   const [voteAccountPDA, voteAccountBump] =
-  //     await PublicKey.findProgramAddress(
-  //       [
-  //         anchor.utils.bytes.utf8.encode("vote-account"),
-  //         // provider.wallet.publicKey.toBuffer(),
-  //       ],
-  //       program.programId
-  //     );
+  it("Create new vote:optionA for poll with testUser1", async () => {
+    // Need to access current poll.voteCount
+    // Q: Need profile and/or customProgram? Or, just pass as accounts?
+    const testPoll1 = await program.account.poll.fetch(testPoll1Pda);
+    const voteCount: string = (testPoll1.voteCount.toNumber() + 1).toString();
+    console.log("voteCount: ", voteCount);
 
-  //   console.log(
-  //     "PDA for program",
-  //     program.programId.toBase58(),
-  //     "is generated :",
-  //     voteAccountPDA.toBase58()
-  //   );
+    const [pda, bump] = await PublicKey.findProgramAddress(
+      [
+        anchor.utils.bytes.utf8.encode(VOTE_SEED_PREFIX),
+        testPoll1Pda.toBuffer(),
+        testUser1.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
+    // Update global state for vote?
 
-  //   // const initializeTx = await program.methods
-  //   //   .initialize()
-  //   //   .accounts({
-  //   //     // Q: I believe the order of accounts need to be consistent
-  //   //     // Doesn't seem to make any difference so far...
-  //   //     // A: In lib.rs > Initialize struct, if I put user before vote_account
-  //   //     // it seems to work, even if order isn't consistent here in test.
-  //   //     // NOTE It may not be the order, but something up with resetting
-  //   //     // the test-validator before running the tests...
-  //   //     voteAccount: voteAccountPDA,
-  //   //     user: provider.wallet.publicKey,
-  //   //     // Q: Which programId to pass? Is it my program's or the systemProgram's?
-  //   //     // NOTE I BELIEVE it should be the SystemProgram's based on this SO thread AND
-  //   //     // the fact that when I use my program's ID, the error shows it should be 111111...
-  //   //     // A: I don't think I need to provide the SystemProgramID,
-  //   //     // since it's a PDA, AND since it doesn't seem needed at all (see below)
-  //   //     // NOTE https://stackoverflow.com/questions/70675404/cross-program-invocation-with-unauthorized-signer-or-writable-account
-  //   //     // Q: Do I even need to pass systemProgram? The Anchor PDA tutorial doesn't...
-  //   //     // NOTE I didn't need it when just running 'anchor test' (w/o test-validator)
-  //   //     // systemProgram: program.programId, // ERROR CPI
-  //   //     systemProgram: anchor.web3.SystemProgram.programId, // ERROR CPI
-  //   //   })
-  //   //   .rpc();
-  //   // console.log("initializeTx signature: ", initializeTx);
+    console.log(
+      "PDA for program",
+      program.programId.toBase58(),
+      "is generated :",
+      pda.toBase58()
+    );
 
-  //   // Following this example to call the methods:
-  //   // https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
-  //   const tx = await program.methods
-  //     .vote({ gmi: {} })
-  //     .accounts({
-  //       voteAccount: voteAccountPDA,
-  //       user: provider.wallet.publicKey,
-  //     })
-  //     .rpc();
-  //   console.log("TxHash ::", tx);
-  //   console.log("Provider Wallet:", provider.wallet.publicKey.toBase58());
+    // Following this example to call the methods:
+    // https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
+    const tx = await program.methods
+      .createVote({ a: {} })
+      .accounts({
+        vote: pda,
+        poll: testPoll1Pda,
+        profile: testUser1ProfilePda,
+        customProgram: customProgramPda,
+        authority: testUser1.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([testUser1])
+      .rpc();
+    console.log("TxHash ::", tx);
 
-  //   // 3. After the transaction returns, we can fetch the state of the vote account
-  //   let currentVoteAccountState = await program.account.voteState.fetch(
-  //     voteAccountPDA
-  //   );
-  //   console.log("currentVoteAccountState: ", currentVoteAccountState);
+    // Fetch data after tx confirms & update global state
+    const currentVote: anchor.IdlTypes<anchor.Idl>["Vote"] =
+      await program.account.vote.fetch(pda);
+    console.log("currentVote:", currentVote);
+    const currentTestPoll1 = await program.account.poll.fetch(testPoll1Pda);
+    const currentProfile = await program.account.profile.fetch(
+      testUser1ProfilePda
+    );
+    const currentCustomProgram = await program.account.customProgram.fetch(
+      customProgramPda
+    );
+    customProgram = currentCustomProgram;
 
-  //   // 4. Verify the crunchy vote incremented
-  //   expect(currentVoteAccountState.gmi.toNumber()).to.equal(1);
-  // });
+    // Verify the vote account has set up correctly
+    expect(currentVote.voteNumber.toNumber()).to.equal(parseInt(voteCount));
+    expect(currentVote.profilePubkey.toString()).to.equal(
+      testUser1ProfilePda.toString()
+    );
+    expect(currentVote.pollPubkey.toString()).to.equal(testPoll1Pda.toString());
+    // Q: How do you check Enum structure?
+    // ERROR: AssertionError: expected { a: {} } to equal { a: {} }
+    // expect(currentVote.voteOption).to.equal({ a: {} });
+
+    // TODO
+    // Test that poll.voteCount incremented
+    // Test that poll.optionACount incremented
+    // Test that profile.voteCount incremented
+    // Test that vote.authority is matches profile.authority???
+    // expect(currentTestPoll1.pollNumber.toNumber()).to.equal(
+    //   parseInt(pollCount)
+    // );
+    // expect(currentTestPoll1.isActive).to.equal(true);
+    // expect(currentTestPoll1.optionADisplayLabel.toString()).to.equal("GMI");
+  });
 
   // it("INIT USER Votes correctly for NGMI", async () => {
   //   const [voteAccountPDA, _] = await PublicKey.findProgramAddress(
