@@ -23,16 +23,21 @@ describe("onchain-voting-multiple-polls", () => {
 
   // Build some test users
   const testUser1 = anchor.web3.Keypair.generate();
+  let testUser1Profile: anchor.IdlTypes<anchor.Idl>["Profile"];
   let testUser1ProfilePda: anchor.web3.PublicKey;
   const testUser1Handle = "testUser1Handle";
   const testUser1DisplayName = "User 1 DN";
 
   const testUser2 = anchor.web3.Keypair.generate();
+  let testUser2Profile: anchor.IdlTypes<anchor.Idl>["Profile"];
   let testUser2ProfilePda: anchor.web3.PublicKey;
   const testUser2Handle = "testUser2Handle";
   const testUser2DisplayName = "User 2 DN";
 
   // Test polls
+  // Q: Do I need global poll account data variables?
+  let testPoll1: anchor.IdlTypes<anchor.Idl>["Poll"];
+  let testPoll2: anchor.IdlTypes<anchor.Idl>["Poll"];
   let testPoll1Pda: anchor.web3.PublicKey;
   let testPoll2Pda: anchor.web3.PublicKey;
 
@@ -139,6 +144,7 @@ describe("onchain-voting-multiple-polls", () => {
     const currentProfile = await program.account.profile.fetch(
       testUser1ProfilePda
     );
+    testUser1Profile = currentProfile;
     const currentCustomProgram = await program.account.customProgram.fetch(
       customProgramPda
     );
@@ -202,9 +208,11 @@ describe("onchain-voting-multiple-polls", () => {
 
     // Fetch data after tx confirms & update global state
     const currentTestPoll1 = await program.account.poll.fetch(testPoll1Pda);
+    testPoll1 = currentTestPoll1;
     const currentProfile = await program.account.profile.fetch(
       testUser1ProfilePda
     );
+    testUser1Profile = currentProfile;
     const currentCustomProgram = await program.account.customProgram.fetch(
       customProgramPda
     );
@@ -234,8 +242,10 @@ describe("onchain-voting-multiple-polls", () => {
   it("Create new vote:optionA for poll with testUser1", async () => {
     // Need to access current poll.voteCount
     // Q: Need profile and/or customProgram? Or, just pass as accounts?
-    const testPoll1 = await program.account.poll.fetch(testPoll1Pda);
-    const voteCount: string = (testPoll1.voteCount.toNumber() + 1).toString();
+    let currentTestPoll1 = await program.account.poll.fetch(testPoll1Pda);
+    const voteCount: string = (
+      currentTestPoll1.voteCount.toNumber() + 1
+    ).toString();
     console.log("voteCount: ", voteCount);
 
     const [pda, bump] = await PublicKey.findProgramAddress(
@@ -275,7 +285,8 @@ describe("onchain-voting-multiple-polls", () => {
     const currentVote: anchor.IdlTypes<anchor.Idl>["Vote"] =
       await program.account.vote.fetch(pda);
     console.log("currentVote:", currentVote);
-    const currentTestPoll1 = await program.account.poll.fetch(testPoll1Pda);
+    currentTestPoll1 = await program.account.poll.fetch(testPoll1Pda);
+    testPoll1 = currentTestPoll1;
     const currentProfile = await program.account.profile.fetch(
       testUser1ProfilePda
     );
