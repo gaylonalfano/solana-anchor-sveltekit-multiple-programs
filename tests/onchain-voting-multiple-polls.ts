@@ -34,6 +34,9 @@ describe("onchain-voting-multiple-polls", () => {
   const testUser2Handle = "testUser2Handle";
   const testUser2DisplayName = "User 2 DN";
 
+  // User without a Profile
+  const testUser3 = anchor.web3.Keypair.generate();
+
   // Test polls
   // Q: Do I need global poll account data variables?
   let testPoll1: anchor.IdlTypes<anchor.Idl>["Poll"];
@@ -680,5 +683,76 @@ describe("onchain-voting-multiple-polls", () => {
 
     expect(customProgram.totalVoteCount.toNumber()).to.equal(3);
   });
+
+  // TODO Try to vote with a User who doesn't have a Profile
+  it("Try to create new vote:optionB for testPoll2 with INVALID testUser3", async () => {
+    try {
+      // Need to access current poll.voteCount
+      let currentTestPoll2 = await program.account.poll.fetch(testPoll2Pda);
+      let currentOptionBVoteCount = currentTestPoll2.optionBCount.toNumber();
+      const voteCount: string = (
+        currentTestPoll2.voteCount.toNumber() + 1
+      ).toString();
+
+      const [pda, bump] = await PublicKey.findProgramAddress(
+        [
+          anchor.utils.bytes.utf8.encode(VOTE_SEED_PREFIX),
+          testPoll2Pda.toBuffer(),
+          testUser3.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+      // Update global state for vote?
+
+      console.log(
+        "PDA for program",
+        program.programId.toBase58(),
+        "is generated :",
+        pda.toBase58()
+      );
+
+      // NOTE This should ERROR
+      const tx = await program.methods
+        .createVote({ b: {} })
+        .accounts({
+          vote: pda,
+          poll: testPoll2Pda,
+          profile: testUser3.publicKey, // Should error since no profile!
+          customProgram: customProgramPda,
+          authority: testUser3.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([testUser3])
+        .rpc();
+      console.log("TxHash ::", tx);
+
+      // Fetch data after tx confirms & update global state
+      const currentVote: anchor.IdlTypes<anchor.Idl>["Vote"] =
+        await program.account.vote.fetch(pda);
+
+      currentTestPoll2 = await program.account.poll.fetch(testPoll2Pda);
+      testPoll1 = currentTestPoll2;
+      const currentProfile = await program.account.profile.fetch(
+        testUser3.publicKey
+      );
+      // testUser1Profile = currentProfile;
+      const currentCustomProgram = await program.account.customProgram.fetch(
+        customProgramPda
+      );
+      customProgram = currentCustomProgram;
+
+      // Q: How to write tests that should fail?
+      expect(currentTestPoll2.voteCount.toNumber()).to.equal(
+        parseInt(voteCount) - 1
+      );
+      expect(currentTestPoll2.optionBCount.toNumber()).to.equal(
+        currentOptionBVoteCount
+      );
+    } catch (error) {
+      console.log("Vote failed. User does not have a profile!");
+      console.warn(error);
+    }
+  });
+
   // TODO Have testUser1 create testPoll2 and then vote
 });
