@@ -684,7 +684,6 @@ describe("onchain-voting-multiple-polls", () => {
     expect(customProgram.totalVoteCount.toNumber()).to.equal(3);
   });
 
-  // TODO Try to vote with a User who doesn't have a Profile
   it("Try to create new vote:optionB for testPoll2 with INVALID testUser3", async () => {
     try {
       // Need to access current poll.voteCount

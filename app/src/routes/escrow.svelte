@@ -56,6 +56,7 @@
 	// const buyer = anchor.web3.Keypair.generate();
 	const buyer = new PublicKey('HzgMBJvpsKgTRe84q7BgdYbf3w4hBCWoy384rZBF9viy');
 	let xMint: anchor.web3.PublicKey;
+	// TODO Add IDL Types: anchor.IdlTypes<anchor.Idl>["xMint"] etc.
 	let xMintAccountData;
 	let yMint: anchor.web3.PublicKey;
 	let yMintAccountData;
