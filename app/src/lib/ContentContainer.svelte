@@ -22,6 +22,9 @@
 				<a href="/vote">Vote</a>
 			</li>
 			<li>
+				<a href="/polls">Polls</a>
+			</li>
+			<li>
 				<a href="/pdas">PDAs</a>
 			</li>
 			<li>

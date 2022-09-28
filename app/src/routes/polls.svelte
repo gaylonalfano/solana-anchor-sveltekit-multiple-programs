@@ -9,6 +9,7 @@
 	import idl from '../../../target/idl/onchain_voting_multiple_polls.json';
 	import { onMount } from 'svelte';
 	import { notificationStore } from '../stores/notification';
+	import { customProgramStore } from '../stores/polls/custom-program-store';
 	import { Button } from '$lib/index';
 
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
@@ -37,7 +38,8 @@
 	let votePda: anchor.web3.PublicKey;
 
 	$: {
-		/* console.log('voteAccount: ', voteAccount); */
+		console.log('customProgram: ', customProgram);
+		console.log('$customProgramStore: ', $customProgramStore);
 		/* console.log('allProgramAccounts: ', allProgramAccounts); */
 	}
 
@@ -84,6 +86,7 @@
 			customProgramPda
 		);
 		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
+		customProgramStore.set(customProgram);
 
 		// Verify the account has set up correctly
 		// expect(customProgram.totalProfileCount.toNumber()).to.equal(0);
@@ -209,7 +212,9 @@
 			<Button disabled={!$walletStore.publicKey} on:click={handleCreateCustomProgram}
 				>Init Custom Program</Button
 			>
-			customProgram: {customProgram}
+			<pre>customProgram: {JSON.stringify(customProgram, null, 2)}</pre>
+			<br />
+			<pre>customProgramStore: {JSON.stringify(customProgram, null, 2)}</pre>
 		</div>
 	</div>
 </div>
