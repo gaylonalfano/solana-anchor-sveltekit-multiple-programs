@@ -10,6 +10,7 @@
 	import { onMount } from 'svelte';
 	import { notificationStore } from '../stores/notification';
 	import { customProgramStore } from '../stores/polls/custom-program-store';
+	import { profileStore } from '../stores/polls/profile-store';
 	import { Button } from '$lib/index';
 
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
@@ -40,6 +41,8 @@
 	$: {
 		console.log('customProgram: ', customProgram);
 		console.log('$customProgramStore: ', $customProgramStore);
+		console.log('profile: ', profile);
+		console.log('$profileStore: ', $profileStore);
 		/* console.log('allProgramAccounts: ', allProgramAccounts); */
 	}
 
@@ -138,10 +141,14 @@
 		// Fetch data after tx confirms & update global state
 		const currentProfile = await $workspaceStore.program?.account.profile.fetch(profilePda);
 		profile = currentProfile as anchor.IdlTypes<anchor.Idl>['Profile'];
+		// Q: update() or set() Store?
+		profileStore.set(profile);
 		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
 			customProgramPda
 		);
 		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
+		// Q: update() or set() Store?
+		customProgramStore.set(customProgram);
 
 		// Verify the account has set up correctly
 		// expect(currentProfile.handle).to.equal(testUser1Handle);
@@ -210,11 +217,14 @@
 		</h1>
 		<div class="card-body items-center text-center pt-0">
 			<Button disabled={!$walletStore.publicKey} on:click={handleCreateCustomProgram}
-				>Init Custom Program</Button
+				>Create Custom Program</Button
 			>
-			<pre>customProgram: {JSON.stringify(customProgram, null, 2)}</pre>
+			<pre>customProgramStore: {JSON.stringify($customProgramStore, null, 2)}</pre>
 			<br />
-			<pre>customProgramStore: {JSON.stringify(customProgram, null, 2)}</pre>
+			<Button disabled={!$walletStore.publicKey} on:click={handleCreateProfile}
+				>Create Profile</Button
+			>
+			<pre>profileStore: {JSON.stringify($profileStore, null, 2)}</pre>
 		</div>
 	</div>
 </div>
