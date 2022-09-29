@@ -754,4 +754,6 @@ describe("onchain-voting-multiple-polls", () => {
   });
 
   // TODO Have testUser1 create testPoll2 and then vote
+  // TODO Test turning off a Poll
+  // TODO Test Don't duplicate Polls with exact same Options
 });

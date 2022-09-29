@@ -235,52 +235,137 @@
 		// expect(customProgram.totalPollCount.toNumber()).to.equal(parseInt(pollCount));
 	}
 
-	// async function handleCreateDataAccount() {
-	// 	let pda = await derivePda('vote-account');
+	// Q: Refactor with params?
+	// e.g., pollPubkey, voteOption?
+	// TODO Gonna have to grab the Profile and selected Poll once we start
+	// adding multiple polls, etc. May need to use route params or something
+	async function handleCreateVoteForOptionA() {
+		// Need to access current poll.voteCount
+		// Q: Need profile and/or customProgram? Or, just pass as accounts?
+		// A: Eventually will need to increment/update values, but not yet!
+		let currentPoll = await $workspaceStore.program?.account.poll.fetch(pollPda);
+		poll = currentPoll as anchor.IdlTypes<anchor.Idl>['Poll'];
+		pollStore.set(poll);
+		const voteCount: string = ($pollStore.voteCount.toNumber() + 1).toString();
+		console.log('voteCount: ', voteCount);
 
-	// 	// If testing on localnet:
-	// 	// if ($workspaceStore.network == 'http://localhost:8899') {
-	// 	// 	// Airdrop some SOL to the wallet
-	// 	// 	const airdropRequest = await $workspaceStore.connection.requestAirdrop(
-	// 	// 		$walletStore.publicKey as anchor.web3.PublicKey,
-	// 	// 		anchor.web3.LAMPORTS_PER_SOL * 2
-	// 	// 	);
-	// 	// 	await $workspaceStore.connection.confirmTransaction(airdropRequest);
-	// 	// }
+		const [pda, bump] = await PublicKey.findProgramAddress(
+			[
+				anchor.utils.bytes.utf8.encode(VOTE_SEED_PREFIX),
+				pollPda.toBuffer(), // Q: Can get I PDA from pollStore?
+				($walletStore.publicKey as anchor.web3.PublicKey).toBuffer()
+			],
+			$workspaceStore.program?.programId as anchor.web3.PublicKey
+		);
+		// Update global state for vote?
 
-	// 	try {
-	// 		// Q: How to pass a Keypair from walletStore? I have the signers([wallet]) for the ix
-	// 		// REF: https://solana.stackexchange.com/questions/1984/anchor-signing-and-paying-for-transactions-to-interact-with-program
-	// 		// REF: https://stackoverflow.com/questions/72549145/how-to-sign-and-call-anchor-solana-smart-contract-from-web-app
-	// 		// REF: https://www.youtube.com/watch?v=vt8GUw_PDqM
-	// 		// UPDATE: Looks like I can pass the $walletStore OR $workspaceStore.provider.wallet
-	// 		// UPDATE: Looks like you DON'T pass signers([wallet]) call from frontend,
-	// 		// since it fails if I pass it inside the program.methods.createLedger() call
-	// 		await createDataAccount(pda); // WORKS
-	// 		// await createDataAccount(color, pda, $workspaceStore.provider.wallet); // WORKS
+		console.log(
+			'PDA for program',
+			$workspaceStore.program?.programId.toBase58(),
+			'is generated :',
+			pda.toBase58()
+		);
 
-	// 		const data = await $workspaceStore.program?.account?.voteAccount?.fetch(pda);
-	// 		voteAccount = data;
-	// 		console.log('voteAccount: ', voteAccount);
-	// 	} catch (e) {
-	// 		console.error('handleCreateDataAccount::Error: ', e);
-	// 	}
-	// }
-	//
-	//			{#if customProgram}
-	//				<div class="stats shadow">
-	//					<div class="stat place-items-center">
-	//						<div class="stat-title">GMI</div>
-	//						<div class="stat-value">{voteAccount.gmi.words[0]}</div>
-	//						<Button disabled={!$walletStore.publicKey} on:click={handleVoteGmi}>GMI</Button>
-	//					</div>
-	//					<div class="stat place-items-center">
-	//						<div class="stat-title">NGMI</div>
-	//						<div class="stat-value">{voteAccount.ngmi.words[0]}</div>
-	//						<Button disabled={!$walletStore.publicKey} on:click={handleVoteNgmi}>NGMI</Button>
-	//					</div>
-	//				</div>
-	//			{/if}
+		// Following this example to call the methods:
+		// https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
+		const tx = await $workspaceStore.program?.methods
+			.createVote({ a: {} })
+			.accounts({
+				vote: pda,
+				poll: pollPda,
+				profile: profilePda,
+				customProgram: customProgramPda,
+				authority: $walletStore.publicKey as anchor.web3.PublicKey,
+				systemProgram: anchor.web3.SystemProgram.programId
+			})
+			// .signers([testUser2]) // AnchorWallet
+			.rpc();
+		console.log('TxHash ::', tx);
+
+		// Fetch data after tx confirms & update global state
+		const currentVote = await $workspaceStore.program?.account.vote.fetch(pda);
+		vote = currentVote as anchor.IdlTypes<anchor.Idl>['Vote'];
+		// Q: Need a voteStore? Eh....
+
+		currentPoll = await $workspaceStore.program?.account.poll.fetch(pollPda);
+		poll = currentPoll as anchor.IdlTypes<anchor.Idl>['Poll'];
+		pollStore.set(poll);
+
+		const currentProfile = await $workspaceStore.program?.account.profile.fetch(profilePda);
+		profile = currentProfile as anchor.IdlTypes<anchor.Idl>['Profile'];
+		profileStore.set(profile);
+
+		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
+			customProgramPda
+		);
+		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
+		// Q: update() or set() Store?
+		customProgramStore.set(customProgram);
+	}
+
+	async function handleCreateVoteForOptionB() {
+		// Need to access current poll.voteCount
+		// Q: Need profile and/or customProgram? Or, just pass as accounts?
+		// A: Eventually will need to increment/update values, but not yet!
+		let currentPoll = await $workspaceStore.program?.account.poll.fetch(pollPda);
+		poll = currentPoll as anchor.IdlTypes<anchor.Idl>['Poll'];
+		pollStore.set(poll);
+		const voteCount: string = ($pollStore.voteCount.toNumber() + 1).toString();
+		console.log('voteCount: ', voteCount);
+
+		const [pda, bump] = await PublicKey.findProgramAddress(
+			[
+				anchor.utils.bytes.utf8.encode(VOTE_SEED_PREFIX),
+				pollPda.toBuffer(), // Q: Can get I PDA from pollStore?
+				($walletStore.publicKey as anchor.web3.PublicKey).toBuffer()
+			],
+			$workspaceStore.program?.programId as anchor.web3.PublicKey
+		);
+		// Update global state for vote?
+
+		console.log(
+			'PDA for program',
+			$workspaceStore.program?.programId.toBase58(),
+			'is generated :',
+			pda.toBase58()
+		);
+
+		// Following this example to call the methods:
+		// https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
+		const tx = await $workspaceStore.program?.methods
+			.createVote({ b: {} })
+			.accounts({
+				vote: pda,
+				poll: pollPda,
+				profile: profilePda,
+				customProgram: customProgramPda,
+				authority: $walletStore.publicKey as anchor.web3.PublicKey,
+				systemProgram: anchor.web3.SystemProgram.programId
+			})
+			// .signers([testUser2]) // AnchorWallet
+			.rpc();
+		console.log('TxHash ::', tx);
+
+		// Fetch data after tx confirms & update global state
+		const currentVote = await $workspaceStore.program?.account.vote.fetch(pda);
+		vote = currentVote as anchor.IdlTypes<anchor.Idl>['Vote'];
+		// Q: Need a voteStore? Don't think so since I have pollStore...
+
+		currentPoll = await $workspaceStore.program?.account.poll.fetch(pollPda);
+		poll = currentPoll as anchor.IdlTypes<anchor.Idl>['Poll'];
+		pollStore.set(poll);
+
+		const currentProfile = await $workspaceStore.program?.account.profile.fetch(profilePda);
+		profile = currentProfile as anchor.IdlTypes<anchor.Idl>['Profile'];
+		profileStore.set(profile);
+
+		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
+			customProgramPda
+		);
+		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
+		// Q: update() or set() Store?
+		customProgramStore.set(customProgram);
+	}
 </script>
 
 <AnchorConnectionProvider {network} {idl} />
@@ -327,6 +412,24 @@
 				on:click={handleCreatePoll}>Create Poll</Button
 			>
 			<pre>pollStore: {JSON.stringify($pollStore, null, 2)}</pre>
+			{#if $pollStore}
+				<div class="stats shadow">
+					<div class="stat place-items-center">
+						<div class="stat-title">{$pollStore.optionADisplayLabel}</div>
+						<div class="stat-value">{$pollStore.optionACount.words[0]}</div>
+						<Button disabled={!$walletStore.publicKey} on:click={handleCreateVoteForOptionA}
+							>{$pollStore.optionADisplayLabel}</Button
+						>
+					</div>
+					<div class="stat place-items-center">
+						<div class="stat-title">{$pollStore.optionBDisplayLabel}</div>
+						<div class="stat-value">{$pollStore.optionBCount.words[0]}</div>
+						<Button disabled={!$walletStore.publicKey} on:click={handleCreateVoteForOptionB}
+							>{$pollStore.optionBDisplayLabel}</Button
+						>
+					</div>
+				</div>
+			{/if}
 		</div>
 	</div>
 </div>
