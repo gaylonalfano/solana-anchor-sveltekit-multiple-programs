@@ -11,6 +11,7 @@
 	import { notificationStore } from '../stores/notification';
 	import { customProgramStore } from '../stores/polls/custom-program-store';
 	import { profileStore } from '../stores/polls/profile-store';
+	import { pollStore } from '../stores/polls/poll-store';
 	import { Button } from '$lib/index';
 
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
@@ -22,6 +23,8 @@
 	const VOTE_SEED_PREFIX = 'vote';
 
 	// Global state
+	// Q: Any way to access the PDA Address from Stores?
+	// Or, do I need to maintain separate vars for PDA addresses?
 	let customProgram: anchor.IdlTypes<anchor.Idl>['CustomProgram'];
 	let customProgramPda: anchor.web3.PublicKey;
 
@@ -43,6 +46,7 @@
 		console.log('$customProgramStore: ', $customProgramStore);
 		console.log('profile: ', profile);
 		console.log('$profileStore: ', $profileStore);
+		console.log('$pollStore: ', $pollStore);
 		/* console.log('allProgramAccounts: ', allProgramAccounts); */
 	}
 
@@ -50,7 +54,7 @@
 	 * Create a dApp level PDA data account
 	 */
 	async function handleCreateCustomProgram() {
-		if (customProgram) {
+		if ($customProgramStore) {
 			notificationStore.add({
 				type: 'error',
 				message: 'Data account already exists!'
@@ -101,7 +105,7 @@
 	}
 
 	async function handleCreateProfile() {
-		const profileCount = (customProgram.totalProfileCount.toNumber() + 1).toString();
+		const profileCount = ($customProgramStore.totalProfileCount.toNumber() + 1).toString();
 		console.log('profileCount: ', profileCount);
 
 		// NOTE Error processing Instruction 0: Cross-program invocation
@@ -157,6 +161,78 @@
 		// expect(currentProfile.pollCount.toNumber()).to.equal(0);
 		// expect(currentProfile.voteCount.toNumber()).to.equal(0);
 		// expect(customProgram.totalProfileCount.toNumber()).to.equal(1);
+	}
+
+	async function handleCreatePoll() {
+		// Need to access current customProgram.totalPollCount
+		const pollCount: string = ($customProgramStore.totalPollCount.toNumber() + 1).toString();
+		console.log('pollCount: ', pollCount);
+
+		// NOTE From Anchor PDA example: https://book.anchor-lang.com/anchor_in_depth/PDAs.html#how-to-build-pda-hashmaps-in-anchor
+		// NOTE They find the PDA address INSIDE the it() test!
+		const [pda, bump] = await PublicKey.findProgramAddress(
+			[
+				anchor.utils.bytes.utf8.encode(POLL_SEED_PREFIX),
+				// Q: Need wallet publicKey? Won't this restrict to only that user
+				// being able to write to PDA?
+				// A: YES! The original crunchy-vs-smooth didn't use wallet pubkeys,
+				// since that would create a unique PDA for the user (not users!).
+				anchor.utils.bytes.utf8.encode(pollCount)
+			],
+			$workspaceStore.program?.programId as anchor.web3.PublicKey
+		);
+		// Update global state
+		pollPda = pda;
+
+		console.log(
+			'PDA for program',
+			$workspaceStore.program?.programId.toBase58(),
+			'is generated :',
+			pollPda.toBase58()
+		);
+
+		// Following this example to call the methods:
+		// https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
+		const tx = await $workspaceStore.program?.methods
+			.createPoll(pollOptionADisplayName, pollOptionBDisplayName)
+			.accounts({
+				poll: pollPda,
+				profile: profilePda,
+				customProgram: customProgramPda,
+				authority: $walletStore.publicKey as anchor.web3.PublicKey,
+				systemProgram: anchor.web3.SystemProgram.programId
+			})
+			// .signers([testUser1]) // AnchorWallet
+			.rpc();
+		console.log('TxHash ::', tx);
+
+		// Fetch data after tx confirms & update global state
+		const currentPoll = await $workspaceStore.program?.account.poll.fetch(pollPda);
+		poll = currentPoll as anchor.IdlTypes<anchor.Idl>['Poll'];
+		pollStore.set(poll);
+		const currentProfile = await $workspaceStore.program?.account.profile.fetch(profilePda);
+		profile = currentProfile as anchor.IdlTypes<anchor.Idl>['Profile'];
+		profileStore.set(profile);
+		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
+			customProgramPda
+		);
+		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
+		// Q: update() or set() Store?
+		customProgramStore.set(customProgram);
+
+		// Verify the vote account has set up correctly
+		// expect(currentTestPoll1.pollNumber.toNumber()).to.equal(parseInt(pollCount));
+		// expect(currentTestPoll1.isActive).to.equal(true);
+		// expect(currentTestPoll1.optionADisplayLabel.toString()).to.equal('GMI');
+		// expect(currentTestPoll1.optionBDisplayLabel.toString()).to.equal('NGMI');
+		// expect(currentTestPoll1.optionACount.toNumber()).to.equal(0);
+		// expect(currentTestPoll1.optionBCount.toNumber()).to.equal(0);
+		// expect(currentTestPoll1.voteCount.toNumber()).to.equal(0);
+		// expect(currentTestPoll1.authority.toString()).to.equal(currentProfile.authority.toString());
+
+		// expect(currentProfile.pollCount.toNumber()).to.equal(1);
+
+		// expect(customProgram.totalPollCount.toNumber()).to.equal(parseInt(pollCount));
 	}
 
 	// async function handleCreateDataAccount() {
@@ -225,6 +301,32 @@
 				>Create Profile</Button
 			>
 			<pre>profileStore: {JSON.stringify($profileStore, null, 2)}</pre>
+			<br />
+			<div class="form-control">
+				<label class="input-group input-group-vertical pt-1">
+					<span>Option A Display</span>
+					<input
+						type="text"
+						placeholder=""
+						class="input input-bordered"
+						bind:value={pollOptionADisplayName}
+					/>
+				</label>
+				<label class="input-group input-group-vertical pt-1">
+					<span>Option B Display</span>
+					<input
+						type="text"
+						placeholder=""
+						class="input input-bordered"
+						bind:value={pollOptionBDisplayName}
+					/>
+				</label>
+			</div>
+			<Button
+				disabled={!$walletStore.publicKey && (!pollOptionADisplayName || !pollOptionBDisplayName)}
+				on:click={handleCreatePoll}>Create Poll</Button
+			>
+			<pre>pollStore: {JSON.stringify($pollStore, null, 2)}</pre>
 		</div>
 	</div>
 </div>
