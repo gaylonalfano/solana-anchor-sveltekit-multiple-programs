@@ -41,13 +41,24 @@
 	let vote: anchor.IdlTypes<anchor.Idl>['Vote'];
 	let votePda: anchor.web3.PublicKey;
 
+	// Q: How to update the profile (and its PDA) whenever wallet changes?
+	$: if ($profileStore && $walletStore.publicKey) {
+		PublicKey.findProgramAddress(
+			[
+				anchor.utils.bytes.utf8.encode(PROFILE_SEED_PREFIX),
+				($walletStore.publicKey as anchor.web3.PublicKey).toBuffer(), // authority
+				anchor.utils.bytes.utf8.encode($profileStore.profileNumber)
+			],
+			$workspaceStore.program?.programId as anchor.web3.PublicKey
+		).then((response) => (profilePda = response[0]));
+	}
+
 	$: {
 		console.log('customProgram: ', customProgram);
 		console.log('$customProgramStore: ', $customProgramStore);
-		console.log('profile: ', profile);
+		console.log('profilePda: ', profilePda?.toBase58());
 		console.log('$profileStore: ', $profileStore);
 		console.log('$pollStore: ', $pollStore);
-		/* console.log('allProgramAccounts: ', allProgramAccounts); */
 	}
 
 	/*
@@ -134,7 +145,7 @@
 			.createProfile(profileHandle, profileDisplayName)
 			.accounts({
 				profile: profilePda,
-				customProgram: customProgramPda,
+				customProgram: customProgramPda, // FIXME Errors when swapping wallets! Need to store PDAs to Stores if possible
 				authority: $walletStore.publicKey as anchor.web3.PublicKey,
 				systemProgram: anchor.web3.SystemProgram.programId
 			})
@@ -153,14 +164,6 @@
 		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
 		// Q: update() or set() Store?
 		customProgramStore.set(customProgram);
-
-		// Verify the account has set up correctly
-		// expect(currentProfile.handle).to.equal(testUser1Handle);
-		// expect(currentProfile.displayName).to.equal(testUser1DisplayName);
-		// expect(currentProfile.authority.toString()).to.equal(testUser1.publicKey.toString());
-		// expect(currentProfile.pollCount.toNumber()).to.equal(0);
-		// expect(currentProfile.voteCount.toNumber()).to.equal(0);
-		// expect(customProgram.totalProfileCount.toNumber()).to.equal(1);
 	}
 
 	async function handleCreatePoll() {
@@ -219,20 +222,6 @@
 		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
 		// Q: update() or set() Store?
 		customProgramStore.set(customProgram);
-
-		// Verify the vote account has set up correctly
-		// expect(currentTestPoll1.pollNumber.toNumber()).to.equal(parseInt(pollCount));
-		// expect(currentTestPoll1.isActive).to.equal(true);
-		// expect(currentTestPoll1.optionADisplayLabel.toString()).to.equal('GMI');
-		// expect(currentTestPoll1.optionBDisplayLabel.toString()).to.equal('NGMI');
-		// expect(currentTestPoll1.optionACount.toNumber()).to.equal(0);
-		// expect(currentTestPoll1.optionBCount.toNumber()).to.equal(0);
-		// expect(currentTestPoll1.voteCount.toNumber()).to.equal(0);
-		// expect(currentTestPoll1.authority.toString()).to.equal(currentProfile.authority.toString());
-
-		// expect(currentProfile.pollCount.toNumber()).to.equal(1);
-
-		// expect(customProgram.totalPollCount.toNumber()).to.equal(parseInt(pollCount));
 	}
 
 	// Q: Refactor with params?
@@ -365,6 +354,22 @@
 		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
 		// Q: update() or set() Store?
 		customProgramStore.set(customProgram);
+	}
+
+	// Q: Can I use this to update/fetch my Stores?
+	async function derivePda(seeds: Buffer[]) {
+		// NOTE This is key! We can derive PDA WITHOUT hitting our program!
+		// Then we can use this PDA address in our functions as a check to see
+		// whether there is a ledger account at this PDA address.
+		// Then, MOST IMPORTANTLY, we can fetch the account's data from the CLIENT
+		// and use its data.
+		// NOTE pubkey is actually provider.wallet.publicKey
+		let [pda, _] = await anchor.web3.PublicKey.findProgramAddress(
+			seeds,
+			$workspaceStore.program?.programId as anchor.web3.PublicKey
+		);
+
+		return pda;
 	}
 </script>
 
