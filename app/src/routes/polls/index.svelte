@@ -6,12 +6,12 @@
 	import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 	import { AnchorConnectionProvider } from '@svelte-on-solana/wallet-adapter-anchor';
 	import { clusterApiUrl, PublicKey } from '@solana/web3.js';
-	import idl from '../../../target/idl/onchain_voting_multiple_polls.json';
+	import idl from '../../../../target/idl/onchain_voting_multiple_polls.json';
 	import { onMount } from 'svelte';
-	import { notificationStore } from '../stores/notification';
-	import { customProgramStore } from '../stores/polls/custom-program-store';
-	import { profileStore } from '../stores/polls/profile-store';
-	import { pollStore } from '../stores/polls/poll-store';
+	import { notificationStore } from '$stores/notification';
+	import { customProgramStore } from '$stores/polls/custom-program-store';
+	import { profileStore } from '$stores/polls/profile-store';
+	import { pollStore } from '$stores/polls/poll-store';
 	import { Button } from '$lib/index';
 
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
@@ -37,21 +37,26 @@
 	let pollPda: anchor.web3.PublicKey;
 	let pollOptionADisplayName: string = 'Option A';
 	let pollOptionBDisplayName: string = 'Option B';
+	let polls: Array<anchor.IdlTypes<anchor.Idl>['Poll']>;
 
 	let vote: anchor.IdlTypes<anchor.Idl>['Vote'];
 	let votePda: anchor.web3.PublicKey;
 
 	// Q: How to update the profile (and its PDA) whenever wallet changes?
-	$: if ($profileStore && $walletStore.publicKey) {
-		PublicKey.findProgramAddress(
-			[
-				anchor.utils.bytes.utf8.encode(PROFILE_SEED_PREFIX),
-				($walletStore.publicKey as anchor.web3.PublicKey).toBuffer(), // authority
-				anchor.utils.bytes.utf8.encode($profileStore.profileNumber)
-			],
-			$workspaceStore.program?.programId as anchor.web3.PublicKey
-		).then((response) => (profilePda = response[0]));
-	}
+	// FIXME Infinite loop!
+	// $: if ($profileStore && $walletStore.publicKey) {
+	// 	PublicKey.findProgramAddress(
+	// 		[
+	// 			anchor.utils.bytes.utf8.encode(PROFILE_SEED_PREFIX),
+	// 			($walletStore.publicKey as anchor.web3.PublicKey).toBuffer(), // authority
+	// 			anchor.utils.bytes.utf8.encode($profileStore.profileNumber)
+	// 		],
+	// 		$workspaceStore.program?.programId as anchor.web3.PublicKey
+	// 	).then((response) => {
+	// 		profilePda = response[0];
+	// 		console.log('UPDATED profilePda!', profilePda);
+	// 	});
+	// }
 
 	$: {
 		console.log('customProgram: ', customProgram);
