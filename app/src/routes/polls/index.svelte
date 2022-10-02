@@ -37,7 +37,7 @@
 	let pollPda: anchor.web3.PublicKey;
 	let pollOptionADisplayName: string = 'Option A';
 	let pollOptionBDisplayName: string = 'Option B';
-	let polls: Array<anchor.IdlTypes<anchor.Idl>['Poll']>;
+	let polls: Array<anchor.IdlTypes<anchor.Idl>['Poll']> = [];
 
 	let vote: anchor.IdlTypes<anchor.Idl>['Vote'];
 	let votePda: anchor.web3.PublicKey;
@@ -64,6 +64,7 @@
 		console.log('profilePda: ', profilePda?.toBase58());
 		console.log('$profileStore: ', $profileStore);
 		console.log('$pollStore: ', $pollStore);
+		console.log('polls: ', polls);
 	}
 
 	/*
@@ -218,6 +219,7 @@
 		const currentPoll = await $workspaceStore.program?.account.poll.fetch(pollPda);
 		poll = currentPoll as anchor.IdlTypes<anchor.Idl>['Poll'];
 		pollStore.set(poll);
+		polls.push(poll);
 		const currentProfile = await $workspaceStore.program?.account.profile.fetch(profilePda);
 		profile = currentProfile as anchor.IdlTypes<anchor.Idl>['Profile'];
 		profileStore.set(profile);
@@ -421,24 +423,25 @@
 				disabled={!$walletStore.publicKey && (!pollOptionADisplayName || !pollOptionBDisplayName)}
 				on:click={handleCreatePoll}>Create Poll</Button
 			>
-			<pre>pollStore: {JSON.stringify($pollStore, null, 2)}</pre>
-			{#if $pollStore}
-				<div class="stats shadow">
-					<div class="stat place-items-center">
-						<div class="stat-title">{$pollStore.optionADisplayLabel}</div>
-						<div class="stat-value">{$pollStore.optionACount.words[0]}</div>
-						<Button disabled={!$walletStore.publicKey} on:click={handleCreateVoteForOptionA}
-							>{$pollStore.optionADisplayLabel}</Button
-						>
+			{#if polls}
+				{#each polls as poll (poll.pollNumber)}
+					<div class="stats shadow">
+						<div class="stat place-items-center">
+							<div class="stat-title">{poll.optionADisplayLabel}</div>
+							<div class="stat-value">{poll.optionACount.words[0]}</div>
+							<Button disabled={!$walletStore.publicKey} on:click={handleCreateVoteForOptionA}
+								>{$pollStore.optionADisplayLabel}</Button
+							>
+						</div>
+						<div class="stat place-items-center">
+							<div class="stat-title">{poll.optionBDisplayLabel}</div>
+							<div class="stat-value">{poll.optionBCount.words[0]}</div>
+							<Button disabled={!$walletStore.publicKey} on:click={handleCreateVoteForOptionB}
+								>{$pollStore.optionBDisplayLabel}</Button
+							>
+						</div>
 					</div>
-					<div class="stat place-items-center">
-						<div class="stat-title">{$pollStore.optionBDisplayLabel}</div>
-						<div class="stat-value">{$pollStore.optionBCount.words[0]}</div>
-						<Button disabled={!$walletStore.publicKey} on:click={handleCreateVoteForOptionB}
-							>{$pollStore.optionBDisplayLabel}</Button
-						>
-					</div>
-				</div>
+				{/each}
 			{/if}
 		</div>
 	</div>
