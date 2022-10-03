@@ -34,11 +34,11 @@
 	let profileHandle: string = 'testHandle';
 	let profileDisplayName: string = 'testDisplayName';
 
+	// TODO Could consider adding a selectedPollStore
 	let poll: anchor.IdlTypes<anchor.Idl>['Poll'];
 	let pollPda: anchor.web3.PublicKey;
 	let pollOptionADisplayName: string = 'Option A';
 	let pollOptionBDisplayName: string = 'Option B';
-	// let polls: Array<anchor.IdlTypes<anchor.Idl>['Poll']> = [];
 
 	let vote: anchor.IdlTypes<anchor.Idl>['Vote'];
 	let votePda: anchor.web3.PublicKey;
@@ -431,6 +431,8 @@
 			>
 			{#if $pollsStore}
 				{#each $pollsStore as poll (poll.pollNumber)}
+					<pre>{JSON.stringify(poll, null, 2)}</pre>
+					<a href="polls/{poll.pollNumber}">Link</a>
 					<div class="stats shadow">
 						<div class="stat place-items-center">
 							<div class="stat-title">{poll.optionADisplayLabel}</div>
