@@ -12,6 +12,7 @@
 	import { customProgramStore } from '$stores/polls/custom-program-store';
 	import { profileStore } from '$stores/polls/profile-store';
 	import { pollStore } from '$stores/polls/poll-store';
+	import { pollsStore } from '$stores/polls/polls-store';
 	import { Button } from '$lib/index';
 
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
@@ -37,7 +38,7 @@
 	let pollPda: anchor.web3.PublicKey;
 	let pollOptionADisplayName: string = 'Option A';
 	let pollOptionBDisplayName: string = 'Option B';
-	let polls: Array<anchor.IdlTypes<anchor.Idl>['Poll']> = [];
+	// let polls: Array<anchor.IdlTypes<anchor.Idl>['Poll']> = [];
 
 	let vote: anchor.IdlTypes<anchor.Idl>['Vote'];
 	let votePda: anchor.web3.PublicKey;
@@ -63,8 +64,9 @@
 		console.log('$customProgramStore: ', $customProgramStore);
 		console.log('profilePda: ', profilePda?.toBase58());
 		console.log('$profileStore: ', $profileStore);
+		console.log('pollPda: ', pollPda);
 		console.log('$pollStore: ', $pollStore);
-		console.log('polls: ', polls);
+		console.log('$pollsStore: ', $pollsStore);
 	}
 
 	/*
@@ -219,7 +221,8 @@
 		const currentPoll = await $workspaceStore.program?.account.poll.fetch(pollPda);
 		poll = currentPoll as anchor.IdlTypes<anchor.Idl>['Poll'];
 		pollStore.set(poll);
-		polls.push(poll);
+		pollsStore.update((polls) => [...polls, poll]);
+
 		const currentProfile = await $workspaceStore.program?.account.profile.fetch(profilePda);
 		profile = currentProfile as anchor.IdlTypes<anchor.Idl>['Profile'];
 		profileStore.set(profile);
@@ -363,6 +366,9 @@
 		customProgramStore.set(customProgram);
 	}
 
+	// TODO
+	// Try to fetch program accounts using getProgramAccounts()
+
 	// Q: Can I use this to update/fetch my Stores?
 	async function derivePda(seeds: Buffer[]) {
 		// NOTE This is key! We can derive PDA WITHOUT hitting our program!
@@ -423,8 +429,8 @@
 				disabled={!$walletStore.publicKey && (!pollOptionADisplayName || !pollOptionBDisplayName)}
 				on:click={handleCreatePoll}>Create Poll</Button
 			>
-			{#if polls}
-				{#each polls as poll (poll.pollNumber)}
+			{#if $pollsStore}
+				{#each $pollsStore as poll (poll.pollNumber)}
 					<div class="stats shadow">
 						<div class="stat place-items-center">
 							<div class="stat-title">{poll.optionADisplayLabel}</div>
