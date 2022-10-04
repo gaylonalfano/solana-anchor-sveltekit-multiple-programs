@@ -16,6 +16,7 @@ pub struct Poll {
     // Q: How/where do I add the VoteOption Enum? Just in Vote or also in Poll?
     // Perhaps option_a: VoteOption::A? Or, just handle it inside Vote?
     // Eventually need to pass in the enum... Do I need to link the Enum with labels?
+    // A: Ended up passing the Enum as an instruction argument for create_vote(Context, VoteOption)
     pub poll_number: u64, // 8 bytes Track how many unique Polls have been created
     pub is_active: bool, // 1 byte
     pub option_a_display_label: String, // 40 bytes

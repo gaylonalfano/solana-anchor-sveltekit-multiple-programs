@@ -5,7 +5,7 @@
 	import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 	import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 	import { AnchorConnectionProvider } from '@svelte-on-solana/wallet-adapter-anchor';
-	import { clusterApiUrl, PublicKey } from '@solana/web3.js';
+	import { clusterApiUrl, PublicKey, type GetProgramAccountsFilter } from '@solana/web3.js';
 	import idl from '../../../../target/idl/onchain_voting_multiple_polls.json';
 	import { onMount } from 'svelte';
 	import { notificationStore } from '$stores/notification';
@@ -175,6 +175,10 @@
 	}
 
 	async function handleCreatePoll() {
+		// FIXME If the same user goes between /polls or /polls/[pollNumber],
+		// then all the local PDAs get cleared. Maybe consider storing the PDA
+		// in the actual account? Or, perhaps attempt to derive if not available?
+		// This is a common challenge for me...
 		// Need to access current customProgram.totalPollCount
 		const pollCount: string = ($customProgramStore.totalPollCount.toNumber() + 1).toString();
 		console.log('pollCount: ', pollCount);
@@ -236,6 +240,138 @@
 
 	// TODO
 	// Try to fetch program accounts using getProgramAccounts()
+	// REF: https://www.notion.so/Solana-Quick-Reference-c0704fee2afa4ee5827ded6937ef47df#680c6b9f0f074a37bfe02579309faad2
+	async function getAllPollsProgramAccounts() {
+		if (!$walletStore) throw Error('Wallet not connected!');
+		if (!$workspaceStore) throw Error('Workspace not found!');
+
+		// 1. Establish a connection
+		const { connection } = $workspaceStore;
+
+		// 2. Create our filters
+		// NOTE We're going to pass this to the getParsedProgramAccounts() function
+		const pollsFilter: GetProgramAccountsFilter[] = [
+			// Q: Account size 165 or was that for SPLToken accounts only?
+			// My hunch is that the sizes vary (Profile, Poll, Vote, etc.)
+			// A: NO! Account size VARIES! E.g., Size matches the ACCOUNT_SPACE!
+			// CustomProgram=65, Poll=154, Profile=145
+			// FIXME Why don't Profiles and Polls filters work????
+			// Q: Is it my memcmp.offset? I *believe* that offset is
+			// the starting point in account.data to start comparing to
+			// the 'bytes' string value byte-by-byte. So, in this case,
+			// we're trying to match on 'authority' (i.e., wallet address)
+			// U: The issue is that it's not parsing my account data. I read
+			// that you need to deserialize based on how the program serialized
+			// everything. This means that my Anchor program may require an Anchor
+			// version of getParsedProgramAccounts() but still troubleshooting...
+			{
+				dataSize: 154 // VARIES by the Account::ACCOUNT_SPACE!
+			},
+			{
+				memcmp: {
+					offset: 121, // Starting point. 'authority' is close to end
+					bytes: $walletStore.publicKey!.toBase58()
+				}
+			}
+		];
+
+		const profilesFilter: GetProgramAccountsFilter[] = [
+			{
+				dataSize: 145
+			},
+			{
+				memcmp: {
+					offset: 122, // Starting point. 145-1-32=122
+					bytes: $walletStore.publicKey!.toBase58()
+				}
+			}
+		];
+
+		const customProgramFilter: GetProgramAccountsFilter[] = [
+			{
+				dataSize: 65
+			},
+			{
+				memcmp: {
+					offset: 32,
+					bytes: $walletStore.publicKey!.toBase58()
+				}
+			}
+		];
+
+		// 3. Get the accounts based on filters
+		const customProgramAccount = await connection.getParsedProgramAccounts(
+			$workspaceStore.program?.programId as PublicKey,
+			{ filters: customProgramFilter }
+		);
+
+		const profileAccounts = await connection.getParsedProgramAccounts(
+			$workspaceStore.program?.programId as PublicKey,
+			{ filters: profilesFilter }
+		);
+
+		const pollAccounts = await connection.getParsedProgramAccounts(
+			$workspaceStore.program?.programId as PublicKey,
+			{ filters: pollsFilter }
+		);
+
+		// NOTE No filter - get all accounts and check size
+		const parsedProgramAccounts = await connection.getParsedProgramAccounts(
+			$workspaceStore.program?.programId as PublicKey
+		);
+
+		const programAccounts = await connection.getProgramAccounts(
+			$workspaceStore.program?.programId as anchor.web3.PublicKey
+		);
+
+		// 4. Do what we want... i.e.,
+		console.log('=== CustomProgram ===');
+		customProgramAccount.forEach((account, i) => {
+			const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
+			console.log(parsedAccountInfo); // Uint8Array
+			console.log(parsedAccountInfo.parsed); // undefined
+		});
+
+		// console.log('=== Profiles ===');
+		// profileAccounts.forEach((account, i) => {
+		// 	const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
+		// 	console.log(parsedAccountInfo);
+		// });
+
+		// console.log('=== Polls ===');
+		// pollAccounts.forEach((account, i) => {
+		// 	const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
+		// 	console.log(parsedAccountInfo);
+		// });
+
+		console.log('=== All PARSED ProgramAccounts ===');
+		parsedProgramAccounts.forEach((account, i) => {
+			console.log(`Account # ${i + 1}:`);
+			console.log(`---Address: ${account.pubkey.toBase58()}`);
+			console.log(`---Owner: ${account.account.owner.toBase58()}`);
+			console.log(`---Data: ${account.account.data.toString()}`); // Garbled
+			console.log(`---JSON: ${JSON.stringify(account.account.data.toString())}`); // Garbled
+			console.log(account['account']['data']); // Uint8Array
+
+			console.log('=======');
+
+			// Let's see if typing as ParsedAccountData helps:
+			const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
+			console.log(`ParsedAccountData # ${i + 1}:`);
+			console.log(parsedAccountInfo); // Uint8Array
+			console.log(`---parsedAccountInfo: ${parsedAccountInfo}`); // Garbled
+			console.log(`---.parsed: ${parsedAccountInfo.parsed}`); // undefined
+			console.log(`---.program: ${parsedAccountInfo.program}`); // undefined
+			console.log(`---.program: ${parsedAccountInfo.space}`); // undefined
+		});
+
+		// console.log('=== All NON-PARSED ProgramAccounts ===');
+		// programAccounts.forEach((account, i) => {
+		// 	console.log(`Account # ${i + 1}:`);
+		// 	// console.log(`---Address: ${account.pubkey.toBase58()}`);
+		// 	console.log(account);
+		// });
+	}
 
 	// Q: Can I use this to update/fetch my Stores?
 	async function derivePda(seeds: Buffer[]) {
@@ -300,9 +436,13 @@
 			{#if $pollsStore}
 				{#each $pollsStore as poll (poll.pollNumber)}
 					<pre>{JSON.stringify(poll, null, 2)}</pre>
-					<a href="polls/{poll.pollNumber}">Poll {poll.pollNumber}</a>
+					<a class="link link-secondary" href="polls/{poll.pollNumber}">Poll {poll.pollNumber}</a>
 				{/each}
 			{/if}
+			<br />
+			<Button disabled={!$walletStore.publicKey} on:click={getAllPollsProgramAccounts}
+				>Get Program Accounts</Button
+			>
 		</div>
 	</div>
 </div>
