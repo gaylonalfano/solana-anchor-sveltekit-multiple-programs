@@ -236,9 +236,9 @@
 		customProgramStore.set(customProgram);
 	}
 
-	// TODO
 	// Try to fetch program accounts using getProgramAccounts()
 	// REF: https://www.notion.so/Solana-Quick-Reference-c0704fee2afa4ee5827ded6937ef47df#680c6b9f0f074a37bfe02579309faad2
+  // REF: https://solanacookbook.com/guides/get-program-accounts.html#filters
 	async function getAllPollsProgramAccounts() {
 		if (!$walletStore) throw Error('Wallet not connected!');
 		if (!$workspaceStore) throw Error('Workspace not found!');
@@ -248,7 +248,6 @@
 
 		// 2. Create our filters
 		// NOTE We're going to pass this to the getParsedProgramAccounts() function
-		const pollsFilter: GetProgramAccountsFilter[] = [
 			// Q: Account size 165 or was that for SPLToken accounts only?
 			// My hunch is that the sizes vary (Profile, Poll, Vote, etc.)
 			// A: NO! Account size VARIES! E.g., Size matches the ACCOUNT_SPACE!
@@ -258,16 +257,34 @@
 			// the starting point in account.data to start comparing to
 			// the 'bytes' string value byte-by-byte. So, in this case,
 			// we're trying to match on 'authority' (i.e., wallet address)
-			// U: The issue is that it's not parsing my account data. I read
-			// that you need to deserialize based on how the program serialized
-			// everything. This means that my Anchor program may require an Anchor
-			// version of getParsedProgramAccounts() but still troubleshooting...
+      // U: I think I can get customProgramFilter to work bc its fields
+      // are all ints mostly. Perhaps the String fields in Poll and Profile
+      // structs makes it harder to pinpoint the offset?
+      // IMPORTANT: String is Vec<u8> and each UTF-8 char can use up to 4 bytes each
+      // And the first 4 bytes is a PREFIX that stores the String's total length (not max possible)!
+      // You define the MAX size allocation for String in the struct, BUT that doesn't
+      // mean you'll actually use up the entire space! THIS CAN AFFECT WHERE NEXT PROPERTY
+      // IS LOCATED! So, this 4 byte prefix is crucial bc it needs to be accounted for!
+      // REF: https://lorisleiva.com/create-a-solana-dapp-from-scratch/structuring-our-tweet-account
+      // U: So, does (above) mean my MAX Poll size is 154, but because my two String
+      // fields (option_a/b labels) will vary? NOTE: I allocated 40 bytes per label,
+      // which means I could treat it like 10 * 4 = 40 bytes (10 chars max)
+      // U: I moved 'authority' in CustomProgram struct to be the first field. Then,
+      // Then I updated the filter memcmp offset: 8, since 0-7 is for DISCRIMINATOR!
+      // and it worked! The challenge with Poll and Profile is due to the String fields!
+      // U: I added 4 bytes for STRING_LENGTH_PREFIX, so 8 bytes total to Poll::ACCOUNT_SPACE (162)
+      // U: I also shifted 'authority' to the first struct field, so can target offset easier
+      // This way I odn't have to worry about varying length of display labels.
+      // A: WORKS! Just a matter of pinpointing the offset value! Moving 'authority' to a 
+      // predictable position worked! THIS MEANS THAT I could create account-type specific
+      // queries, AND THEN use program.account.[accountType].fetch(pubkey)!
+		const pollsFilter: GetProgramAccountsFilter[] = [
 			{
-				dataSize: 154 // VARIES by the Account::ACCOUNT_SPACE!
+				dataSize: 162 // VARIES by the Account::ACCOUNT_SPACE!
 			},
 			{
 				memcmp: {
-					offset: 121, // Starting point. 'authority' is close to end
+					offset: 8, // Starting point. 'authority'
 					bytes: $walletStore.publicKey!.toBase58()
 				}
 			}
@@ -291,7 +308,7 @@
 			},
 			{
 				memcmp: {
-					offset: 32,
+					offset: 8, // 32 when 'authority' was just before bump
 					bytes: $walletStore.publicKey!.toBase58()
 				}
 			}
@@ -302,6 +319,8 @@
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: customProgramFilter }
 		);
+    console.log("customProgramAccount:");
+    console.log(customProgramAccount);
 
 		const profileAccounts = await connection.getParsedProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
@@ -312,6 +331,8 @@
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: pollsFilter }
 		);
+    console.log("pollAccounts:");
+    console.log(pollAccounts);
 
 		// NOTE No filter - get all accounts and check size
 		const parsedProgramAccounts = await connection.getParsedProgramAccounts(
@@ -322,17 +343,22 @@
 			$workspaceStore.program?.programId as anchor.web3.PublicKey
 		);
 
+    // Q: What does program.state return?
+    // U: Nothing??? Need to look into this more.
+    // const programState = await $workspaceStore.program?.state.fetch(); // undefined
+    // console.log(programState);
+
+
 		// 4. Do what we want... i.e.,
     // Q: Why is the AccountInfo data returning a Buffer? How do I parse the data?
     // U: Turns out you parse the account according to its struct. So, each program
     // will package it up differently. However, if the account is a data account,
     // then you may be able to read the data using the program.account.fetch() API.
-    // TODO try this out!
 		console.log('=== CustomProgram ===');
 		customProgramAccount.forEach((account, i) => {
 			const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
 			console.log(parsedAccountInfo); // Uint8Array
-			console.log(parsedAccountInfo.parsed); // undefined
+			// console.log(parsedAccountInfo.parsed); // undefined
 		});
 
 		// console.log('=== Profiles ===');
@@ -341,40 +367,55 @@
 		// 	console.log(parsedAccountInfo);
 		// });
 
-		// console.log('=== Polls ===');
-		// pollAccounts.forEach((account, i) => {
-		// 	const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
-		// 	console.log(parsedAccountInfo);
-		// });
-
-		console.log('=== All PARSED ProgramAccounts ===');
-		parsedProgramAccounts.forEach((account, i) => {
-			console.log(`Account # ${i + 1}:`);
-			console.log(`---prototype: ${Object.getPrototypeOf(account)}`);
-			console.log(`---Address: ${account.pubkey.toBase58()}`);
-			console.log(`---Owner: ${account.account.owner.toBase58()}`);
-			console.log(`---Data: ${account.account.data.toString()}`); // Garbled
-			console.log(`---JSON: ${JSON.stringify(account.account.data.toString())}`); // Garbled
-			console.log(account['account']['data']); // Uint8Array
-
-			console.log('=======');
-
-			// Let's see if typing as ParsedAccountData helps:
+		console.log('=== Polls ===');
+		pollAccounts.forEach((account, i) => {
 			const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
-			console.log(`ParsedAccountData # ${i + 1}:`);
-			console.log(parsedAccountInfo); // Uint8Array
-			console.log(`---parsedAccountInfo: ${parsedAccountInfo}`); // Garbled
-			console.log(`---.parsed: ${parsedAccountInfo.parsed}`); // undefined
-			console.log(`---.program: ${parsedAccountInfo.program}`); // undefined
-			console.log(`---.program: ${parsedAccountInfo.space}`); // undefined
+			console.log(parsedAccountInfo);
 		});
 
-		// console.log('=== All NON-PARSED ProgramAccounts ===');
-		// programAccounts.forEach((account, i) => {
+		// console.log('=== All PARSED ProgramAccounts ===');
+		// parsedProgramAccounts.forEach((account, i) => {
 		// 	console.log(`Account # ${i + 1}:`);
-		// 	// console.log(`---Address: ${account.pubkey.toBase58()}`);
-		// 	console.log(account);
+		// 	console.log(`---prototype: ${Object.getPrototypeOf(account)}`);
+		// 	console.log(`---Address: ${account.pubkey.toBase58()}`);
+		// 	console.log(`---Owner: ${account.account.owner.toBase58()}`);
+		// 	console.log(`---Data: ${account.account.data.toString()}`); // Garbled
+		// 	console.log(`---JSON: ${JSON.stringify(account.account.data.toString())}`); // Garbled
+		// 	console.log(account['account']['data']); // Uint8Array
+
+		// 	console.log('=======');
+
+		// 	// Let's see if typing as ParsedAccountData helps:
+		// 	const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
+		// 	console.log(`ParsedAccountData # ${i + 1}:`);
+		// 	console.log(parsedAccountInfo); // Uint8Array
+		// 	console.log(`---parsedAccountInfo: ${parsedAccountInfo}`); // Garbled
+		// 	console.log(`---.parsed: ${parsedAccountInfo.parsed}`); // undefined
+		// 	console.log(`---.program: ${parsedAccountInfo.program}`); // undefined
+		// 	console.log(`---.program: ${parsedAccountInfo.space}`); // undefined
 		// });
+
+
+		console.log('=== All NON-PARSED ProgramAccounts ===');
+		programAccounts.forEach(async (account, i) => {
+      // Q: Why is the AccountInfo data returning a Buffer? How do I parse the data?
+      // U: Turns out you parse the account according to its struct. So, each program
+      // will package it up differently. However, if the account is a data account,
+      // then you may be able to read the data using the program.account.fetch() API.
+			console.log(`Account # ${i + 1}:`);
+			// console.log(`---Address: ${account.pubkey.toBase58()}`);
+			console.log(account);
+
+      // Q: Do I even need to use this getProgramAccounts() approach if I have access
+      // to the workspace/program and the fetch() API?
+      // U: Works (kinda) if I know the account struct, but errors otherwise.
+      // E.g., If I use program.account.customProgram it'll get the matching account data,
+      // otherwise, it errors. 
+      // Q: Wonder if my GetProgramAccountsFilter could filter by the different types by
+      // using dataSize and memcmp properties?
+      // const accountData = await $workspaceStore.program?.account.customProgram?.fetch(account.pubkey) // WORKS
+      // console.log(accountData);
+		});
 	}
 
 	// Q: Can I use this to update/fetch my Stores?
