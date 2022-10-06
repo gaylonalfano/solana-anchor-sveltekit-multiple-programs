@@ -1,6 +1,4 @@
 <script lang="ts">
-	/* import { SignMessage, SendTransaction } from '$lib/index'; */
-
 	import * as anchor from '@project-serum/anchor';
 	import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 	import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
@@ -325,6 +323,11 @@
 		);
 
 		// 4. Do what we want... i.e.,
+    // Q: Why is the AccountInfo data returning a Buffer? How do I parse the data?
+    // U: Turns out you parse the account according to its struct. So, each program
+    // will package it up differently. However, if the account is a data account,
+    // then you may be able to read the data using the program.account.fetch() API.
+    // TODO try this out!
 		console.log('=== CustomProgram ===');
 		customProgramAccount.forEach((account, i) => {
 			const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
@@ -347,6 +350,7 @@
 		console.log('=== All PARSED ProgramAccounts ===');
 		parsedProgramAccounts.forEach((account, i) => {
 			console.log(`Account # ${i + 1}:`);
+			console.log(`---prototype: ${Object.getPrototypeOf(account)}`);
 			console.log(`---Address: ${account.pubkey.toBase58()}`);
 			console.log(`---Owner: ${account.account.owner.toBase58()}`);
 			console.log(`---Data: ${account.account.data.toString()}`); // Garbled
