@@ -18,10 +18,24 @@ pub struct CustomProgram {
     pub bump: u8, // 1 byte
 }
 
+// Adding useful constants for sizing properties to better target memcmp offsets
+// REF: https://lorisleiva.com/create-a-solana-dapp-from-scratch/structuring-our-tweet-account#final-code
+const DISCRIMINATOR_LENGTH: usize = 8;
+const AUTHORITY_LENGTH: usize = 32; // Pubkey
+const TOTAL_PROFILE_COUNT_LENGTH: usize = 8;
+const TOTAL_POLL_COUNT_LENGTH: usize = 8;
+const TOTAL_VOTE_COUNT_LENGTH: usize = 8;
+const BUMP_LENGTH: usize = 1;
+
+
 impl CustomProgram {
 
-    // pub const ACCOUNT_SPACE: usize = 8 + 8 + 8 + 8 + 32 + 1;
-    pub const ACCOUNT_SPACE: usize = 8 + 32 + 8 + 8 + 8 + 1;
+    pub const ACCOUNT_SPACE: usize = DISCRIMINATOR_LENGTH
+        + AUTHORITY_LENGTH
+        + TOTAL_PROFILE_COUNT_LENGTH
+        + TOTAL_POLL_COUNT_LENGTH
+        + TOTAL_VOTE_COUNT_LENGTH
+        + BUMP_LENGTH;
 
     pub const SEED_PREFIX: &'static str = "custom-program";
 

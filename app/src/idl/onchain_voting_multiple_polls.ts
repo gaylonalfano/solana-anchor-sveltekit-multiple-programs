@@ -248,6 +248,10 @@ export type OnchainVotingMultiplePolls = {
         "kind": "struct",
         "fields": [
           {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
             "name": "profileNumber",
             "type": "u64"
           },
@@ -266,10 +270,6 @@ export type OnchainVotingMultiplePolls = {
           {
             "name": "voteCount",
             "type": "u64"
-          },
-          {
-            "name": "authority",
-            "type": "publicKey"
           },
           {
             "name": "bump",
@@ -581,6 +581,10 @@ export const IDL: OnchainVotingMultiplePolls = {
         "kind": "struct",
         "fields": [
           {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
             "name": "profileNumber",
             "type": "u64"
           },
@@ -599,10 +603,6 @@ export const IDL: OnchainVotingMultiplePolls = {
           {
             "name": "voteCount",
             "type": "u64"
-          },
-          {
-            "name": "authority",
-            "type": "publicKey"
           },
           {
             "name": "bump",
