@@ -4,6 +4,7 @@
 	import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 	import { AnchorConnectionProvider } from '@svelte-on-solana/wallet-adapter-anchor';
 	import { clusterApiUrl, PublicKey, type GetProgramAccountsFilter } from '@solana/web3.js';
+  import type { OnchainVotingMultiplePolls } from '../../idl/onchain_voting_multiple_polls';
 	import idl from '../../../../target/idl/onchain_voting_multiple_polls.json';
 	import { onMount } from 'svelte';
 	import { notificationStore } from '$stores/notification';
@@ -12,6 +13,7 @@
 	import { pollStore } from '$stores/polls/poll-store';
 	import { pollsStore } from '$stores/polls/polls-store';
 	import { Button } from '$lib/index';
+	import { program } from '@project-serum/anchor/dist/cjs/spl/token';
 
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
 	const network = 'http://localhost:8899';
@@ -243,6 +245,7 @@
 		if (!$walletStore) throw Error('Wallet not connected!');
 		if (!$workspaceStore) throw Error('Workspace not found!');
 
+
 		// 1. Establish a connection
 		const { connection } = $workspaceStore;
 
@@ -292,11 +295,11 @@
 
 		const profilesFilter: GetProgramAccountsFilter[] = [
 			{
-				dataSize: 145
+				dataSize: 153
 			},
 			{
 				memcmp: {
-					offset: 122, // Starting point. 145-1-32=122
+					offset: 8, // Starting point for 'authority' 
 					bytes: $walletStore.publicKey!.toBase58()
 				}
 			}
@@ -314,6 +317,19 @@
 			}
 		];
 
+    //   const votesFilter: GetProgramAccountsFilter[] = [
+		// 	{
+		// 		dataSize: 65
+		// 	},
+		// 	{
+		// 		memcmp: {
+		// 			offset: 8, // 32 when 'authority' was just before bump
+		// 			bytes: $walletStore.publicKey!.toBase58()
+		// 		}
+		// 	}
+		// ];
+
+
 		// 3. Get the accounts based on filters
 		const customProgramAccount = await connection.getParsedProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
@@ -321,6 +337,7 @@
 		);
     console.log("customProgramAccount:");
     console.log(customProgramAccount);
+
 
 		const profileAccounts = await connection.getParsedProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
@@ -354,18 +371,61 @@
     // U: Turns out you parse the account according to its struct. So, each program
     // will package it up differently. However, if the account is a data account,
     // then you may be able to read the data using the program.account.fetch() API.
+    // U: By using getProgramAccounts() and then fetch(), you're essentially fetching TWICE.
+    // Was suggested to gPA and then program.coder.accounts.decode(), but how?
 		console.log('=== CustomProgram ===');
 		customProgramAccount.forEach((account, i) => {
 			const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
+      // const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode("customProgram", account.account.data as Buffer); // E: Unknown account: customProgram
 			console.log(parsedAccountInfo); // Uint8Array
 			// console.log(parsedAccountInfo.parsed); // undefined
 		});
 
-		// console.log('=== Profiles ===');
-		// profileAccounts.forEach((account, i) => {
-		// 	const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
-		// 	console.log(parsedAccountInfo);
-		// });
+		console.log('=== Profiles ===');
+    // Q: What does program.coder look like?
+    // Q: Does my workspaceStore.program have the Idl of OnchainVotingMultiplePolls?
+    // Q: Is there a Typing issue i.e., should it say BorshCoder or just Coder?
+    console.log("program: ");
+    console.log($workspaceStore.program!) // 
+    console.log("program.coder: ");
+    console.log($workspaceStore.program!.coder) // BorshCoder {instructions, accounts, events}
+    console.log("program.coder.accounts: ");
+    console.log($workspaceStore.program!.coder.accounts) // BorshAccountsCoder {accountLayouts, idl}
+    // Q: How to use program.coder?
+    // REF: program.coder.accounts.decode<anchor.IdlAccounts<DegenerateStar>["star"]>("star", data!);
+    const decodedProfileAccounts = profileAccounts.map((account: anchor.IdlTypes<anchor.Idl>["Profile"], i: number) => {
+      // $workspaceStore.program?.account.profile._coder.decode("Profile", account.account.data as Buffer); // E: _coder is private
+      // return $workspaceStore.program!.coder.accounts.decode("profile", account.account.data); // E: Unknown account: profile
+      // ============== TODO =========
+      // TODO WORKS! RESEARCH THIS and make sure the Idl Type is still working, though it should
+      // right, since I typed 'account' inside the map()?
+      return $workspaceStore.program!.coder.accounts.decode("Profile", account.account.data); // WORKS! It's CAPITAL 'P'!
+      // return $workspaceStore.program?.coder.accounts.decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("profile", account.account.data as Buffer); // Error: Unknown account: profile
+      // return $workspaceStore.program?.coder.profile.decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("Profile", account.account.data); // E: 'profile' does not exist on type 'Coder'
+
+      // return $workspaceStore.program?.coder<anchor.IdlAccounts<OnchainVotingMultiplePolls>["profile"]>
+      //   .profile.decode("Profile", account.account.data); // E: 
+
+      // return $workspaceStore.program?.coder.accounts
+        // .decode<anchor.IdlAccounts<OnchainVotingMultiplePolls>["profile"]>("profile", account.account.data as Buffer); // Error: Unknown account: profile
+        // .decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("profile", account.account.data as Buffer); // Error: Unknown account: profile
+
+      // return $workspaceStore.program?.coder.accounts.profile
+      //   .decode(anchor.IdlTypes<anchor.Idl>["Profile"], account.account.data as Buffer); // E: 'profile' does not exist on type AccountsCoder<string>
+
+      // console.log("profileAccount #: ", i);
+      // console.log(account);
+
+      // return $workspaceStore.program?.coder
+
+
+      
+    })
+
+    console.log(decodedProfileAccounts);
+    // profileAccounts.map((account) => {
+    //   return $workspaceStore.program?.coder.accounts<"Profile">?.decode("profile", account.account.data);
+    // })
 
 		console.log('=== Polls ===');
 		pollAccounts.forEach((account, i) => {
