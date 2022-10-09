@@ -13,7 +13,6 @@
 	import { pollStore } from '$stores/polls/poll-store';
 	import { pollsStore } from '$stores/polls/polls-store';
 	import { Button } from '$lib/index';
-	import { program } from '@project-serum/anchor/dist/cjs/spl/token';
 
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
 	const network = 'http://localhost:8899';
@@ -73,7 +72,8 @@
 	 * Create a dApp level PDA data account
 	 */
 	async function handleCreateCustomProgram() {
-		if ($customProgramStore) {
+    // U: Using a custom Store so had to update how I access customProgram data
+		if ($customProgramStore.customProgram) {
 			notificationStore.add({
 				type: 'error',
 				message: 'Data account already exists!'
@@ -112,7 +112,7 @@
 			customProgramPda
 		);
 		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
-		customProgramStore.set(customProgram);
+		customProgramStore.set({ customProgram });
 
 		// Verify the account has set up correctly
 		// expect(customProgram.totalProfileCount.toNumber()).to.equal(0);
@@ -179,6 +179,8 @@
 		// then all the local PDAs get cleared. Maybe consider storing the PDA
 		// in the actual account? Or, perhaps attempt to derive if not available?
 		// This is a common challenge for me...
+    // U: If I add <a> links then the state remains and isn't cleared. However, if I
+    // change wallets, then the user state gets wiped.
 		// Need to access current customProgram.totalPollCount
 		const pollCount: string = ($customProgramStore.totalPollCount.toNumber() + 1).toString();
 		console.log('pollCount: ', pollCount);
@@ -235,7 +237,7 @@
 		);
 		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
 		// Q: update() or set() Store?
-		customProgramStore.set(customProgram);
+		customProgramStore.set({ customProgram: customProgram });
 	}
 
 	// Try to fetch program accounts using getProgramAccounts()
@@ -386,13 +388,14 @@
     // Q: Does my workspaceStore.program have the Idl of OnchainVotingMultiplePolls?
     // Q: Is there a Typing issue i.e., should it say BorshCoder or just Coder?
     console.log("program: ");
-    console.log($workspaceStore.program!) // 
+    console.log($workspaceStore.program!) // Program {coder, idl, programId, provider}
     console.log("program.coder: ");
     console.log($workspaceStore.program!.coder) // BorshCoder {instructions, accounts, events}
     console.log("program.coder.accounts: ");
     console.log($workspaceStore.program!.coder.accounts) // BorshAccountsCoder {accountLayouts, idl}
     // Q: How to use program.coder?
     // REF: program.coder.accounts.decode<anchor.IdlAccounts<DegenerateStar>["star"]>("star", data!);
+    // A: program.coder.accounts.decode("Profile", account.account.data); No need for types since we have IDL!
     const decodedProfileAccounts = profileAccounts.map((account: anchor.IdlTypes<anchor.Idl>["Profile"], i: number) => {
       // $workspaceStore.program?.account.profile._coder.decode("Profile", account.account.data as Buffer); // E: _coder is private
       // return $workspaceStore.program!.coder.accounts.decode("profile", account.account.data); // E: Unknown account: profile
