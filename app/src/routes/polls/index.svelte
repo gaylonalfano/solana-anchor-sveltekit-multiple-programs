@@ -8,11 +8,26 @@
 	import idl from '../../../../target/idl/onchain_voting_multiple_polls.json';
 	import { onMount } from 'svelte';
 	import { notificationStore } from '$stores/notification';
-	import { customProgramStore } from '$stores/polls/custom-program-store';
+	import { customProgramStore, customProgramPdaStore } from '$stores/polls/custom-program-store';
 	import { profileStore } from '$stores/polls/profile-store';
 	import { pollStore } from '$stores/polls/poll-store';
 	import { pollsStore } from '$stores/polls/polls-store';
 	import { Button } from '$lib/index';
+
+
+  /*
+    TODOs:
+      - Create some sort of onMount or possibly load() that fetches
+        program accounts and updates customProgramStore, pollsStore,
+        and profileStore (for the connected wallet)
+      - Have pollsStore load after wallet swap. Rather than set()
+        need to use update() instead so it keeps track. 
+      - Have polls/index do some sort of listing/pagination of active
+        Poll accounts with simple button to re-route. Will need to
+        update pollStore on selection.
+
+  */
+
 
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
 	const network = 'http://localhost:8899';
@@ -25,6 +40,7 @@
 	// Global state
 	// Q: Any way to access the PDA Address from Stores?
 	// Or, do I need to maintain separate vars for PDA addresses?
+  // U: Adding a customProgramPdaStore to keep state regardless of wallet
 	let customProgram: anchor.IdlTypes<anchor.Idl>['CustomProgram'];
 	let customProgramPda: anchor.web3.PublicKey;
 
@@ -72,8 +88,7 @@
 	 * Create a dApp level PDA data account
 	 */
 	async function handleCreateCustomProgram() {
-    // U: Using a custom Store so had to update how I access customProgram data
-		if ($customProgramStore.customProgram) {
+		if ($customProgramStore) {
 			notificationStore.add({
 				type: 'error',
 				message: 'Data account already exists!'
@@ -89,6 +104,7 @@
 
 		// Update global state
 		customProgramPda = pda;
+    customProgramPdaStore.set(pda);
 
 		console.log(
 			'PDA for program',
@@ -100,7 +116,7 @@
 		const tx = await $workspaceStore.program?.methods
 			.createCustomProgram()
 			.accounts({
-				customProgram: customProgramPda,
+				customProgram: $customProgramPdaStore,
 				authority: $walletStore.publicKey as anchor.web3.PublicKey,
 				systemProgram: anchor.web3.SystemProgram.programId
 			})
@@ -109,10 +125,10 @@
 
 		// Fetch data after tx confirms and update our account
 		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
-			customProgramPda
+			$customProgramPdaStore
 		);
 		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
-		customProgramStore.set({ customProgram });
+		customProgramStore.set(customProgram);
 
 		// Verify the account has set up correctly
 		// expect(customProgram.totalProfileCount.toNumber()).to.equal(0);
@@ -153,7 +169,7 @@
 			.createProfile(profileHandle, profileDisplayName)
 			.accounts({
 				profile: profilePda,
-				customProgram: customProgramPda, // FIXME Errors when swapping wallets! Need to store PDAs to Stores if possible
+				customProgram: $customProgramPdaStore, // FIXME Errors when swapping wallets! Need to store PDAs to Stores if possible
 				authority: $walletStore.publicKey as anchor.web3.PublicKey,
 				systemProgram: anchor.web3.SystemProgram.programId
 			})
@@ -167,10 +183,11 @@
 		// Q: update() or set() Store?
 		profileStore.set(profile);
 		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
-			customProgramPda
+			$customProgramPdaStore
 		);
 		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
 		// Q: update() or set() Store?
+    // A: I believe just set() since we overwrite the whole thing
 		customProgramStore.set(customProgram);
 	}
 
@@ -215,7 +232,7 @@
 			.accounts({
 				poll: pollPda,
 				profile: profilePda,
-				customProgram: customProgramPda,
+				customProgram: $customProgramPdaStore,
 				authority: $walletStore.publicKey as anchor.web3.PublicKey,
 				systemProgram: anchor.web3.SystemProgram.programId
 			})
@@ -233,11 +250,11 @@
 		profile = currentProfile as anchor.IdlTypes<anchor.Idl>['Profile'];
 		profileStore.set(profile);
 		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
-			customProgramPda
+			$customProgramPdaStore
 		);
 		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
 		// Q: update() or set() Store?
-		customProgramStore.set({ customProgram: customProgram });
+		customProgramStore.set(customProgram);
 	}
 
 	// Try to fetch program accounts using getProgramAccounts()
@@ -496,6 +513,17 @@
 
 		return pda;
 	}
+
+  // Testing out my customProgramStore.getCustomProgramAccount()
+  async function handleGetCustomProgram() {
+    // Q: Do I need to derive PDA here or inside Store?
+    // A: Inside Store! Makes it more flexible!
+    // With PDA
+    // await customProgramStore.getCustomProgramAccount(CUSTOM_PROGRAM_PDA);
+    // Without PDA
+    await customProgramStore.getCustomProgramAccount(); // undefined
+
+  }
 </script>
 
 <AnchorConnectionProvider {network} {idl} />
@@ -512,6 +540,11 @@
 			>
 			<pre>customProgramStore: {JSON.stringify($customProgramStore, null, 2)}</pre>
 			<br />
+      <Button disabled={!$walletStore.publicKey} on:click={handleGetCustomProgram}
+				>Get Custom Program Store</Button
+			>
+			<pre>customProgramStore: {JSON.stringify($customProgramStore, null, 2)}</pre>
+
 			<Button disabled={!$walletStore.publicKey} on:click={handleCreateProfile}
 				>Create Profile</Button
 			>
