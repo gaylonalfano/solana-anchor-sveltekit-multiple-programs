@@ -753,6 +753,7 @@ describe("onchain-voting-multiple-polls", () => {
     }
   });
 
+  // TODO Test that same wallet can only create one profile
   // TODO Have testUser1 create testPoll2 and then vote
   // TODO Test turning off a Poll
   // TODO Test Don't duplicate Polls with exact same Options
