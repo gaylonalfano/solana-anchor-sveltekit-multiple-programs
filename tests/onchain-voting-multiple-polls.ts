@@ -754,6 +754,72 @@ describe("onchain-voting-multiple-polls", () => {
   });
 
   // TODO Test that same wallet can only create one profile
+  // Q: Should totalProfileCount be used as a SEED? I think this would allow
+  // the same wallet to create multiple Profiles. Seems similar to Votes (?).
+  // For Votes, the seeds are the PollPda and ProfilePda to ensure the same
+  // wallet cannot vote more than once. You could still store profileCount
+  // in the account data, but just don't use as a seed...
+  xit("Try to create a second account with testUser1 wallet", async () => {
+    const profileCount = (
+      customProgram.totalProfileCount.toNumber() + 1
+    ).toString();
+    console.log("profileCount: ", profileCount);
+
+    // NOTE Error processing Instruction 0: Cross-program invocation
+    // with unauthorized signer or writable account
+    // REF: https://stackoverflow.com/questions/72849618/transaction-simulation-failed-error-processing-instruction-0-cross-program-inv
+    // U: Check the seeds!
+    const [pda, bump] = await PublicKey.findProgramAddress(
+      [
+        anchor.utils.bytes.utf8.encode(PROFILE_SEED_PREFIX),
+        testUser1.publicKey.toBuffer(),
+        anchor.utils.bytes.utf8.encode(profileCount),
+      ],
+      program.programId
+    );
+    // Update global state
+    testUser1ProfilePda = pda;
+
+    console.log(
+      "PDA for program",
+      program.programId.toBase58(),
+      "is generated :",
+      testUser1ProfilePda.toBase58()
+    );
+
+    const tx = await program.methods
+      .createProfile(testUser1Handle, testUser1DisplayName)
+      .accounts({
+        profile: testUser1ProfilePda,
+        customProgram: customProgramPda,
+        authority: testUser1.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([testUser1])
+      .rpc();
+    console.log("TxHash ::", tx);
+
+    // Fetch data after tx confirms & update global state
+    const currentProfile = await program.account.profile.fetch(
+      testUser1ProfilePda
+    );
+    testUser1Profile = currentProfile;
+    const currentCustomProgram = await program.account.customProgram.fetch(
+      customProgramPda
+    );
+    customProgram = currentCustomProgram;
+
+    // Verify the account has set up correctly
+    expect(currentProfile.handle).to.equal(testUser1Handle);
+    expect(currentProfile.displayName).to.equal(testUser1DisplayName);
+    expect(currentProfile.authority.toString()).to.equal(
+      testUser1.publicKey.toString()
+    );
+    expect(currentProfile.pollCount.toNumber()).to.equal(0);
+    expect(currentProfile.voteCount.toNumber()).to.equal(0);
+    expect(customProgram.totalProfileCount.toNumber()).to.equal(1);
+  });
+
   // TODO Have testUser1 create testPoll2 and then vote
   // TODO Test turning off a Poll
   // TODO Test Don't duplicate Polls with exact same Options
