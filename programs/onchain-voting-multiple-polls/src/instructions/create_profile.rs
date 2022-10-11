@@ -39,10 +39,12 @@ pub struct CreateProfile<'info> {
         init,
         payer = authority,
         space = Profile::ACCOUNT_SPACE,
+        // U: Removing profileCount increment as seed! This would allow
+        // the same wallet to create multiple Profiles, similar to Votes.
         seeds = [
             Profile::SEED_PREFIX.as_ref(),
             authority.key().as_ref(),
-            (custom_program.total_profile_count + 1).to_string().as_ref(),
+            // (custom_program.total_profile_count + 1).to_string().as_ref(),
         ],
         bump
     )]

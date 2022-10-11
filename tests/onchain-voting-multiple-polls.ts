@@ -117,7 +117,9 @@ describe("onchain-voting-multiple-polls", () => {
       [
         anchor.utils.bytes.utf8.encode(PROFILE_SEED_PREFIX),
         testUser1.publicKey.toBuffer(),
-        anchor.utils.bytes.utf8.encode(profileCount),
+        // U: Removing profileCount increment as seed! This would allow
+        // the same wallet to create multiple Profiles, similar to Votes.
+        // anchor.utils.bytes.utf8.encode(profileCount),
       ],
       program.programId
     );
@@ -155,6 +157,7 @@ describe("onchain-voting-multiple-polls", () => {
 
     // Verify the account has set up correctly
     expect(currentProfile.handle).to.equal(testUser1Handle);
+    expect(currentProfile.profileNumber.toNumber()).to.equal(profileCount.toNumber());
     expect(currentProfile.displayName).to.equal(testUser1DisplayName);
     expect(currentProfile.authority.toString()).to.equal(
       testUser1.publicKey.toString()
@@ -416,7 +419,8 @@ describe("onchain-voting-multiple-polls", () => {
         ],
         program.programId
       );
-      // Update global state for vote?
+      // Q: Update global state for vote?
+      // A: No, because this is supposed to fail
 
       console.log(
         "PDA for program",
@@ -481,7 +485,8 @@ describe("onchain-voting-multiple-polls", () => {
       [
         anchor.utils.bytes.utf8.encode(PROFILE_SEED_PREFIX),
         testUser2.publicKey.toBuffer(),
-        anchor.utils.bytes.utf8.encode(profileCount),
+        // U: Removing profileCount from seeds
+        // anchor.utils.bytes.utf8.encode(profileCount),
       ],
       program.programId
     );
@@ -519,6 +524,7 @@ describe("onchain-voting-multiple-polls", () => {
 
     // Verify the account has set up correctly
     expect(currentProfile.handle).to.equal(testUser2Handle);
+    expect(currentProfile.profileNumber.toNumber()).to.equal(profileCount.toNumber());
     expect(currentProfile.displayName).to.equal(testUser2DisplayName);
     expect(currentProfile.authority.toString()).to.equal(
       testUser2.publicKey.toString()
@@ -759,66 +765,64 @@ describe("onchain-voting-multiple-polls", () => {
   // For Votes, the seeds are the PollPda and ProfilePda to ensure the same
   // wallet cannot vote more than once. You could still store profileCount
   // in the account data, but just don't use as a seed...
-  xit("Try to create a second account with testUser1 wallet", async () => {
-    const profileCount = (
-      customProgram.totalProfileCount.toNumber() + 1
-    ).toString();
-    console.log("profileCount: ", profileCount);
+  xit("Try to create a SECOND Profile with testUser1 wallet", async () => {
+    try {
+      const profileCount = (
+        customProgram.totalProfileCount.toNumber() + 1
+      ).toString();
+      console.log("profileCount: ", profileCount);
 
-    // NOTE Error processing Instruction 0: Cross-program invocation
-    // with unauthorized signer or writable account
-    // REF: https://stackoverflow.com/questions/72849618/transaction-simulation-failed-error-processing-instruction-0-cross-program-inv
-    // U: Check the seeds!
-    const [pda, bump] = await PublicKey.findProgramAddress(
-      [
-        anchor.utils.bytes.utf8.encode(PROFILE_SEED_PREFIX),
-        testUser1.publicKey.toBuffer(),
-        anchor.utils.bytes.utf8.encode(profileCount),
-      ],
-      program.programId
-    );
-    // Update global state
-    testUser1ProfilePda = pda;
+      const [pda, bump] = await PublicKey.findProgramAddress(
+        [
+          anchor.utils.bytes.utf8.encode(PROFILE_SEED_PREFIX),
+          testUser1.publicKey.toBuffer(),
+          // U: Removing profileCount from seeds to prevent multiple Profiles
+          // created with the same wallet. Similar to Votes.
+          // anchor.utils.bytes.utf8.encode(profileCount),
+        ],
+        program.programId
+      );
 
-    console.log(
-      "PDA for program",
-      program.programId.toBase58(),
-      "is generated :",
-      testUser1ProfilePda.toBase58()
-    );
+      console.log(
+        "PDA for program",
+        program.programId.toBase58(),
+        "is generated :",
+        testUser1ProfilePda.toBase58()
+      );
 
-    const tx = await program.methods
-      .createProfile(testUser1Handle, testUser1DisplayName)
-      .accounts({
-        profile: testUser1ProfilePda,
-        customProgram: customProgramPda,
-        authority: testUser1.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      })
-      .signers([testUser1])
-      .rpc();
-    console.log("TxHash ::", tx);
+      const tx = await program.methods
+        .createProfile(testUser1Handle, testUser1DisplayName)
+        .accounts({
+          profile: testUser1ProfilePda,
+          customProgram: customProgramPda,
+          authority: testUser1.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([testUser1])
+        .rpc();
+      console.log("TxHash ::", tx);
 
-    // Fetch data after tx confirms & update global state
-    const currentProfile = await program.account.profile.fetch(
-      testUser1ProfilePda
-    );
-    testUser1Profile = currentProfile;
-    const currentCustomProgram = await program.account.customProgram.fetch(
-      customProgramPda
-    );
-    customProgram = currentCustomProgram;
+      // Fetch data after tx FAILS & double-check global state
+      const currentProfile = await program.account.profile.fetch(
+        testUser1ProfilePda
+      );
+      testUser1Profile = currentProfile;
+      const currentCustomProgram = await program.account.customProgram.fetch(
+        customProgramPda
+      );
+      customProgram = currentCustomProgram;
 
-    // Verify the account has set up correctly
-    expect(currentProfile.handle).to.equal(testUser1Handle);
-    expect(currentProfile.displayName).to.equal(testUser1DisplayName);
-    expect(currentProfile.authority.toString()).to.equal(
-      testUser1.publicKey.toString()
-    );
-    expect(currentProfile.pollCount.toNumber()).to.equal(0);
-    expect(currentProfile.voteCount.toNumber()).to.equal(0);
-    expect(customProgram.totalProfileCount.toNumber()).to.equal(1);
+      // Verify customProgram has NOT updated in any way
+      expect(customProgram.totalProfileCount.toNumber()).to.equal(profileCount.toNumber() - 1);
+    } catch (error) {
+      console.log("Profile already exists!");
+      console.warn(error);
+    }
   });
+
+    
+
+
 
   // TODO Have testUser1 create testPoll2 and then vote
   // TODO Test turning off a Poll

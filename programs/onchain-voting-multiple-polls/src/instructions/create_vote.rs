@@ -109,6 +109,7 @@ pub struct CreateVote<'info> {
 
     // Need profile
     // Q: Would I use an Anchor constraint = profile.authority == wallet_pubkey?
+    // A: Yes, see below.
     #[account(
         mut,
         // FIXME Error Number: 2003. Error Message: A raw constraint was violated
