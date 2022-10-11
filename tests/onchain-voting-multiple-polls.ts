@@ -157,7 +157,7 @@ describe("onchain-voting-multiple-polls", () => {
 
     // Verify the account has set up correctly
     expect(currentProfile.handle).to.equal(testUser1Handle);
-    expect(currentProfile.profileNumber.toNumber()).to.equal(profileCount.toNumber());
+    expect(currentProfile.profileNumber.toNumber()).to.equal(parseInt(profileCount));
     expect(currentProfile.displayName).to.equal(testUser1DisplayName);
     expect(currentProfile.authority.toString()).to.equal(
       testUser1.publicKey.toString()
@@ -524,7 +524,7 @@ describe("onchain-voting-multiple-polls", () => {
 
     // Verify the account has set up correctly
     expect(currentProfile.handle).to.equal(testUser2Handle);
-    expect(currentProfile.profileNumber.toNumber()).to.equal(profileCount.toNumber());
+    expect(currentProfile.profileNumber.toNumber()).to.equal(parseInt(profileCount));
     expect(currentProfile.displayName).to.equal(testUser2DisplayName);
     expect(currentProfile.authority.toString()).to.equal(
       testUser2.publicKey.toString()
@@ -765,7 +765,7 @@ describe("onchain-voting-multiple-polls", () => {
   // For Votes, the seeds are the PollPda and ProfilePda to ensure the same
   // wallet cannot vote more than once. You could still store profileCount
   // in the account data, but just don't use as a seed...
-  xit("Try to create a SECOND Profile with testUser1 wallet", async () => {
+  it("Try to create a SECOND Profile with testUser1 wallet", async () => {
     try {
       const profileCount = (
         customProgram.totalProfileCount.toNumber() + 1
@@ -813,16 +813,12 @@ describe("onchain-voting-multiple-polls", () => {
       customProgram = currentCustomProgram;
 
       // Verify customProgram has NOT updated in any way
-      expect(customProgram.totalProfileCount.toNumber()).to.equal(profileCount.toNumber() - 1);
+      expect(customProgram.totalProfileCount.toNumber()).to.equal(parseInt(profileCount) - 1);
     } catch (error) {
       console.log("Profile already exists!");
       console.warn(error);
     }
   });
-
-    
-
-
 
   // TODO Have testUser1 create testPoll2 and then vote
   // TODO Test turning off a Poll

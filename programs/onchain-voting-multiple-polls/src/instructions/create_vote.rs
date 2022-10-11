@@ -120,7 +120,7 @@ pub struct CreateVote<'info> {
         seeds = [
             Profile::SEED_PREFIX.as_ref(),
             authority.key().as_ref(),
-            profile.profile_number.to_string().as_ref(),
+            // profile.profile_number.to_string().as_ref(),
         ],
         bump
     )]

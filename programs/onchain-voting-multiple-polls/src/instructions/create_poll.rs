@@ -74,6 +74,8 @@ pub struct CreatePoll<'info> {
             Poll::SEED_PREFIX.as_ref(), 
             // Q: Do I need authority or profile for seed?
             // Q: Won't this limit who can WRITE to this Poll PDA?
+            // A: Yes, but may need to consider again if I want to
+            // disable a certain poll. Or, maybe can have program do it?
             // authority.key().as_ref(),
             (custom_program.total_poll_count + 1).to_string().as_ref()
         ], 
@@ -83,6 +85,8 @@ pub struct CreatePoll<'info> {
 
     // Q: Need Profile account for authority and to increment
     // profile.poll_count, right?
+    // U: Removing profile_number from seeds so wallet can't create
+    // multiple Profiles.
     // Q: What is has_one = authority?
     #[account(
         mut,
@@ -92,7 +96,9 @@ pub struct CreatePoll<'info> {
             authority.key().as_ref(),
             // Q: Since we're not creating the Profile, I should be able
             // to/need to use profile.profile_number as a seed, right?
-            profile.profile_number.to_string().as_ref(),
+            // U: Removing profile_number from seeds so wallet can't create
+            // multiple Profiles.
+            // profile.profile_number.to_string().as_ref(),
         ],
         bump = profile.bump,
     )]
