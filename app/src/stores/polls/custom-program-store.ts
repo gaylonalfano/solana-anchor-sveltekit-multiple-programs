@@ -32,6 +32,10 @@ function createCustomProgramStore() {
     subscribe,
     set,
     update,
+    // Q: Can I add a static prop to the Store?
+    // A: Don't think so. Getting errors when trying to access. May be a matter
+    // or how I design my Store, but doesn't seem to work.
+    // pda: new PublicKey("2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE"),
     // getPda: async (): anchor.web3.PublicKey => {
     //   if (customProgramPdaStore) return get(customProgramPdaStore);
     //   
@@ -75,6 +79,8 @@ function createCustomProgramStore() {
           pda = tempPda;
           // U: Need to update the PdaStore value
           customProgramPdaStore.set(pda);
+          // Q: Can I add a 'pda' or 'address' property to this Store?
+          update((self) => self.pda = pda as PublicKey);
         } catch (e) {
           console.log(`error getting PDA: `, e);
         }

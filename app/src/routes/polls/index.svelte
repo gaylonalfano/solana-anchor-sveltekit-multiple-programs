@@ -4,18 +4,20 @@
 	import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 	import { AnchorConnectionProvider } from '@svelte-on-solana/wallet-adapter-anchor';
 	import { clusterApiUrl, PublicKey, type GetProgramAccountsFilter } from '@solana/web3.js';
-  import type { OnchainVotingMultiplePolls } from '../../idl/onchain_voting_multiple_polls';
+	import type { OnchainVotingMultiplePolls } from '../../idl/onchain_voting_multiple_polls';
 	import idl from '../../../../target/idl/onchain_voting_multiple_polls.json';
 	import { onMount, beforeUpdate, afterUpdate } from 'svelte';
+	import type { Writable } from 'svelte/store';
+	import { get } from 'svelte/store';
 	import { notificationStore } from '$stores/notification';
 	import { customProgramStore, customProgramPdaStore } from '$stores/polls/custom-program-store';
 	import { profileStore } from '$stores/polls/profile-store';
 	import { pollStore } from '$stores/polls/poll-store';
 	import { pollsStore } from '$stores/polls/polls-store';
 	import { Button } from '$lib/index';
+	import Poll from '$lib/Poll.svelte';
 
-
-  /*
+	/*
     TODOs:
       - Create some sort of onMount or possibly load() that fetches
         program accounts and updates customProgramStore, pollsStore,
@@ -32,7 +34,6 @@
         update pollStore on selection.
   */
 
-
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
 	const network = 'http://localhost:8899';
 
@@ -41,25 +42,22 @@
 	const POLL_SEED_PREFIX = 'poll';
 	const VOTE_SEED_PREFIX = 'vote';
 
+	// TODO Try to fetch data onMount using custom Stores
+	// U: onMount runs BEFORE workspace is connected!
+	// Q: How can I fire off a getAllPollsProgramAccounts()
+	onMount(async () => {
+		console.log('ONMOUNT');
+		await customProgramStore.getCustomProgramAccount();
+	});
 
-  // TODO Try to fetch data onMount using custom Stores
-  // U: onMount runs BEFORE workspace is connected!
-  // Q: How can I fire off a getAllPollsProgramAccounts()
-  onMount(async () => {
-    console.log("ONMOUNT")
-    await customProgramStore.getCustomProgramAccount();
-  })
-
-  beforeUpdate(() => console.log('Component is about to update.'))
-  afterUpdate(() => console.log('Component just updated.'))
-
-
+	beforeUpdate(() => console.log('Component is about to update.'));
+	afterUpdate(() => console.log('Component just updated.'));
 
 	// Global state
 	// Q: Any way to access the PDA Address from Stores?
 	// Or, do I need to maintain separate vars for PDA addresses?
-  // U: Adding a customProgramPdaStore to keep state regardless of wallet
-  // U: Gonna need more Stores in general I believe...
+	// U: Adding a customProgramPdaStore to keep state regardless of wallet
+	// U: Gonna need more Stores in general I believe...
 	let customProgram: anchor.IdlTypes<anchor.Idl>['CustomProgram'];
 	let customProgramPda: anchor.web3.PublicKey;
 
@@ -92,10 +90,10 @@
 	// 	});
 	// }
 
-  // TODO
-  // Q: How to pre-fetch data? How to use getAllProgramAccounts()
-  //    Need to wait for workspace and wallet Stores before invoking...
-  // $: $walletStore.connected && $customProgramStore.getCustomProgramAccount();
+	// TODO
+	// Q: How to pre-fetch data? How to use getAllProgramAccounts()
+	//    Need to wait for workspace and wallet Stores before invoking...
+	// $: $walletStore.connected && $customProgramStore.getCustomProgramAccount();
 
 	$: {
 		console.log('customProgram: ', customProgram);
@@ -127,7 +125,11 @@
 
 		// Update global state
 		customProgramPda = pda;
-    customProgramPdaStore.set(pda);
+		customProgramPdaStore.set(pda);
+    // Q: Can I add a custom prop to my Store to save PDA?
+    // $customProgramStore.pda = pda as PublicKey; // E: type 'never'??
+    // A: Doesn't seem so...
+    // get(customProgramStore).pda = pda; // E: undefined property
 
 		console.log(
 			'PDA for program',
@@ -171,10 +173,10 @@
 		// REF: https://stackoverflow.com/questions/72849618/transaction-simulation-failed-error-processing-instruction-0-cross-program-inv
 		// U: Check the seeds!
 		const [pda, bump] = await PublicKey.findProgramAddress(
+			// U: Removing profileCount from seeds so can't create multiple Profiles
 			[
 				anchor.utils.bytes.utf8.encode(PROFILE_SEED_PREFIX),
-				($walletStore.publicKey as anchor.web3.PublicKey).toBuffer(), // authority
-				anchor.utils.bytes.utf8.encode(profileCount)
+				($walletStore.publicKey as anchor.web3.PublicKey).toBuffer() // authority
 			],
 			$workspaceStore.program?.programId as anchor.web3.PublicKey
 		);
@@ -192,7 +194,7 @@
 			.createProfile(profileHandle, profileDisplayName)
 			.accounts({
 				profile: profilePda,
-				customProgram: $customProgramPdaStore, // FIXME Errors when swapping wallets! Need to store PDAs to Stores if possible
+				customProgram: $customProgramPdaStore,
 				authority: $walletStore.publicKey as anchor.web3.PublicKey,
 				systemProgram: anchor.web3.SystemProgram.programId
 			})
@@ -210,18 +212,18 @@
 		);
 		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
 		// Q: update() or set() Store?
-    // A: I believe just set() since we overwrite the whole thing
+		// A: I believe just set() since we overwrite the whole thing
 		customProgramStore.set(customProgram);
 	}
 
 	async function handleCreatePoll() {
-		// FIXME If the same user goes between /polls or /polls/[pollNumber],
+		// Q: If the same user goes between /polls or /polls/[pollNumber],
 		// then all the local PDAs get cleared. Maybe consider storing the PDA
 		// in the actual account? Or, perhaps attempt to derive if not available?
 		// This is a common challenge for me...
-    // U: If I add <a> links then the state remains and isn't cleared. However, if I
-    // change wallets, then the user state gets wiped.
-		// Need to access current customProgram.totalPollCount
+		// U: If I add <a> links then the state remains and isn't cleared. However, if I
+		// change wallets, then the user state gets wiped.
+		// A: Ended up creating a separate PdaStore for this
 		const pollCount: string = ($customProgramStore.totalPollCount.toNumber() + 1).toString();
 		console.log('pollCount: ', pollCount);
 
@@ -282,7 +284,7 @@
 
 	// Try to fetch program accounts using getProgramAccounts()
 	// REF: https://www.notion.so/Solana-Quick-Reference-c0704fee2afa4ee5827ded6937ef47df#680c6b9f0f074a37bfe02579309faad2
-  // REF: https://solanacookbook.com/guides/get-program-accounts.html#filters
+	// REF: https://solanacookbook.com/guides/get-program-accounts.html#filters
 	async function getAllProgramAccounts() {
 		if (!$walletStore) throw Error('Wallet not connected!');
 		if (!$workspaceStore) throw Error('Workspace not found!');
@@ -292,37 +294,47 @@
 
 		// 2. Create our filters
 		// NOTE We're going to pass this to the getParsedProgramAccounts() function
-			// Q: Account size 165 or was that for SPLToken accounts only?
-			// My hunch is that the sizes vary (Profile, Poll, Vote, etc.)
-			// A: NO! Account size VARIES! E.g., Size matches the ACCOUNT_SPACE!
-			// CustomProgram=65, Poll=154, Profile=145
-			// FIXME Why don't Profiles and Polls filters work????
-			// Q: Is it my memcmp.offset? I *believe* that offset is
-			// the starting point in account.data to start comparing to
-			// the 'bytes' string value byte-by-byte. So, in this case,
-			// we're trying to match on 'authority' (i.e., wallet address)
-      // U: I think I can get customProgramFilter to work bc its fields
-      // are all ints mostly. Perhaps the String fields in Poll and Profile
-      // structs makes it harder to pinpoint the offset?
-      // IMPORTANT: String is Vec<u8> and each UTF-8 char can use up to 4 bytes each
-      // And the first 4 bytes is a PREFIX that stores the String's total length (not max possible)!
-      // You define the MAX size allocation for String in the struct, BUT that doesn't
-      // mean you'll actually use up the entire space! THIS CAN AFFECT WHERE NEXT PROPERTY
-      // IS LOCATED! So, this 4 byte prefix is crucial bc it needs to be accounted for!
-      // REF: https://lorisleiva.com/create-a-solana-dapp-from-scratch/structuring-our-tweet-account
-      // U: So, does (above) mean my MAX Poll size is 154, but because my two String
-      // fields (option_a/b labels) will vary? NOTE: I allocated 40 bytes per label,
-      // which means I could treat it like 10 * 4 = 40 bytes (10 chars max)
-      // U: I moved 'authority' in CustomProgram struct to be the first field. Then,
-      // Then I updated the filter memcmp offset: 8, since 0-7 is for DISCRIMINATOR!
-      // and it worked! The challenge with Poll and Profile is due to the String fields!
-      // U: I added 4 bytes for STRING_LENGTH_PREFIX, so 8 bytes total to Poll::ACCOUNT_SPACE (162)
-      // U: I also shifted 'authority' to the first struct field, so can target offset easier
-      // This way I odn't have to worry about varying length of display labels.
-      // A: WORKS! Just a matter of pinpointing the offset value! Moving 'authority' to a 
-      // predictable position worked! THIS MEANS THAT I could create account-type specific
-      // queries, AND THEN use program.account.[accountType].fetch(pubkey)!
+		// Q: Account size 165 or was that for SPLToken accounts only?
+		// My hunch is that the sizes vary (Profile, Poll, Vote, etc.)
+		// A: NO! Account size VARIES! E.g., Size matches the ACCOUNT_SPACE!
+		// CustomProgram=65, Poll=154, Profile=145
+		// FIXME Why don't Profiles and Polls filters work????
+		// Q: Is it my memcmp.offset? I *believe* that offset is
+		// the starting point in account.data to start comparing to
+		// the 'bytes' string value byte-by-byte. So, in this case,
+		// we're trying to match on 'authority' (i.e., wallet address)
+		// U: I think I can get customProgramFilter to work bc its fields
+		// are all ints mostly. Perhaps the String fields in Poll and Profile
+		// structs makes it harder to pinpoint the offset?
+		// IMPORTANT: String is Vec<u8> and each UTF-8 char can use up to 4 bytes each
+		// And the first 4 bytes is a PREFIX that stores the String's total length (not max possible)!
+		// You define the MAX size allocation for String in the struct, BUT that doesn't
+		// mean you'll actually use up the entire space! THIS CAN AFFECT WHERE NEXT PROPERTY
+		// IS LOCATED! So, this 4 byte prefix is crucial bc it needs to be accounted for!
+		// REF: https://lorisleiva.com/create-a-solana-dapp-from-scratch/structuring-our-tweet-account
+		// U: So, does (above) mean my MAX Poll size is 154, but because my two String
+		// fields (option_a/b labels) will vary? NOTE: I allocated 40 bytes per label,
+		// which means I could treat it like 10 * 4 = 40 bytes (10 chars max)
+		// U: I moved 'authority' in CustomProgram struct to be the first field. Then,
+		// Then I updated the filter memcmp offset: 8, since 0-7 is for DISCRIMINATOR!
+		// and it worked! The challenge with Poll and Profile is due to the String fields!
+		// U: I added 4 bytes for STRING_LENGTH_PREFIX, so 8 bytes total to Poll::ACCOUNT_SPACE (162)
+		// U: I also shifted 'authority' to the first struct field, so can target offset easier
+		// This way I odn't have to worry about varying length of display labels.
+		// A: WORKS! Just a matter of pinpointing the offset value! Moving 'authority' to a
+		// predictable position worked! THIS MEANS THAT I could create account-type specific
+		// queries, AND THEN use program.account.[accountType].fetch(pubkey)!
 		const pollsFilter: GetProgramAccountsFilter[] = [
+			{
+				dataSize: 162 // VARIES by the Account::ACCOUNT_SPACE!
+			}
+		];
+
+		// Q: Should I filter by 'authority' here or just fetch all?
+		// U: I chose to add additional filter since I'd have to loop over
+		// all accounts, decode data, and then compare authority values
+		// May have to rethink this after lots of accounts
+		const pollsByAuthorityFilter: GetProgramAccountsFilter[] = [
 			{
 				dataSize: 162 // VARIES by the Account::ACCOUNT_SPACE!
 			},
@@ -337,10 +349,16 @@
 		const profilesFilter: GetProgramAccountsFilter[] = [
 			{
 				dataSize: 153
+			}
+		];
+
+		const profilesByAuthorityFilter: GetProgramAccountsFilter[] = [
+			{
+				dataSize: 153
 			},
 			{
 				memcmp: {
-					offset: 8, // Starting point for 'authority' 
+					offset: 8, // Starting point for 'authority'
 					bytes: $walletStore.publicKey!.toBase58()
 				}
 			}
@@ -358,7 +376,7 @@
 			}
 		];
 
-    //   const votesFilter: GetProgramAccountsFilter[] = [
+		//   const votesFilter: GetProgramAccountsFilter[] = [
 		// 	{
 		// 		dataSize: 65
 		// 	},
@@ -370,27 +388,34 @@
 		// 	}
 		// ];
 
-
 		// 3. Get the accounts based on filters
 		const customProgramAccount = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: customProgramFilter }
 		);
-    console.log("customProgramAccount:");
-    console.log(customProgramAccount);
+		console.log('customProgramAccount:');
+		console.log(customProgramAccount);
 
-
+		// Only filtering on dataSize to reduce requests
 		const profileAccounts = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: profilesFilter }
+		);
+
+		const profileAccountsByAuthority = await connection.getProgramAccounts(
+			$workspaceStore.program?.programId as PublicKey,
+			{ filters: profilesByAuthorityFilter }
 		);
 
 		const pollAccounts = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: pollsFilter }
 		);
-    console.log("pollAccounts:");
-    console.log(pollAccounts);
+
+		const pollAccountsByAuthority = await connection.getProgramAccounts(
+			$workspaceStore.program?.programId as PublicKey,
+			{ filters: pollsByAuthorityFilter }
+		);
 
 		// NOTE No filter - get all accounts and check size
 		// const parsedProgramAccounts = await connection.getParsedProgramAccounts(
@@ -401,86 +426,110 @@
 		// 	$workspaceStore.program?.programId as anchor.web3.PublicKey
 		// );
 
-    // Q: What does program.state return?
-    // U: Nothing??? Need to look into this more.
-    // const programState = await $workspaceStore.program?.state.fetch(); // undefined
-    // console.log(programState);
-
+		// Q: What does program.state return?
+		// U: Nothing??? Need to look into this more.
+		// const programState = await $workspaceStore.program?.state.fetch(); // undefined
+		// console.log(programState);
 
 		// 4. Do what we want... i.e.,
-    // Q: Why is the AccountInfo data returning a Buffer? How do I parse the data?
-    // U: Turns out you parse the account according to its struct. So, each program
-    // will package it up differently. However, if the account is a data account,
-    // then you may be able to read the data using the program.account.fetch() API.
-    // U: By using getProgramAccounts() and then fetch(), you're essentially fetching TWICE.
-    // Was suggested to gPA and then program.coder.accounts.decode(), but how?
+		// Q: Why is the AccountInfo data returning a Buffer? How do I parse the data?
+		// U: Turns out you parse the account according to its struct. So, each program
+		// will package it up differently. However, if the account is a data account,
+		// then you may be able to read the data using the program.account.fetch() API.
+		// U: By using getProgramAccounts() and then fetch(), you're essentially fetching TWICE.
+		// Was suggested to gPA and then program.coder.accounts.decode(), but how?
+		// A: Need to manually decode using program.coder!
 		console.log('=== CustomProgram ===');
-		customProgramAccount.forEach((account: anchor.IdlTypes<anchor.Idl>["CustomProgram"], i) => {
+		customProgramAccount.forEach((account: anchor.IdlTypes<anchor.Idl>['CustomProgram'], i) => {
 			// const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
 			// console.log(parsedAccountInfo); // Uint8Array
 			// // console.log(parsedAccountInfo.parsed); // undefined
 
-      // Manually decode and update Store
-      const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode("CustomProgram", account.account.data); // WORKS! It's CAPITAL 'P'!
-      console.log('decodedAccountInfo: ', decodedAccountInfo)
-      $customProgramStore.set(decodedAccountInfo);
+			// Manually decode and update Store
+			const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
+				'CustomProgram',
+				account.account.data
+			); // WORKS! It's CAPITAL 'P'!
+			console.log('decodedAccountInfo: ', decodedAccountInfo);
+
+			// Update Store state
+			customProgramStore.set(decodedAccountInfo);
 		});
 
 		console.log('=== Profiles ===');
-    // Q: What does program.coder look like?
-    // Q: Does my workspaceStore.program have the Idl of OnchainVotingMultiplePolls?
-    // Q: Is there a Typing issue i.e., should it say BorshCoder or just Coder?
-    // A: See below:
-    console.log("program: ");
-    console.log($workspaceStore.program!) // Program {coder, idl, programId, provider}
-    console.log("program.coder: ");
-    console.log($workspaceStore.program!.coder) // BorshCoder {instructions, accounts, events}
-    console.log("program.coder.accounts: ");
-    console.log($workspaceStore.program!.coder.accounts) // BorshAccountsCoder {accountLayouts, idl}
+		// Q: What does program.coder look like?
+		// Q: Does my workspaceStore.program have the Idl of OnchainVotingMultiplePolls?
+		// Q: Is there a Typing issue i.e., should it say BorshCoder or just Coder?
+		// A: See below:
+		// console.log("program: ");
+		// console.log($workspaceStore.program!) // Program {coder, idl, programId, provider}
+		// console.log("program.coder: ");
+		// console.log($workspaceStore.program!.coder) // BorshCoder {instructions, accounts, events}
+		// console.log("program.coder.accounts: ");
+		// console.log($workspaceStore.program!.coder.accounts) // BorshAccountsCoder {accountLayouts, idl}
 
-    // Q: How to use program.coder?
-    // REF: program.coder.accounts.decode<anchor.IdlAccounts<DegenerateStar>["star"]>("star", data!);
-    // A: program.coder.accounts.decode("Profile", account.account.data); No need for types since we have IDL!
-    const decodedProfileAccounts = profileAccounts.map((account: anchor.IdlTypes<anchor.Idl>["Profile"], i: number) => {
-      // $workspaceStore.program?.account.profile._coder.decode("Profile", account.account.data as Buffer); // E: _coder is private
-      // return $workspaceStore.program!.coder.accounts.decode("profile", account.account.data); // E: Unknown account: profile
-      // ============== TODO =========
-      // TODO WORKS! RESEARCH THIS and make sure the Idl Type is still working, though it should
-      // right, since I typed 'account' inside the map()?
-      const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode("Profile", account.account.data); // WORKS! It's CAPITAL 'P'!
-      $profileStore.set(decodedAccountInfo);
-      // return $workspaceStore.program!.coder.accounts.decode("Profile", account.account.data); // WORKS! It's CAPITAL 'P'!
-      // return $workspaceStore.program?.coder.accounts.decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("profile", account.account.data as Buffer); // Error: Unknown account: profile
-      // return $workspaceStore.program?.coder.profile.decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("Profile", account.account.data); // E: 'profile' does not exist on type 'Coder'
+		// Q: How to use program.coder?
+		// REF: program.coder.accounts.decode<anchor.IdlAccounts<DegenerateStar>["star"]>("star", data!);
+		// A: program.coder.accounts.decode("Profile", account.account.data); No need for types since we have IDL!
+		const decodedProfileAccounts = profileAccounts.map(
+			(account: anchor.IdlTypes<anchor.Idl>['Profile'], i: number) => {
+				const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
+					'Profile',
+					account.account.data
+				); // WORKS! It's CAPITAL 'P'!
+				// Update Store state
+				// TODO Could add a profilesStore that tracks ALL profiles
+				// profilesStore.update((profiles) => [...profiles, decodedAccountInfo]);
+			}
+		);
 
-      // return $workspaceStore.program?.coder<anchor.IdlAccounts<OnchainVotingMultiplePolls>["profile"]>
-      //   .profile.decode("Profile", account.account.data); // E: 
+		const decodedProfileAccountsByAuthority = profileAccountsByAuthority.map(
+			(account: anchor.IdlTypes<anchor.Idl>['Profile']) => {
+				const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
+					'Profile',
+					account.account.data
+				);
+				// Update Store state
+				profileStore.set(decodedAccountInfo);
 
-      // return $workspaceStore.program?.coder.accounts
-        // .decode<anchor.IdlAccounts<OnchainVotingMultiplePolls>["profile"]>("profile", account.account.data as Buffer); // Error: Unknown account: profile
-        // .decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("profile", account.account.data as Buffer); // Error: Unknown account: profile
+				// === Debugging below ===
+				// $workspaceStore.program?.account.profile._coder.decode("Profile", account.account.data as Buffer); // E: _coder is private
+				// return $workspaceStore.program!.coder.accounts.decode("profile", account.account.data); // E: Unknown account: profile
 
-      // return $workspaceStore.program?.coder.accounts.profile
-      //   .decode(anchor.IdlTypes<anchor.Idl>["Profile"], account.account.data as Buffer); // E: 'profile' does not exist on type AccountsCoder<string>
+				// return $workspaceStore.program!.coder.accounts.decode("Profile", account.account.data); // WORKS! It's CAPITAL 'P'!
+				// return $workspaceStore.program?.coder.accounts.decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("profile", account.account.data as Buffer); // Error: Unknown account: profile
+				// return $workspaceStore.program?.coder.profile.decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("Profile", account.account.data); // E: 'profile' does not exist on type 'Coder'
 
-      // console.log("profileAccount #: ", i);
-      // console.log(account);
+				// return $workspaceStore.program?.coder<anchor.IdlAccounts<OnchainVotingMultiplePolls>["profile"]>
+				//   .profile.decode("Profile", account.account.data); // E:
 
-      // return $workspaceStore.program?.coder
+				// return $workspaceStore.program?.coder.accounts
+				// .decode<anchor.IdlAccounts<OnchainVotingMultiplePolls>["profile"]>("profile", account.account.data as Buffer); // Error: Unknown account: profile
+				// .decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("profile", account.account.data as Buffer); // Error: Unknown account: profile
 
+				// return $workspaceStore.program?.coder.accounts.profile
+				//   .decode(anchor.IdlTypes<anchor.Idl>["Profile"], account.account.data as Buffer); // E: 'profile' does not exist on type AccountsCoder<string>
 
-      
-    })
+				// console.log("profileAccount #: ", i);
+				// console.log(account);
 
-    console.log(decodedProfileAccounts);
-    // profileAccounts.map((account) => {
-    //   return $workspaceStore.program?.coder.accounts<"Profile">?.decode("profile", account.account.data);
-    // })
+				// return $workspaceStore.program?.coder
+				// ==========================
+			}
+		);
 
 		console.log('=== Polls ===');
-		pollAccounts.forEach((account, i) => {
-			const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
-			console.log(parsedAccountInfo);
+		const decodedPollAccounts = pollAccounts.map((account: anchor.IdlTypes<anchor.Idl>['Poll']) => {
+			// Manually decode the account data using coder
+			const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
+				'Poll',
+				account.account.data
+			);
+
+			// Update Store
+			pollsStore.update(
+				(polls) => [...polls, decodedAccountInfo] as anchor.IdlTypes<anchor.Idl>['Poll'][]
+			);
 		});
 
 		// console.log('=== All PARSED ProgramAccounts ===');
@@ -505,29 +554,28 @@
 		// 	console.log(`---.program: ${parsedAccountInfo.space}`); // undefined
 		// });
 
+		// console.log('=== All NON-PARSED ProgramAccounts ===');
+		// programAccounts.forEach(async (account, i) => {
+		//     // Q: Why is the AccountInfo data returning a Buffer? How do I parse the data?
+		//     // U: Turns out you parse the account according to its struct. So, each program
+		//     // will package it up differently. However, if the account is a data account,
+		//     // then you may be able to read the data using the program.account.fetch() API.
+		// 	console.log(`Account # ${i + 1}:`);
+		// 	// console.log(`---Address: ${account.pubkey.toBase58()}`);
+		// 	console.log(account);
 
-		console.log('=== All NON-PARSED ProgramAccounts ===');
-		programAccounts.forEach(async (account, i) => {
-      // Q: Why is the AccountInfo data returning a Buffer? How do I parse the data?
-      // U: Turns out you parse the account according to its struct. So, each program
-      // will package it up differently. However, if the account is a data account,
-      // then you may be able to read the data using the program.account.fetch() API.
-			console.log(`Account # ${i + 1}:`);
-			// console.log(`---Address: ${account.pubkey.toBase58()}`);
-			console.log(account);
-
-      // Q: Do I even need to use this getProgramAccounts() approach if I have access
-      // to the workspace/program and the fetch() API?
-      // U: Works (kinda) if I know the account struct, but errors otherwise.
-      // E.g., If I use program.account.customProgram it'll get the matching account data,
-      // otherwise, it errors. 
-      // Q: Wonder if my GetProgramAccountsFilter could filter by the different types by
-      // using dataSize and memcmp properties?
-      // A: Yes! Once you know the right filter, then you can get the correct account
-      // and then manually decode the returned data!
-      // const accountData = await $workspaceStore.program?.account.customProgram?.fetch(account.pubkey) // WORKS
-      // console.log(accountData);
-		});
+		//     // Q: Do I even need to use this getProgramAccounts() approach if I have access
+		//     // to the workspace/program and the fetch() API?
+		//     // U: Works (kinda) if I know the account struct, but errors otherwise.
+		//     // E.g., If I use program.account.customProgram it'll get the matching account data,
+		//     // otherwise, it errors.
+		//     // Q: Wonder if my GetProgramAccountsFilter could filter by the different types by
+		//     // using dataSize and memcmp properties?
+		//     // A: Yes! Once you know the right filter, then you can get the correct account
+		//     // and then manually decode the returned data!
+		//     // const accountData = await $workspaceStore.program?.account.customProgram?.fetch(account.pubkey) // WORKS
+		//     // console.log(accountData);
+		// });
 	}
 
 	// Q: Can I use this to update/fetch my Stores?
@@ -546,16 +594,16 @@
 		return pda;
 	}
 
-  // Testing out my customProgramStore.getCustomProgramAccount()
-  async function handleGetCustomProgram() {
-    // Q: Do I need to derive PDA here or inside Store?
-    // A: Inside Store! Makes it more flexible!
-    // With PDA
-    // await customProgramStore.getCustomProgramAccount(CUSTOM_PROGRAM_PDA);
-    // Without PDA
-    await customProgramStore.getCustomProgramAccount(); // undefined
+	// Testing out my customProgramStore.getCustomProgramAccount()
+	async function handleGetCustomProgram() {
+		// Q: Do I need to derive PDA here or inside Store?
+		// A: Inside Store! Makes it more flexible!
+		// With PDA
+		// await customProgramStore.getCustomProgramAccount(CUSTOM_PROGRAM_PDA);
+		// Without PDA
+		await customProgramStore.getCustomProgramAccount(); // undefined
+	}
 
-  }
 </script>
 
 <AnchorConnectionProvider {network} {idl} />
@@ -572,7 +620,7 @@
 			>
 			<pre>customProgramStore: {JSON.stringify($customProgramStore, null, 2)}</pre>
 			<br />
-      <Button disabled={!$walletStore.publicKey} on:click={handleGetCustomProgram}
+			<Button disabled={!$walletStore.publicKey} on:click={handleGetCustomProgram}
 				>Get Custom Program Store</Button
 			>
 			<pre>customProgramStore: {JSON.stringify($customProgramStore, null, 2)}</pre>
@@ -609,7 +657,20 @@
 			{#if $pollsStore}
 				{#each $pollsStore as poll (poll.pollNumber)}
 					<pre>{JSON.stringify(poll, null, 2)}</pre>
+          <br>
 					<a class="link link-secondary" href="polls/{poll.pollNumber}">Poll {poll.pollNumber}</a>
+					<div class="card w-96 bg-neutral text-neutral-content">
+						<div class="card-body items-center text-center">
+					    <a class="link link-secondary" href="polls/{poll.pollNumber}">
+							  <h2 class="card-title">{poll.optionADisplayLabel} || {poll.optionBDisplayLabel}</h2>
+              </a>
+							<p>Votooooor #:{poll.pollNumber} has {poll.voteCount} total votes!</p>
+							<div class="card-actions justify-end">
+								<button class="btn btn-primary">{poll.optionADisplayLabel}</button>
+								<button class="btn btn-ghost">{poll.optionBDisplayLabel}</button>
+							</div>
+						</div>
+					</div>
 				{/each}
 			{/if}
 			<br />
