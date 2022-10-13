@@ -3,19 +3,20 @@
 	import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 	import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 	import { AnchorConnectionProvider } from '@svelte-on-solana/wallet-adapter-anchor';
-	import { clusterApiUrl, PublicKey, type GetProgramAccountsFilter } from '@solana/web3.js';
+	import { PublicKey, type GetProgramAccountsFilter } from '@solana/web3.js';
 	import type { OnchainVotingMultiplePolls } from '../../idl/onchain_voting_multiple_polls';
 	import idl from '../../../../target/idl/onchain_voting_multiple_polls.json';
 	import { onMount, beforeUpdate, afterUpdate } from 'svelte';
 	import type { Writable } from 'svelte/store';
 	import { get } from 'svelte/store';
 	import { notificationStore } from '$stores/notification';
-	import { customProgramStore, customProgramPdaStore, customProgramStoreWithPda } from '$stores/polls/custom-program-store';
+	import { customProgramStore } from '$stores/polls/custom-program-store';
 	import { profileStore } from '$stores/polls/profile-store';
 	import { pollStore } from '$stores/polls/poll-store';
 	import { pollsStore } from '$stores/polls/polls-store';
 	import { Button } from '$lib/index';
 	import Poll from '$lib/Poll.svelte';
+  import * as constants from '../../utils/constants';
 
 	/*
     TODOs:
@@ -34,21 +35,16 @@
         update pollStore on selection.
   */
 
-	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
-	const network = 'http://localhost:8899';
-
-	const CUSTOM_PROGRAM_SEED_PREFIX = 'custom-program';
-	const PROFILE_SEED_PREFIX = 'profile';
-	const POLL_SEED_PREFIX = 'poll';
-	const VOTE_SEED_PREFIX = 'vote';
+	const network = constants.NETWORK;
 
 	// TODO Try to fetch data onMount using custom Stores
 	// U: onMount runs BEFORE workspace is connected!
 	// Q: How can I fire off a getAllPollsProgramAccounts()
 	onMount(async () => {
 		console.log('ONMOUNT');
-		await customProgramStore.getCustomProgramAccount();
-		await customProgramStoreWithPda.getCustomProgramAccount();
+    // FIXME If I want to use this, then I need to fix the
+    // method to set() to undefined if the account can't be found yet
+		// await customProgramStore.getCustomProgramAccount();
 	});
 
 	beforeUpdate(() => console.log('Component is about to update.'));
@@ -59,6 +55,7 @@
 	// Or, do I need to maintain separate vars for PDA addresses?
 	// U: Adding a customProgramPdaStore to keep state regardless of wallet
 	// U: Gonna need more Stores in general I believe...
+  // A: YES! Can save PDA to custom Store using custom types!
 	let customProgram: anchor.IdlTypes<anchor.Idl>['CustomProgram'];
 	let customProgramPda: anchor.web3.PublicKey;
 
@@ -99,7 +96,6 @@
 	$: {
 		console.log('customProgram: ', customProgram);
 		console.log('$customProgramStore: ', $customProgramStore);
-		console.log('$customProgramStoreWithPda: ', $customProgramStoreWithPda);
 		console.log('profilePda: ', profilePda?.toBase58());
 		console.log('$profileStore: ', $profileStore);
 		console.log('pollPda: ', pollPda);
@@ -111,7 +107,7 @@
 	 * Create a dApp level PDA data account
 	 */
 	async function handleCreateCustomProgram() {
-		if ($customProgramStore) {
+		if ($customProgramStore.customProgram) {
 			notificationStore.add({
 				type: 'error',
 				message: 'Data account already exists!'
@@ -121,21 +117,19 @@
 		}
 
 		const [pda, bump] = await PublicKey.findProgramAddress(
-			[anchor.utils.bytes.utf8.encode(CUSTOM_PROGRAM_SEED_PREFIX)],
+			[anchor.utils.bytes.utf8.encode(constants.CUSTOM_PROGRAM_SEED_PREFIX)],
 			$workspaceStore.program?.programId as anchor.web3.PublicKey
 		);
 
 		// Update global state
 		customProgramPda = pda;
-		customProgramPdaStore.set(pda);
     // Q: Can I add a custom prop to my Store to save PDA?
     // $customProgramStore.pda = pda as PublicKey; // E: type 'never'??
     // U: Doesn't seem so... May need a custom type for the Store?
     // get(customProgramStore).pda = pda; // E: undefined property
     // Q: What about customProgramStoreWithPda?
-    customProgramStoreWithPda.set({ customProgram: undefined, pda: pda })
-    console.log("customProgramStoreWithPda AFTER setting 'pda' value: ")
-    console.log($customProgramStoreWithPda);
+    // A: Yes! Reworked it so now PDA is stored directly in Store.
+    customProgramStore.set({ customProgram: undefined, pda: pda })
 
 		console.log(
 			'PDA for program',
@@ -147,7 +141,7 @@
 		const tx = await $workspaceStore.program?.methods
 			.createCustomProgram()
 			.accounts({
-				customProgram: $customProgramStoreWithPda.pda,
+				customProgram: get(customProgramStore).pda,
 				authority: $walletStore.publicKey as anchor.web3.PublicKey,
 				systemProgram: anchor.web3.SystemProgram.programId
 			})
@@ -156,23 +150,17 @@
 
 		// Fetch data after tx confirms and update our account
 		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
-			$customProgramPdaStore
+			// $customProgramStore.pda as anchor.web3.PublicKey // E: property 'pda' doens't exist on type 'never'
+			get(customProgramStore).pda as anchor.web3.PublicKey
 		);
 		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
-		customProgramStore.set(customProgram);
-    customProgramStoreWithPda.set({ customProgram, pda })
-
-		// Verify the account has set up correctly
-		// expect(customProgram.totalProfileCount.toNumber()).to.equal(0);
-		// expect(customProgram.totalPollCount.toNumber()).to.equal(0);
-		// expect(customProgram.totalVoteCount.toNumber()).to.equal(0);
-		// expect(customProgram.authority.toString()).to.equal(
-		//   provider.wallet.publicKey.toString()
-		// );
+    // Q: Use set() or update()?
+    // U: Both seem to do the job...
+    customProgramStore.set({ customProgram, pda })
 	}
 
 	async function handleCreateProfile() {
-		const profileCount = ($customProgramStore.totalProfileCount.toNumber() + 1).toString();
+		const profileCount = ($customProgramStore.customProgram?.totalProfileCount.toNumber() + 1).toString();
 		console.log('profileCount: ', profileCount);
 
 		// NOTE Error processing Instruction 0: Cross-program invocation
@@ -182,7 +170,7 @@
 		const [pda, bump] = await PublicKey.findProgramAddress(
 			// U: Removing profileCount from seeds so can't create multiple Profiles
 			[
-				anchor.utils.bytes.utf8.encode(PROFILE_SEED_PREFIX),
+				anchor.utils.bytes.utf8.encode(constants.PROFILE_SEED_PREFIX),
 				($walletStore.publicKey as anchor.web3.PublicKey).toBuffer() // authority
 			],
 			$workspaceStore.program?.programId as anchor.web3.PublicKey
@@ -201,7 +189,7 @@
 			.createProfile(profileHandle, profileDisplayName)
 			.accounts({
 				profile: profilePda,
-				customProgram: $customProgramPdaStore,
+				customProgram: $customProgramStore.pda,
 				authority: $walletStore.publicKey as anchor.web3.PublicKey,
 				systemProgram: anchor.web3.SystemProgram.programId
 			})
@@ -215,12 +203,18 @@
 		// Q: update() or set() Store?
 		profileStore.set(profile);
 		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
-			$customProgramPdaStore
+			$customProgramStore.pda as anchor.web3.PublicKey
 		);
 		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
 		// Q: update() or set() Store?
 		// A: I believe just set() since we overwrite the whole thing
-		customProgramStore.set(customProgram);
+		// customProgramStore.set({ customProgram: customProgram, pda: $customProgramStore.pda });
+		customProgramStore.update(self => {
+      return {
+        customProgram: customProgram,
+        pda: self.pda,
+      }
+    })
 	}
 
 	async function handleCreatePoll() {
@@ -231,14 +225,14 @@
 		// U: If I add <a> links then the state remains and isn't cleared. However, if I
 		// change wallets, then the user state gets wiped.
 		// A: Ended up creating a separate PdaStore for this
-		const pollCount: string = ($customProgramStore.totalPollCount.toNumber() + 1).toString();
+		const pollCount: string = ($customProgramStore.customProgram?.totalPollCount.toNumber() + 1).toString();
 		console.log('pollCount: ', pollCount);
 
 		// NOTE From Anchor PDA example: https://book.anchor-lang.com/anchor_in_depth/PDAs.html#how-to-build-pda-hashmaps-in-anchor
 		// NOTE They find the PDA address INSIDE the it() test!
 		const [pda, bump] = await PublicKey.findProgramAddress(
 			[
-				anchor.utils.bytes.utf8.encode(POLL_SEED_PREFIX),
+				anchor.utils.bytes.utf8.encode(constants.POLL_SEED_PREFIX),
 				// Q: Need wallet publicKey? Won't this restrict to only that user
 				// being able to write to PDA?
 				// A: YES! The original crunchy-vs-smooth didn't use wallet pubkeys,
@@ -264,7 +258,7 @@
 			.accounts({
 				poll: pollPda,
 				profile: profilePda,
-				customProgram: $customProgramPdaStore,
+				customProgram: $customProgramStore.pda,
 				authority: $walletStore.publicKey as anchor.web3.PublicKey,
 				systemProgram: anchor.web3.SystemProgram.programId
 			})
@@ -282,11 +276,16 @@
 		profile = currentProfile as anchor.IdlTypes<anchor.Idl>['Profile'];
 		profileStore.set(profile);
 		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
-			$customProgramPdaStore
+			$customProgramStore.pda as anchor.web3.PublicKey
 		);
 		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
 		// Q: update() or set() Store?
-		customProgramStore.set(customProgram);
+		customProgramStore.update(self => {
+      return {
+        customProgram: customProgram,
+        pda: self.pda
+      }
+    })
 	}
 
 	// Try to fetch program accounts using getProgramAccounts()
@@ -613,6 +612,7 @@
 
 </script>
 
+<!-- <AnchorConnectionProvider {network} {idl} /> -->
 <AnchorConnectionProvider {network} {idl} />
 <div class="md:hero mx-auto p-4">
 	<div class="md:hero-content flex flex-col">
