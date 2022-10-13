@@ -24,6 +24,9 @@ function createCustomProgramStore() {
   // Have to access some inner property to get to the actual account data, etc.
   // With a custom type
   // const { subscribe, set, update } = writable<CustomProgramStore>({ customProgram: undefined });
+  // U: Coming back to this actually... my challenge is that I cannot easily
+  // access the account's PDA. I'd like to store it as a prop in the Store, ideally.
+  // So, Going to try this again and see if I can using a custom type...
 
   // Using IdlTypes directly
   const { subscribe, set, update } = writable<anchor.IdlTypes<anchor.Idl>["CustomProgram"]>();
@@ -102,4 +105,84 @@ function createCustomProgramStore() {
   }
 }
 
+
+
+// TODO See if I can store 'pda' on this Store using a custom Type...
+type CustomProgramStore = {
+  customProgram: anchor.IdlTypes<anchor.Idl>['CustomProgram'] | undefined,
+  pda: anchor.web3.PublicKey | undefined,
+}
+
+function createCustomProgramStoreWithPda() {
+  // U: Coming back to this actually... my challenge is that I cannot easily
+  // access the account's PDA. I'd like to store it as a prop in the Store, ideally.
+  // So, Going to try this again and see if I can using a custom type...
+  const { subscribe, set, update } = writable<CustomProgramStore>({ customProgram: undefined, pda: undefined });
+
+  return {
+    subscribe,
+    set,
+    update,
+    // getPda: async (): anchor.web3.PublicKey => {
+    //   if (customProgramPdaStore) return get(customProgramPdaStore);
+    //   
+    //   try {
+    //     let [pda, _] = await PublicKey.findProgramAddress(
+    //       [Buffer.from(CUSTOM_PROGRAM_SEED_PREFIX)],
+    //       // Q: Why can't it find $workspaceStore?
+    //       // A: May have to use get(workspaceStore).program ...
+    //       // $workspaceStore.program?.programId as anchor.web3.PublicKey // E: Cannot find $workspaceStore
+    //       get(workspaceStore).program?.programId as anchor.web3.PublicKey
+    //     )
+    //     // U: Need to update the PdaStore value
+    //     customProgramPdaStore.set(pda);
+    //     return get(customProgramPdaStore);
+    //   } catch (e) {
+    //     console.log(`error getting PDA: `, e);
+    //   }
+    // },
+    getCustomProgramAccount: async (customProgramPda?: anchor.web3.PublicKey) => {
+      // Q: How do I use async?
+      // A: Fixed. Turns out fPA[0] was causing issues.
+      let pda = customProgramPda ? customProgramPda : undefined;
+      if (!pda) {
+        // Need to find the PDA
+        try {
+
+          let [tempPda, _] = await PublicKey.findProgramAddress(
+            [Buffer.from(CUSTOM_PROGRAM_SEED_PREFIX)],
+            // Q: Why can't it find $workspaceStore?
+            // A: May have to use get(workspaceStore).program ...
+            // $workspaceStore.program?.programId as anchor.web3.PublicKey // E: Cannot find $workspaceStore
+            get(workspaceStore).program?.programId as anchor.web3.PublicKey
+          )
+
+          pda = tempPda;
+          // U: Need to update the PdaStore value
+          customProgramPdaStore.set(pda);
+        } catch (e) {
+          console.log(`error getting PDA: `, e);
+        }
+      }
+
+      try {
+        // Q: Why can't it find $workspaceStore?
+        // A: May have to use get(workspaceStore).program ...
+        // let customProgram = await $workspaceStore.program?.account.customProgram.fetch(pda); // E: Cannot find $workspaceStore
+        // let customProgram = await get(workspaceStore).program?.account.customProgram.fetch(pda); // E: Param is type 'Address'
+        // let customProgram = await get(workspaceStore).program?.account.customProgram.fetch(pda as anchor.Address); // E: Undefined '_bn'
+        let customProgram = await get(workspaceStore).program?.account.customProgram?.fetch(pda) as anchor.IdlTypes<anchor.Idl>["CustomProgram"]; 
+
+        // Q: Can I add a 'pda' or 'address' property to this Store?
+        // NOTE This is using a custom TYPE with a 'pda' prop...
+        set({ customProgram, pda });
+      } catch (e) {
+        console.log(`error getting account: `, e);
+      }
+    }
+  }
+}
+
 export const customProgramStore = createCustomProgramStore();
+export const customProgramStoreWithPda = createCustomProgramStoreWithPda();
+

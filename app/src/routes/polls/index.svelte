@@ -10,7 +10,7 @@
 	import type { Writable } from 'svelte/store';
 	import { get } from 'svelte/store';
 	import { notificationStore } from '$stores/notification';
-	import { customProgramStore, customProgramPdaStore } from '$stores/polls/custom-program-store';
+	import { customProgramStore, customProgramPdaStore, customProgramStoreWithPda } from '$stores/polls/custom-program-store';
 	import { profileStore } from '$stores/polls/profile-store';
 	import { pollStore } from '$stores/polls/poll-store';
 	import { pollsStore } from '$stores/polls/polls-store';
@@ -48,6 +48,7 @@
 	onMount(async () => {
 		console.log('ONMOUNT');
 		await customProgramStore.getCustomProgramAccount();
+		await customProgramStoreWithPda.getCustomProgramAccount();
 	});
 
 	beforeUpdate(() => console.log('Component is about to update.'));
@@ -98,6 +99,7 @@
 	$: {
 		console.log('customProgram: ', customProgram);
 		console.log('$customProgramStore: ', $customProgramStore);
+		console.log('$customProgramStoreWithPda: ', $customProgramStoreWithPda);
 		console.log('profilePda: ', profilePda?.toBase58());
 		console.log('$profileStore: ', $profileStore);
 		console.log('pollPda: ', pollPda);
@@ -128,8 +130,12 @@
 		customProgramPdaStore.set(pda);
     // Q: Can I add a custom prop to my Store to save PDA?
     // $customProgramStore.pda = pda as PublicKey; // E: type 'never'??
-    // A: Doesn't seem so...
+    // U: Doesn't seem so... May need a custom type for the Store?
     // get(customProgramStore).pda = pda; // E: undefined property
+    // Q: What about customProgramStoreWithPda?
+    customProgramStoreWithPda.set({ customProgram: undefined, pda: pda })
+    console.log("customProgramStoreWithPda AFTER setting 'pda' value: ")
+    console.log($customProgramStoreWithPda);
 
 		console.log(
 			'PDA for program',
@@ -141,7 +147,7 @@
 		const tx = await $workspaceStore.program?.methods
 			.createCustomProgram()
 			.accounts({
-				customProgram: $customProgramPdaStore,
+				customProgram: $customProgramStoreWithPda.pda,
 				authority: $walletStore.publicKey as anchor.web3.PublicKey,
 				systemProgram: anchor.web3.SystemProgram.programId
 			})
@@ -154,6 +160,7 @@
 		);
 		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
 		customProgramStore.set(customProgram);
+    customProgramStoreWithPda.set({ customProgram, pda })
 
 		// Verify the account has set up correctly
 		// expect(customProgram.totalProfileCount.toNumber()).to.equal(0);
