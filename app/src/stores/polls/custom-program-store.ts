@@ -10,15 +10,15 @@ import { CUSTOM_PROGRAM_SEED_PREFIX } from '../../utils/constants';
 
 // ======== WITH CUSTOM TYPE TO STORE PDA ========
 type CustomProgramStore = {
-  customProgram: CustomProgramObject | undefined,
-  pda: anchor.web3.PublicKey | undefined,
+  customProgram: CustomProgramObject | null,
+  pda: anchor.web3.PublicKey | null,
 }
 
 function createCustomProgramStore() {
   // U: Coming back to this actually... my challenge is that I cannot easily
   // access the account's PDA. I'd like to store it as a prop in the Store, ideally.
   // So, Going to try this again and see if I can using a custom type...
-  const { subscribe, set, update } = writable<CustomProgramStore>({ customProgram: undefined, pda: undefined });
+  const { subscribe, set, update } = writable<CustomProgramStore>({ customProgram: null, pda: null });
 
   return {
     subscribe,
@@ -45,7 +45,7 @@ function createCustomProgramStore() {
     getCustomProgramAccount: async (customProgramPda?: anchor.web3.PublicKey) => {
       // Q: How do I use async?
       // A: Fixed. Turns out fPA[0] was causing issues.
-      let pda = customProgramPda ? customProgramPda : undefined;
+      let pda = customProgramPda ? customProgramPda : null;
       if (!pda) {
         // Need to find the PDA
         try {
@@ -69,7 +69,7 @@ function createCustomProgramStore() {
         // A: May have to use get(workspaceStore).program ...
         // let customProgram = await $workspaceStore.program?.account.customProgram.fetch(pda); // E: Cannot find $workspaceStore
         // let customProgram = await get(workspaceStore).program?.account.customProgram.fetch(pda); // E: Param is type 'Address'
-        // let customProgram = await get(workspaceStore).program?.account.customProgram.fetch(pda as anchor.Address); // E: Undefined '_bn'
+        // let customProgram = await get(workspaceStore).program?.account.customProgram.fetch(pda as anchor.Address); // E: null '_bn'
         let customProgram = await get(workspaceStore).program?.account.customProgram?.fetch(pda as anchor.web3.PublicKey) as CustomProgramObject; 
 
         // Q: Can I add a 'pda' or 'address' property to this Store?
@@ -96,14 +96,14 @@ export const customProgramStore = createCustomProgramStore();
 
 
 // // type CustomProgramStore = {
-// //   customProgram: anchor.IdlTypes<anchor.Idl>['CustomProgram'] | undefined;
+// //   customProgram: anchor.IdlTypes<anchor.Idl>['CustomProgram'] | null;
 // // }
 
 // function createCustomProgramStore() {
 //   // NOTE I kinda don't like using the custom type in addition to IdlTypes
 //   // Have to access some inner property to get to the actual account data, etc.
 //   // With a custom type
-//   // const { subscribe, set, update } = writable<CustomProgramStore>({ customProgram: undefined });
+//   // const { subscribe, set, update } = writable<CustomProgramStore>({ customProgram: null });
 //   // U: Coming back to this actually... my challenge is that I cannot easily
 //   // access the account's PDA. I'd like to store it as a prop in the Store, ideally.
 //   // So, Going to try this again and see if I can using a custom type...
@@ -141,7 +141,7 @@ export const customProgramStore = createCustomProgramStore();
 //       // FIXME For some reason it won't derive the PDA if I don't pass it.
 //       // Q: How do I use async?
 //       // A: Fixed. Turns out fPA[0] was causing issues.
-//       let pda = customProgramPda ? customProgramPda : undefined;
+//       let pda = customProgramPda ? customProgramPda : null;
 //       if (!pda) {
 //         // Need to find the PDA
 //         try {
@@ -149,7 +149,7 @@ export const customProgramStore = createCustomProgramStore();
 //           //   [Buffer.from(CUSTOM_PROGRAM_SEED_PREFIX)],
 //           //   // $workspaceStore.program?.programId as anchor.web3.PublicKey // E: Cannot find $workspaceStore
 //           //   get(workspaceStore).program?.programId as anchor.web3.PublicKey
-//           // )[0] as anchor.web3.PublicKey; // E: undefined
+//           // )[0] as anchor.web3.PublicKey; // E: null
 
 //           let [tempPda, _] = await PublicKey.findProgramAddress(
 //             [Buffer.from(CUSTOM_PROGRAM_SEED_PREFIX)],
@@ -163,7 +163,7 @@ export const customProgramStore = createCustomProgramStore();
 //           // U: Need to update the PdaStore value
 //           customProgramPdaStore.set(pda);
 //           // Q: Can I add a 'pda' or 'address' property to this Store?
-//           // update((self) => self.pda = pda as PublicKey); // E: undefined
+//           // update((self) => self.pda = pda as PublicKey); // E: null
 //         } catch (e) {
 //           console.log(`error getting PDA: `, e);
 //         }
@@ -174,7 +174,7 @@ export const customProgramStore = createCustomProgramStore();
 //         // A: May have to use get(workspaceStore).program ...
 //         // let customProgram = await $workspaceStore.program?.account.customProgram.fetch(pda); // E: Cannot find $workspaceStore
 //         // let customProgram = await get(workspaceStore).program?.account.customProgram.fetch(pda); // E: Param is type 'Address'
-//         // let customProgram = await get(workspaceStore).program?.account.customProgram.fetch(pda as anchor.Address); // E: Undefined '_bn'
+//         // let customProgram = await get(workspaceStore).program?.account.customProgram.fetch(pda as anchor.Address); // E: null '_bn'
 //         let customProgram = await get(workspaceStore).program?.account.customProgram?.fetch(pda) as anchor.IdlTypes<anchor.Idl>["CustomProgram"]; 
 
 //         set(customProgram);

@@ -1,13 +1,60 @@
-import { writable, get, type Writable, derived } from 'svelte/store';
-// import * as anchor from '@project-serum/anchor';
+import { writable, get } from 'svelte/store';
 import type anchor from '@project-serum/anchor';
-import { LAMPORTS_PER_SOL, PublicKey, type Connection } from '@solana/web3.js';
 import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
-import { customProgramStore } from '$stores/polls/custom-program-store';
-import type { WorkSpace } from '@svelte-on-solana/wallet-adapter-anchor';
+import type { ProfileObject } from 'src/models/polls-types';
+import { PROFILE_SEED_PREFIX } from '../../utils/constants';
+import { PublicKey } from '@solana/web3.js';
 
-export const profileStore: Writable<anchor.IdlTypes<anchor.Idl>['Profile']> = writable();
+// =========== WITH CUSTOM TYPE TO STORE PDA ============
+type ProfileStore = {
+  profile: ProfileObject | null,
+  pda: anchor.web3.PublicKey | null,
+}
+
+function createProfileStore() {
+  const { subscribe, set, update } = writable<ProfileStore>({ profile: null, pda: null })
+
+  return {
+    subscribe,
+    set,
+    update,
+    getProfileAccount: async (profilePda?: anchor.web3.PublicKey) => {
+      let pda = profilePda ? profilePda : null;
+      if (!pda) {
+        // Need to find the PDA
+        try {
+          let [tempPda, _] = await PublicKey.findProgramAddress(
+            [
+              Buffer.from(PROFILE_SEED_PREFIX),
+              get(walletStore).publicKey?.toBuffer() as Buffer,
+            ],
+            get(workspaceStore).program?.programId as anchor.web3.PublicKey
+          )
+
+          pda = tempPda;
+        } catch (e) {
+          console.log(`error getting PDA: `, e);
+        }
+      }
+
+      try {
+        let profile = await get(workspaceStore).program?.account.program.fetch(pda as anchor.web3.PublicKey) as ProfileObject;
+
+        set({ profile, pda })
+      } catch (e) {
+        console.log(`Error getting account: `, e);
+      }
+    }
+  }
+}
+
+export const profileStore = createProfileStore();
+
+
+// =========== WITHOUT USING A CUSTOM TYPE TO STORE PDA =========
+//export const profileStore: Writable<anchor.IdlTypes<anchor.Idl>['Profile']> = writable();
+
 // const PROFILE_SEED_PREFIX = 'profile';
 
 // Q: Could I use a derived(workspaceStore, ...) for the profileStore?
@@ -19,11 +66,11 @@ export const profileStore: Writable<anchor.IdlTypes<anchor.Idl>['Profile']> = wr
 // but wondering if I can use Svelte Stores in a creative way???
 
 // type ProfileStore = {
-// 	profile: anchor.IdlTypes<anchor.Idl>['Profile'] | undefined;
+// 	profile: anchor.IdlTypes<anchor.Idl>['Profile'] | null;
 // };
 
 // function createProfileStore() {
-// 	const { subscribe, set } = writable<ProfileStore>({ profile: undefined });
+// 	const { subscribe, set } = writable<ProfileStore>({ profile: null });
 
 // 	return {
 // 		subscribe,

@@ -17,6 +17,7 @@
 	import { Button } from '$lib/index';
 	import Poll from '$lib/Poll.svelte';
   import * as constants from '../../utils/constants';
+  import type { CustomProgramObject, ProfileObject, PollObject, VoteObject } from '../../models/polls-types'
 
 	/*
     TODOs:
@@ -43,7 +44,7 @@
 	onMount(async () => {
 		console.log('ONMOUNT');
     // FIXME If I want to use this, then I need to fix the
-    // method to set() to undefined if the account can't be found yet
+    // method to set() to null if the account can't be found yet
 		// await customProgramStore.getCustomProgramAccount();
 	});
 
@@ -56,20 +57,20 @@
 	// U: Adding a customProgramPdaStore to keep state regardless of wallet
 	// U: Gonna need more Stores in general I believe...
   // A: YES! Can save PDA to custom Store using custom types!
-	let customProgram: anchor.IdlTypes<anchor.Idl>['CustomProgram'];
+	let customProgram: CustomProgramObject;
 	let customProgramPda: anchor.web3.PublicKey;
 
-	let profile: anchor.IdlTypes<anchor.Idl>['Profile'];
+	let profile: ProfileObject;
 	let profilePda: anchor.web3.PublicKey;
 	let profileHandle: string = 'testHandle';
 	let profileDisplayName: string = 'testDisplayName';
 
-	let poll: anchor.IdlTypes<anchor.Idl>['Poll'];
+	let poll: PollObject;
 	let pollPda: anchor.web3.PublicKey;
 	let pollOptionADisplayName: string = 'Option A';
 	let pollOptionBDisplayName: string = 'Option B';
 
-	let vote: anchor.IdlTypes<anchor.Idl>['Vote'];
+	let vote: VoteObject;
 	let votePda: anchor.web3.PublicKey;
 
 	// Q: How to update the profile (and its PDA) whenever wallet changes?
@@ -88,7 +89,9 @@
 	// 	});
 	// }
 
-	// TODO
+  // TODO Look into using reactive statements to replicate the useEffect()
+  // to trigger some data fetch when wallet.pubkey changes...
+  // REF: Check out SolAndy's YT video on deserializing account data
 	// Q: How to pre-fetch data? How to use getAllProgramAccounts()
 	//    Need to wait for workspace and wallet Stores before invoking...
 	// $: $walletStore.connected && $customProgramStore.getCustomProgramAccount();
@@ -126,10 +129,10 @@
     // Q: Can I add a custom prop to my Store to save PDA?
     // $customProgramStore.pda = pda as PublicKey; // E: type 'never'??
     // U: Doesn't seem so... May need a custom type for the Store?
-    // get(customProgramStore).pda = pda; // E: undefined property
+    // get(customProgramStore).pda = pda; // E: null property
     // Q: What about customProgramStoreWithPda?
     // A: Yes! Reworked it so now PDA is stored directly in Store.
-    customProgramStore.set({ customProgram: undefined, pda: pda })
+    customProgramStore.set({ customProgram: null, pda: pda })
 
 		console.log(
 			'PDA for program',
@@ -141,7 +144,7 @@
 		const tx = await $workspaceStore.program?.methods
 			.createCustomProgram()
 			.accounts({
-				customProgram: get(customProgramStore).pda,
+				customProgram: get(customProgramStore).pda as anchor.web3.PublicKey,
 				authority: $walletStore.publicKey as anchor.web3.PublicKey,
 				systemProgram: anchor.web3.SystemProgram.programId
 			})
@@ -189,7 +192,7 @@
 			.createProfile(profileHandle, profileDisplayName)
 			.accounts({
 				profile: profilePda,
-				customProgram: $customProgramStore.pda,
+				customProgram: $customProgramStore.pda as anchor.web3.PublicKey,
 				authority: $walletStore.publicKey as anchor.web3.PublicKey,
 				systemProgram: anchor.web3.SystemProgram.programId
 			})
@@ -198,20 +201,18 @@
 		console.log('TxHash ::', tx);
 
 		// Fetch data after tx confirms & update global state
-		const currentProfile = await $workspaceStore.program?.account.profile.fetch(profilePda);
-		profile = currentProfile as anchor.IdlTypes<anchor.Idl>['Profile'];
+		const currentProfile = await $workspaceStore.program?.account.profile.fetch(profilePda) as ProfileObject;
 		// Q: update() or set() Store?
-		profileStore.set(profile);
+		profileStore.set({ profile: currentProfile, pda });
 		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
 			$customProgramStore.pda as anchor.web3.PublicKey
-		);
-		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
+		) as CustomProgramObject;
 		// Q: update() or set() Store?
 		// A: I believe just set() since we overwrite the whole thing
 		// customProgramStore.set({ customProgram: customProgram, pda: $customProgramStore.pda });
 		customProgramStore.update(self => {
       return {
-        customProgram: customProgram,
+        customProgram: currentCustomProgram,
         pda: self.pda,
       }
     })
@@ -258,7 +259,7 @@
 			.accounts({
 				poll: pollPda,
 				profile: profilePda,
-				customProgram: $customProgramStore.pda,
+				customProgram: $customProgramStore.pda as anchor.web3.PublicKey,
 				authority: $walletStore.publicKey as anchor.web3.PublicKey,
 				systemProgram: anchor.web3.SystemProgram.programId
 			})
@@ -434,7 +435,7 @@
 
 		// Q: What does program.state return?
 		// U: Nothing??? Need to look into this more.
-		// const programState = await $workspaceStore.program?.state.fetch(); // undefined
+		// const programState = await $workspaceStore.program?.state.fetch(); // null
 		// console.log(programState);
 
 		// 4. Do what we want... i.e.,
@@ -449,7 +450,7 @@
 		customProgramAccount.forEach((account: anchor.IdlTypes<anchor.Idl>['CustomProgram'], i) => {
 			// const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
 			// console.log(parsedAccountInfo); // Uint8Array
-			// // console.log(parsedAccountInfo.parsed); // undefined
+			// // console.log(parsedAccountInfo.parsed); // null
 
 			// Manually decode and update Store
 			const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
@@ -555,9 +556,9 @@
 		// 	console.log(`ParsedAccountData # ${i + 1}:`);
 		// 	console.log(parsedAccountInfo); // Uint8Array
 		// 	console.log(`---parsedAccountInfo: ${parsedAccountInfo}`); // Garbled
-		// 	console.log(`---.parsed: ${parsedAccountInfo.parsed}`); // undefined
-		// 	console.log(`---.program: ${parsedAccountInfo.program}`); // undefined
-		// 	console.log(`---.program: ${parsedAccountInfo.space}`); // undefined
+		// 	console.log(`---.parsed: ${parsedAccountInfo.parsed}`); // null
+		// 	console.log(`---.program: ${parsedAccountInfo.program}`); // null
+		// 	console.log(`---.program: ${parsedAccountInfo.space}`); // null
 		// });
 
 		// console.log('=== All NON-PARSED ProgramAccounts ===');
@@ -607,7 +608,7 @@
 		// With PDA
 		// await customProgramStore.getCustomProgramAccount(CUSTOM_PROGRAM_PDA);
 		// Without PDA
-		await customProgramStore.getCustomProgramAccount(); // undefined
+		await customProgramStore.getCustomProgramAccount(); // null
 	}
 
 </script>
