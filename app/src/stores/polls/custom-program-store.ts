@@ -24,27 +24,11 @@ function createCustomProgramStore() {
     subscribe,
     set,
     update,
-    // getPda: async (): anchor.web3.PublicKey => {
-    //   if (customProgramPdaStore) return get(customProgramPdaStore);
-    //   
-    //   try {
-    //     let [pda, _] = await PublicKey.findProgramAddress(
-    //       [Buffer.from(CUSTOM_PROGRAM_SEED_PREFIX)],
-    //       // Q: Why can't it find $workspaceStore?
-    //       // A: May have to use get(workspaceStore).program ...
-    //       // $workspaceStore.program?.programId as anchor.web3.PublicKey // E: Cannot find $workspaceStore
-    //       get(workspaceStore).program?.programId as anchor.web3.PublicKey
-    //     )
-    //     // U: Need to update the PdaStore value
-    //     customProgramPdaStore.set(pda);
-    //     return get(customProgramPdaStore);
-    //   } catch (e) {
-    //     console.log(`error getting PDA: `, e);
-    //   }
-    // },
     getCustomProgramAccount: async (customProgramPda?: anchor.web3.PublicKey) => {
       // Q: How do I use async?
       // A: Fixed. Turns out fPA[0] was causing issues.
+      // Q: How to check whether this store already has a pda?
+      // if (get(customProgramStore).pda) ????
       let pda = customProgramPda ? customProgramPda : null;
       if (!pda) {
         // Need to find the PDA

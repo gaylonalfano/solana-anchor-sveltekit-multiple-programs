@@ -12,12 +12,18 @@
 	import { notificationStore } from '$stores/notification';
 	import { customProgramStore } from '$stores/polls/custom-program-store';
 	import { profileStore } from '$stores/polls/profile-store';
+	import { profilesStore } from '$stores/polls/profiles-store';
 	import { pollStore } from '$stores/polls/poll-store';
 	import { pollsStore } from '$stores/polls/polls-store';
 	import { Button } from '$lib/index';
-	import Poll from '$lib/Poll.svelte';
-  import * as constants from '../../utils/constants';
-  import type { CustomProgramObject, ProfileObject, PollObject, VoteObject } from '../../models/polls-types'
+	// import Poll from '$lib/Poll.svelte';
+	import * as constants from '../../utils/constants';
+	import type {
+		CustomProgramObject,
+		ProfileObject,
+		PollObject,
+		VoteObject
+	} from '../../models/polls-types';
 
 	/*
     TODOs:
@@ -34,13 +40,12 @@
 
 	const network = constants.NETWORK;
 
-	// TODO Try to fetch data onMount using custom Stores
 	// U: onMount runs BEFORE workspace is connected!
 	// Q: How can I fire off a getAllPollsProgramAccounts()
 	onMount(async () => {
 		console.log('ONMOUNT');
-    // FIXME If I want to use this, then I need to fix the
-    // method to set() to null if the account can't be found yet
+		// FIXME If I want to use this, then I need to fix the
+		// method to set() to null if the account can't be found yet
 		// await customProgramStore.getCustomProgramAccount();
 	});
 
@@ -52,17 +57,14 @@
 	// Or, do I need to maintain separate vars for PDA addresses?
 	// U: Adding a customProgramPdaStore to keep state regardless of wallet
 	// U: Gonna need more Stores in general I believe...
-  // A: YES! Can save PDA to custom Store using custom types!
+	// A: YES! Can save PDA to custom Store using custom types!
 	let customProgram: CustomProgramObject;
-	let customProgramPda: anchor.web3.PublicKey;
 
 	let profile: ProfileObject;
-	let profilePda: anchor.web3.PublicKey;
 	let profileHandle: string = 'testHandle';
 	let profileDisplayName: string = 'testDisplayName';
 
 	let poll: PollObject;
-	let pollPda: anchor.web3.PublicKey;
 	let pollOptionADisplayName: string = 'Option A';
 	let pollOptionBDisplayName: string = 'Option B';
 
@@ -85,29 +87,29 @@
 	// 	});
 	// }
 
-  // TODO Look into using reactive statements to replicate the useEffect()
-  // to trigger some data fetch when wallet.pubkey changes...
-  // REF: Check out SolAndy's YT video on deserializing account data
+	// TODO Look into using reactive statements to replicate the useEffect()
+	// to trigger some data fetch when wallet.pubkey changes...
+	// REF: Check out SolAndy's YT video on deserializing account data
 	// Q: How to pre-fetch data? How to use getAllProgramAccounts()
 	//    Need to wait for workspace and wallet Stores before invoking...
 	// $: $walletStore.connected && $customProgramStore.getCustomProgramAccount();
-  // Q: What about this from /basic example? Reactive declarations may help
-  // NOTE The below syntax forces JS to intepret the statement as an expression,
-  // destructuring the values.
-  // REF: https://svelte-recipes.netlify.app/language/#variable-deconstruction
-  // $: ({ publicKey, sendTransaction } = $walletStore);
-  // REF: https://svelte-recipes.netlify.app/language/#defining-dependencies
-  $: $walletStore && getAllProgramAccounts();
-
+	// Q: What about this from /basic example? Reactive declarations may help
+	// NOTE The below syntax forces JS to intepret the statement as an expression,
+	// destructuring the values.
+	// REF: https://svelte-recipes.netlify.app/language/#variable-deconstruction
+	// $: ({ publicKey, sendTransaction } = $walletStore);
+	// REF: https://svelte-recipes.netlify.app/language/#defining-dependencies
+	$: $walletStore && getAllProgramAccounts();
 
 	$: {
-		console.log('customProgram: ', customProgram);
-		console.log('$customProgramStore: ', $customProgramStore);
-		console.log('profilePda: ', profilePda?.toBase58());
-		console.log('$profileStore: ', $profileStore);
-		console.log('pollPda: ', pollPda);
-		console.log('$pollStore: ', $pollStore);
-		console.log('$pollsStore: ', $pollsStore);
+		console.log('walletStore: ', $walletStore);
+		// console.log('customProgram: ', customProgram);
+		console.log('customProgramStore: ', $customProgramStore);
+		// console.log('profilePda: ', profilePda?.toBase58());
+		// console.log('profileStore: ', $profileStore);
+		// console.log('pollPda: ', pollPda);
+		// console.log('pollStore: ', $pollStore);
+		// console.log('pollsStore: ', $pollsStore);
 	}
 
 	/*
@@ -128,46 +130,43 @@
 			$workspaceStore.program?.programId as anchor.web3.PublicKey
 		);
 
-		// Update global state
-		customProgramPda = pda;
-    // Q: Can I add a custom prop to my Store to save PDA?
-    // $customProgramStore.pda = pda as PublicKey; // E: type 'never'??
-    // U: Doesn't seem so... May need a custom type for the Store?
-    // get(customProgramStore).pda = pda; // E: null property
-    // Q: What about customProgramStoreWithPda?
-    // A: Yes! Reworked it so now PDA is stored directly in Store.
-    customProgramStore.set({ customProgram: null, pda: pda })
-
 		console.log(
 			'PDA for program',
 			$workspaceStore.program?.programId.toBase58(),
 			'is generated :',
-			customProgramPda.toBase58()
+			pda.toBase58()
 		);
 
 		const tx = await $workspaceStore.program?.methods
 			.createCustomProgram()
 			.accounts({
-				customProgram: get(customProgramStore).pda as anchor.web3.PublicKey,
+				customProgram: pda,
 				authority: $walletStore.publicKey as anchor.web3.PublicKey,
 				systemProgram: anchor.web3.SystemProgram.programId
 			})
 			.rpc();
 		console.log('TxHash ::', tx);
 
-		// Fetch data after tx confirms and update our account
-		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
-			// $customProgramStore.pda as anchor.web3.PublicKey // E: property 'pda' doens't exist on type 'never'
-			get(customProgramStore).pda as anchor.web3.PublicKey
-		);
-		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
-    // Q: Use set() or update()?
-    // U: Both seem to do the job...
-    customProgramStore.set({ customProgram, pda })
+		// Fetch data after tx confirms and update our state/store
+		const currentCustomProgram = (await $workspaceStore.program?.account.customProgram.fetch(
+			pda
+		)) as CustomProgramObject;
+		// NOTE ONLY updating state AFTER tx is successful.
+		// Q: Use set() or update()?
+		// U: Both seem to do the job...
+		// Q: Can I add a custom prop to my Store to save PDA?
+		// $customProgramStore.pda = pda as PublicKey; // E: type 'never'??
+		// U: Doesn't seem so... May need a custom type for the Store?
+		// get(customProgramStore).pda = pda; // E: null property
+		// Q: What about customProgramStoreWithPda?
+		// A: Yes! Reworked it so now PDA is stored directly in Store.
+		customProgramStore.set({ customProgram: currentCustomProgram, pda });
 	}
 
 	async function handleCreateProfile() {
-		const profileCount = ($customProgramStore.customProgram?.totalProfileCount.toNumber() + 1).toString();
+		const profileCount = (
+			$customProgramStore.customProgram?.totalProfileCount.toNumber() + 1
+		).toString();
 		console.log('profileCount: ', profileCount);
 
 		// NOTE Error processing Instruction 0: Cross-program invocation
@@ -182,20 +181,18 @@
 			],
 			$workspaceStore.program?.programId as anchor.web3.PublicKey
 		);
-		// Update global state
-		profilePda = pda;
 
 		console.log(
 			'PDA for program',
 			$workspaceStore.program?.programId.toBase58(),
 			'is generated :',
-			profilePda.toBase58()
+			pda.toBase58()
 		);
 
 		const tx = await $workspaceStore.program?.methods
 			.createProfile(profileHandle, profileDisplayName)
 			.accounts({
-				profile: profilePda,
+				profile: pda,
 				customProgram: $customProgramStore.pda as anchor.web3.PublicKey,
 				authority: $walletStore.publicKey as anchor.web3.PublicKey,
 				systemProgram: anchor.web3.SystemProgram.programId
@@ -205,16 +202,20 @@
 		console.log('TxHash ::', tx);
 
 		// Fetch data after tx confirms & update global state
-		const currentProfile = await $workspaceStore.program?.account.profile.fetch(profilePda) as ProfileObject;
-    // NOTE Only after the tx is successful do we update our state
+		const currentProfile = (await $workspaceStore.program?.account.profile.fetch(
+			pda
+		)) as ProfileObject;
+		// NOTE Only after the tx is successful do we update our state
 		// Q: update() or set() Store?
 		profileStore.set({ profile: currentProfile, pda });
-		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
+		profilesStore.addProfile(currentProfile, pda);
+
+		const currentCustomProgram = (await $workspaceStore.program?.account.customProgram.fetch(
 			$customProgramStore.pda as anchor.web3.PublicKey
-		) as CustomProgramObject;
+		)) as CustomProgramObject;
 		// Q: update() or set() Store?
 		// A: I believe just set() since we overwrite the whole thing
-		customProgramStore.set({ customProgram: customProgram, pda: $customProgramStore.pda });
+		customProgramStore.set({ customProgram: currentCustomProgram, pda: $customProgramStore.pda });
 	}
 
 	async function handleCreatePoll() {
@@ -225,8 +226,10 @@
 		// U: If I add <a> links then the state remains and isn't cleared. However, if I
 		// change wallets, then the user state gets wiped.
 		// A: Ended up creating a separate PdaStore for this
-    // U: Need to explore reactive statement (e.g. useEffect on wallet.publicKey change)
-		const pollCount: string = ($customProgramStore.customProgram?.totalPollCount.toNumber() + 1).toString();
+		// U: Need to explore reactive statement (e.g. useEffect on wallet.publicKey change)
+		const pollCount: string = (
+			$customProgramStore.customProgram?.totalPollCount.toNumber() + 1
+		).toString();
 		console.log('pollCount: ', pollCount);
 
 		// NOTE From Anchor PDA example: https://book.anchor-lang.com/anchor_in_depth/PDAs.html#how-to-build-pda-hashmaps-in-anchor
@@ -242,14 +245,12 @@
 			],
 			$workspaceStore.program?.programId as anchor.web3.PublicKey
 		);
-		// Update global state
-		pollPda = pda;
 
 		console.log(
 			'PDA for program',
 			$workspaceStore.program?.programId.toBase58(),
 			'is generated :',
-			pollPda.toBase58()
+			pda.toBase58()
 		);
 
 		// Following this example to call the methods:
@@ -257,8 +258,8 @@
 		const tx = await $workspaceStore.program?.methods
 			.createPoll(pollOptionADisplayName, pollOptionBDisplayName)
 			.accounts({
-				poll: pollPda,
-				profile: profilePda,
+				poll: pda,
+				profile: $profileStore.pda as anchor.web3.PublicKey,
 				customProgram: $customProgramStore.pda as anchor.web3.PublicKey,
 				authority: $walletStore.publicKey as anchor.web3.PublicKey,
 				systemProgram: anchor.web3.SystemProgram.programId
@@ -268,18 +269,20 @@
 		console.log('TxHash ::', tx);
 
 		// Fetch data after tx confirms & update global state
-		const currentPoll = await $workspaceStore.program?.account.poll.fetch(pollPda) as PollObject;
-    pollStore.set({ poll: currentPoll, pda: pda })
-    pollsStore.addPoll(currentPoll, pda);
-    // pollsStore.addPollStore({ poll: currentPoll, pda: pda });
+		const currentPoll = (await $workspaceStore.program?.account.poll.fetch(pda)) as PollObject;
+		pollStore.set({ poll: currentPoll, pda: pda });
+		pollsStore.addPoll(currentPoll, pda);
+		// pollsStore.addPollStore({ poll: currentPoll, pda: pda });
 
-		const currentProfile = await $workspaceStore.program?.account.profile.fetch(profilePda) as ProfileObject;
+		const currentProfile = (await $workspaceStore.program?.account.profile.fetch(
+			$profileStore.pda as anchor.web3.PublicKey
+		)) as ProfileObject;
 		profileStore.set({ profile: currentProfile, pda: $profileStore.pda });
-		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
+		const currentCustomProgram = (await $workspaceStore.program?.account.customProgram.fetch(
 			$customProgramStore.pda as anchor.web3.PublicKey
-		) as CustomProgramObject;
+		)) as CustomProgramObject;
 		// Q: update() or set() Store?
-    customProgramStore.set({ customProgram: currentCustomProgram, pda: $customProgramStore.pda })
+		customProgramStore.set({ customProgram: currentCustomProgram, pda: $customProgramStore.pda });
 	}
 
 	// Try to fetch program accounts using getProgramAccounts()
@@ -371,7 +374,9 @@
 			{
 				memcmp: {
 					offset: 8, // 32 when 'authority' was just before bump
-					bytes: $walletStore.publicKey!.toBase58()
+					// Q: Shouldn't the authority be a CONST instead of wallet-based?
+					// bytes: $walletStore.publicKey!.toBase58()
+					bytes: '2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE'
 				}
 			}
 		];
@@ -393,8 +398,6 @@
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: customProgramFilter }
 		);
-		console.log('customProgramAccount:');
-		console.log(customProgramAccount);
 
 		// Only filtering on dataSize to reduce requests
 		const profileAccounts = await connection.getProgramAccounts(
@@ -431,7 +434,7 @@
 		// const programState = await $workspaceStore.program?.state.fetch(); // null
 		// console.log(programState);
 
-		// 4. Do what we want... i.e.,
+		// 4. Do what we want... i.e., Update our Stores state
 		// Q: Why is the AccountInfo data returning a Buffer? How do I parse the data?
 		// U: Turns out you parse the account according to its struct. So, each program
 		// will package it up differently. However, if the account is a data account,
@@ -440,20 +443,21 @@
 		// Was suggested to gPA and then program.coder.accounts.decode(), but how?
 		// A: Need to manually decode using program.coder!
 		console.log('=== CustomProgram ===');
-		customProgramAccount.forEach((account: anchor.IdlTypes<anchor.Idl>['CustomProgram'], i) => {
-			// const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
+		// NOTE Each item in array is type: { account: AccountInfo<Buffer>, pubkey: PublicKey }
+		customProgramAccount.forEach((value) => {
+			// const parsedAccountInfo = value.account.data as anchor.web3.ParsedAccountData;
 			// console.log(parsedAccountInfo); // Uint8Array
 			// // console.log(parsedAccountInfo.parsed); // null
 
 			// Manually decode and update Store
 			const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
 				'CustomProgram',
-				account.account.data
+				value.account.data
 			); // WORKS! It's CAPITAL 'P'!
 			console.log('decodedAccountInfo: ', decodedAccountInfo);
 
 			// Update Store state
-			customProgramStore.set(decodedAccountInfo);
+			customProgramStore.set({ customProgram: decodedAccountInfo, pda: value.pubkey });
 		});
 
 		console.log('=== Profiles ===');
@@ -470,82 +474,81 @@
 
 		// Q: How to use program.coder?
 		// REF: program.coder.accounts.decode<anchor.IdlAccounts<DegenerateStar>["star"]>("star", data!);
-		// A: program.coder.accounts.decode("Profile", account.account.data); No need for types since we have IDL!
-		const decodedProfileAccounts = profileAccounts.map(
-			(account: anchor.IdlTypes<anchor.Idl>['Profile'], i: number) => {
-				const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
-					'Profile',
-					account.account.data
-				); // WORKS! It's CAPITAL 'P'!
-				// Update Store state
-				// TODO Could add a profilesStore that tracks ALL profiles
-				// profilesStore.update((profiles) => [...profiles, decodedAccountInfo]);
-			}
-		);
+		// A: program.coder.accounts.decode("Profile", value.account.data); No need for types since we have IDL!
+		const decodedProfileAccounts = profileAccounts.map((value) => {
+			const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
+				'Profile',
+				value.account.data
+			); // WORKS! It's CAPITAL 'P'!
 
-		const decodedProfileAccountsByAuthority = profileAccountsByAuthority.map(
-			(account: anchor.IdlTypes<anchor.Idl>['Profile']) => {
-				const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
-					'Profile',
-					account.account.data
-				);
-				// Update Store state
-				profileStore.set(decodedAccountInfo);
+			// Update Store state
+			profilesStore.addProfile(decodedAccountInfo, value.pubkey);
+			// profilesStore.update((profiles) => [...profiles, decodedAccountInfo]);
+		});
 
-				// === Debugging below ===
-				// $workspaceStore.program?.account.profile._coder.decode("Profile", account.account.data as Buffer); // E: _coder is private
-				// return $workspaceStore.program!.coder.accounts.decode("profile", account.account.data); // E: Unknown account: profile
+		const decodedProfileAccountsByAuthority = profileAccountsByAuthority.map((value) => {
+			const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
+				'Profile',
+				value.account.data
+			);
+			// Update Store state
+			profileStore.set({ profile: decodedAccountInfo, pda: value.pubkey });
 
-				// return $workspaceStore.program!.coder.accounts.decode("Profile", account.account.data); // WORKS! It's CAPITAL 'P'!
-				// return $workspaceStore.program?.coder.accounts.decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("profile", account.account.data as Buffer); // Error: Unknown account: profile
-				// return $workspaceStore.program?.coder.profile.decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("Profile", account.account.data); // E: 'profile' does not exist on type 'Coder'
+			// === Debugging below ===
+			// $workspaceStore.program?.account.profile._coder.decode("Profile", account.account.data as Buffer); // E: _coder is private
+			// return $workspaceStore.program!.coder.accounts.decode("profile", account.account.data); // E: Unknown account: profile
 
-				// return $workspaceStore.program?.coder<anchor.IdlAccounts<OnchainVotingMultiplePolls>["profile"]>
-				//   .profile.decode("Profile", account.account.data); // E:
+			// return $workspaceStore.program!.coder.accounts.decode("Profile", account.account.data); // WORKS! It's CAPITAL 'P'!
+			// return $workspaceStore.program?.coder.accounts.decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("profile", account.account.data as Buffer); // Error: Unknown account: profile
+			// return $workspaceStore.program?.coder.profile.decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("Profile", value.account.data); // E: 'profile' does not exist on type 'Coder'
 
-				// return $workspaceStore.program?.coder.accounts
-				// .decode<anchor.IdlAccounts<OnchainVotingMultiplePolls>["profile"]>("profile", account.account.data as Buffer); // Error: Unknown account: profile
-				// .decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("profile", account.account.data as Buffer); // Error: Unknown account: profile
+			// return $workspaceStore.program?.coder<anchor.IdlAccounts<OnchainVotingMultiplePolls>["profile"]>
+			//   .profile.decode("Profile", value.account.data); // E:
 
-				// return $workspaceStore.program?.coder.accounts.profile
-				//   .decode(anchor.IdlTypes<anchor.Idl>["Profile"], account.account.data as Buffer); // E: 'profile' does not exist on type AccountsCoder<string>
+			// return $workspaceStore.program?.coder.accounts
+			// .decode<anchor.IdlAccounts<OnchainVotingMultiplePolls>["profile"]>("profile", value.account.data as Buffer); // Error: Unknown account: profile
+			// .decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("profile", value.account.data as Buffer); // Error: Unknown account: profile
 
-				// console.log("profileAccount #: ", i);
-				// console.log(account);
+			// return $workspaceStore.program?.coder.accounts.profile
+			//   .decode(anchor.IdlTypes<anchor.Idl>["Profile"], value.account.data as Buffer); // E: 'profile' does not exist on type AccountsCoder<string>
 
-				// return $workspaceStore.program?.coder
-				// ==========================
-			}
-		);
+			// console.log("profileAccount #: ", i);
+			// console.log(value);
+
+			// return $workspaceStore.program?.coder
+			// ==========================
+		});
 
 		console.log('=== Polls ===');
-		const decodedPollAccounts = pollAccounts.map((account: anchor.IdlTypes<anchor.Idl>['Poll']) => {
+		// NOTE Each item in array is type: { account: AccountInfo<Buffer>, pubkey: PublicKey }
+		const decodedPollAccounts = pollAccounts.map((value) => {
 			// Manually decode the account data using coder
 			const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
 				'Poll',
-				account.account.data
+				value.account.data
 			);
 
 			// Update Store
-			pollsStore.update(
-				(polls) => [...polls, decodedAccountInfo] as anchor.IdlTypes<anchor.Idl>['Poll'][]
-			);
+			pollsStore.addPoll(decodedAccountInfo, value.pubkey);
 		});
 
+    // NOTE I'm currently not updating the single pollStore from this
+    // call, since it depends on the route/pda, etc.
+
 		// console.log('=== All PARSED ProgramAccounts ===');
-		// parsedProgramAccounts.forEach((account, i) => {
+		// parsedProgramAccounts.forEach((value, i) => {
 		// 	console.log(`Account # ${i + 1}:`);
-		// 	console.log(`---prototype: ${Object.getPrototypeOf(account)}`);
-		// 	console.log(`---Address: ${account.pubkey.toBase58()}`);
-		// 	console.log(`---Owner: ${account.account.owner.toBase58()}`);
-		// 	console.log(`---Data: ${account.account.data.toString()}`); // Garbled
-		// 	console.log(`---JSON: ${JSON.stringify(account.account.data.toString())}`); // Garbled
-		// 	console.log(account['account']['data']); // Uint8Array
+		// 	console.log(`---prototype: ${Object.getPrototypeOf(value)}`);
+		// 	console.log(`---Address: ${value.pubkey.toBase58()}`);
+		// 	console.log(`---Owner: ${value.account.owner.toBase58()}`);
+		// 	console.log(`---Data: ${value.account.data.toString()}`); // Garbled
+		// 	console.log(`---JSON: ${JSON.stringify(value.account.data.toString())}`); // Garbled
+		// 	console.log(value['account']['data']); // Uint8Array
 
 		// 	console.log('=======');
 
 		// 	// Let's see if typing as ParsedAccountData helps:
-		// 	const parsedAccountInfo = account.account.data as anchor.web3.ParsedAccountData;
+		// 	const parsedAccountInfo = value.account.data as anchor.web3.ParsedAccountData;
 		// 	console.log(`ParsedAccountData # ${i + 1}:`);
 		// 	console.log(parsedAccountInfo); // Uint8Array
 		// 	console.log(`---parsedAccountInfo: ${parsedAccountInfo}`); // Garbled
@@ -555,14 +558,14 @@
 		// });
 
 		// console.log('=== All NON-PARSED ProgramAccounts ===');
-		// programAccounts.forEach(async (account, i) => {
+		// programAccounts.forEach(async (value, i) => {
 		//     // Q: Why is the AccountInfo data returning a Buffer? How do I parse the data?
 		//     // U: Turns out you parse the account according to its struct. So, each program
 		//     // will package it up differently. However, if the account is a data account,
 		//     // then you may be able to read the data using the program.account.fetch() API.
 		// 	console.log(`Account # ${i + 1}:`);
-		// 	// console.log(`---Address: ${account.pubkey.toBase58()}`);
-		// 	console.log(account);
+		// 	// console.log(`---Address: ${value.pubkey.toBase58()}`);
+		// 	console.log(value);
 
 		//     // Q: Do I even need to use this getProgramAccounts() approach if I have access
 		//     // to the workspace/program and the fetch() API?
@@ -573,7 +576,7 @@
 		//     // using dataSize and memcmp properties?
 		//     // A: Yes! Once you know the right filter, then you can get the correct account
 		//     // and then manually decode the returned data!
-		//     // const accountData = await $workspaceStore.program?.account.customProgram?.fetch(account.pubkey) // WORKS
+		//     // const accountData = await $workspaceStore.program?.account.customProgram?.fetch(value.pubkey) // WORKS
 		//     // console.log(accountData);
 		// });
 	}
@@ -603,7 +606,6 @@
 		// Without PDA
 		await customProgramStore.getCustomProgramAccount(); // null
 	}
-
 </script>
 
 <!-- <AnchorConnectionProvider {network} {idl} /> -->
@@ -659,9 +661,11 @@
 				{#each $pollsStore as { poll, pda } (pda)}
 					<div class="card w-96 bg-neutral text-neutral-content">
 						<div class="card-body items-center text-center">
-					    <a class="link link-secondary" href="polls/{poll?.pollNumber}">
-							  <h2 class="card-title">{poll?.optionADisplayLabel} || {poll?.optionBDisplayLabel}</h2>
-              </a>
+							<a class="link link-secondary" href="polls/{poll?.pollNumber}">
+								<h2 class="card-title">
+									{poll?.optionADisplayLabel} || {poll?.optionBDisplayLabel}
+								</h2>
+							</a>
 							<p>Votooooor #:{poll?.pollNumber} has {poll?.voteCount} total votes!</p>
 							<div class="card-actions justify-end">
 								<button class="btn btn-primary">{poll?.optionADisplayLabel}</button>

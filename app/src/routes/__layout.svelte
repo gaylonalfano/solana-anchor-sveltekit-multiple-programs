@@ -29,10 +29,10 @@
 	$: autoconnect = browser && setLocalStorage('autoconnect', checked);
 	// $: autoConnect = browser && Boolean(getLocalStorage('autoconnect', false));
 
-	$: {
-		console.log('walletStore: ', $walletStore);
-		console.log('workspaceStore: ', $workspaceStore);
-	}
+	// $: {
+	// 	console.log('walletStore: ', $walletStore);
+	// 	console.log('workspaceStore: ', $workspaceStore);
+	// }
 
 	// === ORIGINAL (w/o AnchorConnectionProvider)
 	// REF: https://github.com/solana-developers/dapp-scaffold-svelte
