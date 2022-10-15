@@ -23,17 +23,13 @@
     TODOs:
       - Create some sort of onMount or possibly load() that fetches
         program accounts and updates customProgramStore, pollsStore,
-        and profileStore (for the connected wallet)
+        and profileStore WHEN WALLET CHANGES!
+        - Look into $: reactive statements
         - Or, perhaps create custom Stores for each and run each
           getXAccount() method e.g.:
             customProgramStore.getCustomProgramAccount()
             profileStore.getProfileAccount()
             pollsStore.getPollsAccounts()
-      - Have pollsStore load after wallet swap. Rather than set()
-        need to use update() instead so it keeps track. 
-      - Have polls/index do some sort of listing/pagination of active
-        Poll accounts with simple button to re-route. Will need to
-        update pollStore on selection.
   */
 
 	const network = constants.NETWORK;
@@ -95,6 +91,14 @@
 	// Q: How to pre-fetch data? How to use getAllProgramAccounts()
 	//    Need to wait for workspace and wallet Stores before invoking...
 	// $: $walletStore.connected && $customProgramStore.getCustomProgramAccount();
+  // Q: What about this from /basic example? Reactive declarations may help
+  // NOTE The below syntax forces JS to intepret the statement as an expression,
+  // destructuring the values.
+  // REF: https://svelte-recipes.netlify.app/language/#variable-deconstruction
+  // $: ({ publicKey, sendTransaction } = $walletStore);
+  // REF: https://svelte-recipes.netlify.app/language/#defining-dependencies
+  $: $walletStore && getAllProgramAccounts();
+
 
 	$: {
 		console.log('customProgram: ', customProgram);
@@ -202,6 +206,7 @@
 
 		// Fetch data after tx confirms & update global state
 		const currentProfile = await $workspaceStore.program?.account.profile.fetch(profilePda) as ProfileObject;
+    // NOTE Only after the tx is successful do we update our state
 		// Q: update() or set() Store?
 		profileStore.set({ profile: currentProfile, pda });
 		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
@@ -209,13 +214,7 @@
 		) as CustomProgramObject;
 		// Q: update() or set() Store?
 		// A: I believe just set() since we overwrite the whole thing
-		// customProgramStore.set({ customProgram: customProgram, pda: $customProgramStore.pda });
-		customProgramStore.update(self => {
-      return {
-        customProgram: currentCustomProgram,
-        pda: self.pda,
-      }
-    })
+		customProgramStore.set({ customProgram: customProgram, pda: $customProgramStore.pda });
 	}
 
 	async function handleCreatePoll() {
@@ -226,6 +225,7 @@
 		// U: If I add <a> links then the state remains and isn't cleared. However, if I
 		// change wallets, then the user state gets wiped.
 		// A: Ended up creating a separate PdaStore for this
+    // U: Need to explore reactive statement (e.g. useEffect on wallet.publicKey change)
 		const pollCount: string = ($customProgramStore.customProgram?.totalPollCount.toNumber() + 1).toString();
 		console.log('pollCount: ', pollCount);
 
@@ -268,25 +268,18 @@
 		console.log('TxHash ::', tx);
 
 		// Fetch data after tx confirms & update global state
-		const currentPoll = await $workspaceStore.program?.account.poll.fetch(pollPda);
-		poll = currentPoll as anchor.IdlTypes<anchor.Idl>['Poll'];
-		pollStore.set(poll);
-		pollsStore.update((polls) => [...polls, poll]);
+		const currentPoll = await $workspaceStore.program?.account.poll.fetch(pollPda) as PollObject;
+    pollStore.set({ poll: currentPoll, pda: pda })
+    pollsStore.addPoll(currentPoll, pda);
+    // pollsStore.addPollStore({ poll: currentPoll, pda: pda });
 
-		const currentProfile = await $workspaceStore.program?.account.profile.fetch(profilePda);
-		profile = currentProfile as anchor.IdlTypes<anchor.Idl>['Profile'];
-		profileStore.set(profile);
+		const currentProfile = await $workspaceStore.program?.account.profile.fetch(profilePda) as ProfileObject;
+		profileStore.set({ profile: currentProfile, pda: $profileStore.pda });
 		const currentCustomProgram = await $workspaceStore.program?.account.customProgram.fetch(
 			$customProgramStore.pda as anchor.web3.PublicKey
-		);
-		customProgram = currentCustomProgram as anchor.IdlTypes<anchor.Idl>['CustomProgram'];
+		) as CustomProgramObject;
 		// Q: update() or set() Store?
-		customProgramStore.update(self => {
-      return {
-        customProgram: customProgram,
-        pda: self.pda
-      }
-    })
+    customProgramStore.set({ customProgram: currentCustomProgram, pda: $customProgramStore.pda })
 	}
 
 	// Try to fetch program accounts using getProgramAccounts()
@@ -663,19 +656,16 @@
 				on:click={handleCreatePoll}>Create Poll</Button
 			>
 			{#if $pollsStore}
-				{#each $pollsStore as poll (poll.pollNumber)}
-					<pre>{JSON.stringify(poll, null, 2)}</pre>
-          <br>
-					<a class="link link-secondary" href="polls/{poll.pollNumber}">Poll {poll.pollNumber}</a>
+				{#each $pollsStore as { poll, pda } (pda)}
 					<div class="card w-96 bg-neutral text-neutral-content">
 						<div class="card-body items-center text-center">
-					    <a class="link link-secondary" href="polls/{poll.pollNumber}">
-							  <h2 class="card-title">{poll.optionADisplayLabel} || {poll.optionBDisplayLabel}</h2>
+					    <a class="link link-secondary" href="polls/{poll?.pollNumber}">
+							  <h2 class="card-title">{poll?.optionADisplayLabel} || {poll?.optionBDisplayLabel}</h2>
               </a>
-							<p>Votooooor #:{poll.pollNumber} has {poll.voteCount} total votes!</p>
+							<p>Votooooor #:{poll?.pollNumber} has {poll?.voteCount} total votes!</p>
 							<div class="card-actions justify-end">
-								<button class="btn btn-primary">{poll.optionADisplayLabel}</button>
-								<button class="btn btn-ghost">{poll.optionBDisplayLabel}</button>
+								<button class="btn btn-primary">{poll?.optionADisplayLabel}</button>
+								<button class="btn btn-ghost">{poll?.optionBDisplayLabel}</button>
 							</div>
 						</div>
 					</div>

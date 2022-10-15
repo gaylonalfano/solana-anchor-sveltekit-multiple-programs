@@ -20,14 +20,13 @@
 	import idl from '../../../../target/idl/onchain_voting_multiple_polls.json';
 	import { onMount } from 'svelte';
 	import { notificationStore } from '$stores/notification';
-	import { customProgramStore, customProgramPdaStore } from '$stores/polls/custom-program-store';
-	import { profileStore, profilePdaStore } from '$stores/polls/profile-store';
-	import { pollStore, pollPdaStore } from '$stores/polls/poll-store';
+	import { customProgramStore } from '$stores/polls/custom-program-store';
+	import { profileStore } from '$stores/polls/profile-store';
+	import { pollStore } from '$stores/polls/poll-store';
 	import { pollsStore } from '$stores/polls/polls-store';
 	import { Button } from '$lib/index';
+  import * as constants from '../../utils/constants';
 
-  const POLL_SEED_PREFIX = "poll";
-  const VOTE_SEED_PREFIX = "vote";
 
 	const network = 'http://localhost:8899';
 
@@ -49,6 +48,11 @@
 	onMount(() => {
 		// Q: Can I create some custom Types that align with IDL?
 		// A: Believe so! Check out PollObject type definition
+		// let poll = $pollsStore.find((p) => {
+		// 	return p.pollNumber.words[0] === parseInt($page.params.pollNumber);
+		// }) as PollObject; // NOTE MUST cast for Types!
+
+    // Set/update the single pollStore
 		let poll = $pollsStore.find((p) => {
 			return p.pollNumber.words[0] === parseInt($page.params.pollNumber);
 		}) as PollObject; // NOTE MUST cast for Types!
@@ -77,9 +81,12 @@
     // Definitely need to make sure that pollsStore is updating and each,
     // Poll is updated as well... May need a handy PdaStore for quick fetch()
 		// Need to access current poll.voteCount
+    // U: Created/updated my Stores to save the PDA! Now they use custom types
+    // that look like { account, pda }. This should help BUT need to test out
+    // when a new wallet connects to update the Stores...
 		// Q: Need profile and/or customProgram? Or, just pass as accounts?
 		// A: Eventually will need to increment/update values, but not yet!
-    let pollPda = await derivePda([Buffer.from(POLL_SEED_PREFIX), Buffer.from($pollStore.pollNumber)]);
+    let pollPda = await derivePda([Buffer.from(constants.POLL_SEED_PREFIX), Buffer.from($pollStore.pollNumber)]);
     console.log("pollPda: ", pollPda);
 
 		let poll = await $workspaceStore.program?.account.poll.fetch(pollPda) as anchor.IdlTypes<anchor.Idl>["Poll"];
@@ -90,7 +97,7 @@
 
 		const [votePda, voteBump] = await PublicKey.findProgramAddress(
 			[
-				anchor.utils.bytes.utf8.encode(VOTE_SEED_PREFIX),
+				anchor.utils.bytes.utf8.encode(constants.VOTE_SEED_PREFIX),
 				pollPda.toBuffer(), // Q: Can get I PDA from pollStore?
 				($walletStore.publicKey as anchor.web3.PublicKey).toBuffer()
 			],

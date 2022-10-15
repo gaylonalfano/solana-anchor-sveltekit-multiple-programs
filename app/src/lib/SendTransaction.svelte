@@ -5,6 +5,9 @@
 	import { Button } from '$lib/index';
 	import { notificationStore } from '$stores/notification';
 
+  // NOTE The below syntax forces JS to intepret the statement as an expression,
+  // destructuring the values.
+  // REF: https://svelte-recipes.netlify.app/language/#variable-deconstruction
 	$: ({ publicKey, sendTransaction } = $walletStore);
 
 	async function onClick() {

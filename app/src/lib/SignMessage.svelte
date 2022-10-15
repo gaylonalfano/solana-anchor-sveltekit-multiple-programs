@@ -5,6 +5,10 @@
 	import { sign } from 'tweetnacl';
 	import bs58 from 'bs58';
 
+  // NOTE The below syntax forces JS to intepret the statement as an expression,
+  // destructuring the values.
+  // REF: https://svelte-recipes.netlify.app/language/#variable-deconstruction
+
 	$: ({ publicKey, signMessage } = $walletStore);
 
 	async function onClick() {

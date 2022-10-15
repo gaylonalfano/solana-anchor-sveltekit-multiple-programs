@@ -7,7 +7,7 @@ import { POLL_SEED_PREFIX } from '../../utils/constants';
 import { PublicKey } from '@solana/web3.js';
 
 
-type PollStore = {
+export type PollStore = {
   poll: PollObject | null,
   pda: anchor.web3.PublicKey | null,
 }
@@ -50,3 +50,50 @@ function createPollStore() {
 }
 
 export const pollStore = createPollStore();
+
+
+
+
+
+
+
+// REF: =================
+// NOTE Here's a helper function to create a custom Store
+// function createTodosStore() {
+// 	const { subscribe, set, update } = writable<Record<string, any>[]>([]);
+
+// 	return {
+// 		subscribe,
+// 		addTodo: (task: string) => {
+// 			update((items: Record<string, any>[]) => {
+// 				return [...items, { task, isCompleted: false, id: Date.now() }];
+// 			});
+// 		},
+// 		deleteTodo: (id: Date) => {
+// 			update((items: Record<string, any>[]) => {
+// 				return items.filter((item) => item.id !== id);
+// 			});
+// 		},
+// 		toggleCompleted: (id: Date) => {
+// 			update((items: Record<string, any>[]) => {
+// 				// Find the index of the item
+// 				let index = -1;
+// 				for (let i = 0; i < items.length; i++) {
+// 					if (items[i].id === id) {
+// 						index = i;
+// 						break;
+// 					}
+// 				}
+
+// 				if (index !== -1) {
+// 					// Item is found
+// 					items[index].isCompleted != items[index].isCompleted;
+// 				}
+
+// 				return items;
+// 			});
+// 		},
+// 		reset: () => set([])
+// 	};
+// }
+
