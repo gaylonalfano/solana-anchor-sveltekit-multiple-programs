@@ -7,7 +7,7 @@ import { PROFILE_SEED_PREFIX } from '../../utils/constants';
 import { PublicKey } from '@solana/web3.js';
 
 // =========== WITH CUSTOM TYPE TO STORE PDA ============
-type ProfileStore = {
+export type ProfileStore = {
   profile: ProfileObject | null,
   pda: anchor.web3.PublicKey | null,
 }
@@ -45,7 +45,8 @@ function createProfileStore() {
       } catch (e) {
         console.log(`Error getting account: `, e);
       }
-    }
+    },
+    reset: () => set({ profile: null, pda: null })
   }
 }
 

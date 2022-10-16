@@ -63,7 +63,8 @@ function createCustomProgramStore() {
       } catch (e) {
         console.log(`error getting account: `, e);
       }
-    }
+    },
+    reset: () => set({ customProgram: null, pda: null })
   }
 }
 

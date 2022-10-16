@@ -45,7 +45,8 @@ function createPollStore() {
       } catch (e) {
         console.log(`Error getting account: `, e);
       }
-    }
+    },
+    reset: () => set({ poll: null, pda: null })
   }
 }
 

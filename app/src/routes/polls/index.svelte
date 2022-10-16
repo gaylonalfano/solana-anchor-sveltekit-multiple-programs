@@ -43,14 +43,14 @@
 	// U: onMount runs BEFORE workspace is connected!
 	// Q: How can I fire off a getAllPollsProgramAccounts()
 	onMount(async () => {
-		console.log('ONMOUNT');
+		console.log('Component MOUNTED');
 		// FIXME If I want to use this, then I need to fix the
 		// method to set() to null if the account can't be found yet
 		// await customProgramStore.getCustomProgramAccount();
 	});
 
-	beforeUpdate(() => console.log('Component is about to update.'));
-	afterUpdate(() => console.log('Component just updated.'));
+	beforeUpdate(() => console.log('Component BEFORE UPDATE.'));
+	afterUpdate(() => console.log('Component AFTER UPDATE.'));
 
 	// Global state
 	// Q: Any way to access the PDA Address from Stores?
@@ -99,7 +99,8 @@
 	// REF: https://svelte-recipes.netlify.app/language/#variable-deconstruction
 	// $: ({ publicKey, sendTransaction } = $walletStore);
 	// REF: https://svelte-recipes.netlify.app/language/#defining-dependencies
-  // Q: Watch the entire walletStore or just walletStore.publicKey?
+  // Q: Watch the entire walletStore or just walletStore.publicKey or walletStore.connected?
+  // U: Think I may need to reset my Stores before the fetch...
 	// $: $walletStore && getAllProgramAccounts();
 	$: $walletStore.publicKey && getAllProgramAccounts();
 
@@ -288,12 +289,17 @@
 		customProgramStore.set({ customProgram: currentCustomProgram, pda: $customProgramStore.pda });
 	}
 
+
 	// Try to fetch program accounts using getProgramAccounts()
 	// REF: https://www.notion.so/Solana-Quick-Reference-c0704fee2afa4ee5827ded6937ef47df#680c6b9f0f074a37bfe02579309faad2
 	// REF: https://solanacookbook.com/guides/get-program-accounts.html#filters
 	async function getAllProgramAccounts() {
 		if (!$walletStore) throw Error('Wallet not connected!');
 		if (!$workspaceStore) throw Error('Workspace not found!');
+
+    pollsStore.reset();
+
+    console.log("getAllProgramAccounts INVOKED!")
 
 		// 1. Establish a connection
 		const { connection } = $workspaceStore;
@@ -445,7 +451,7 @@
 		// U: By using getProgramAccounts() and then fetch(), you're essentially fetching TWICE.
 		// Was suggested to gPA and then program.coder.accounts.decode(), but how?
 		// A: Need to manually decode using program.coder!
-		console.log('=== CustomProgram ===');
+		// console.log('=== CustomProgram ===');
 		// NOTE Each item in array is type: { account: AccountInfo<Buffer>, pubkey: PublicKey }
 		customProgramAccount.forEach((value) => {
 			// const parsedAccountInfo = value.account.data as anchor.web3.ParsedAccountData;
@@ -457,13 +463,13 @@
 				'CustomProgram',
 				value.account.data
 			); // WORKS! It's CAPITAL 'P'!
-			console.log('decodedAccountInfo: ', decodedAccountInfo);
+			// console.log('decodedAccountInfo: ', decodedAccountInfo);
 
 			// Update Store state
 			customProgramStore.set({ customProgram: decodedAccountInfo, pda: value.pubkey });
 		});
 
-		console.log('=== Profiles ===');
+		// console.log('=== Profiles ===');
 		// Q: What does program.coder look like?
 		// Q: Does my workspaceStore.program have the Idl of OnchainVotingMultiplePolls?
 		// Q: Is there a Typing issue i.e., should it say BorshCoder or just Coder?
@@ -478,6 +484,10 @@
 		// Q: How to use program.coder?
 		// REF: program.coder.accounts.decode<anchor.IdlAccounts<DegenerateStar>["star"]>("star", data!);
 		// A: program.coder.accounts.decode("Profile", value.account.data); No need for types since we have IDL!
+    // Q: Should I reset my Stores before the fetch? I think so, 
+    // since my pollsStore, profilesStore arrays are duplicating.
+    // U: Gonna try only resetting my arrays
+    profilesStore.reset();
 		const decodedProfileAccounts = profileAccounts.map((value) => {
 			const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
 				'Profile',
@@ -522,8 +532,12 @@
 			// ==========================
 		});
 
-		console.log('=== Polls ===');
+		// console.log('=== Polls ===');
 		// NOTE Each item in array is type: { account: AccountInfo<Buffer>, pubkey: PublicKey }
+    // Q: Should I reset my Stores before the fetch? I think so, 
+    // since my pollsStore, profilesStore arrays are duplicating.
+    // U: Gonna try only resetting my arrays
+    pollsStore.reset();
 		const decodedPollAccounts = pollAccounts.map((value) => {
 			// Manually decode the account data using coder
 			const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
