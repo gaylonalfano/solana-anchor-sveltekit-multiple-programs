@@ -430,11 +430,6 @@
 
 		// 3. Get the accounts based on filters
 		// NOTE No filter - get all accounts and check size
-		const programAccounts = await connection.getProgramAccounts(
-			$workspaceStore.program?.programId as anchor.web3.PublicKey
-		);
-    console.log('ALL programAccounts: ', programAccounts);
-
 		const customProgramAccount = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: customProgramFilter }
@@ -472,6 +467,10 @@
       { filters: votesByAuthorityFilter }
     );
 
+		const programAccounts = await connection.getProgramAccounts(
+			$workspaceStore.program?.programId as anchor.web3.PublicKey
+		);
+    console.log('ALL programAccounts: ', programAccounts);
 
 		// const parsedProgramAccounts = await connection.getParsedProgramAccounts(
 		// 	$workspaceStore.program?.programId as PublicKey
