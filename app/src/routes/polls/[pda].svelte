@@ -48,6 +48,12 @@
 	// 	// return p.pollNumber.words[0] === parseInt(pollNumberFromLoad);
 	// 	return p.pollNumber.words[0] === parseInt($page.params.pollNumber);
 	// }) as anchor.IdlTypes<anchor.Idl>['Poll']; // NOTE MUST cast for Types!
+	$: {
+		console.log('$pollsStore: ', $pollsStore);
+		console.log('$pollStore: ', $pollStore);
+	}
+
+
 
 	onMount(() => {
 		// Q: Can I create some custom Types that align with IDL?
@@ -239,10 +245,6 @@
 		return pda;
 	}
 
-	$: {
-		console.log('$pollsStore: ', $pollsStore);
-		console.log('$pollStore: ', $pollStore);
-	}
 </script>
 
 <!-- <pre>{JSON.stringify($pollStore, null, 2)}</pre> -->

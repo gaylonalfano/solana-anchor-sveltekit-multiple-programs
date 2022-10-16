@@ -36,6 +36,7 @@
             customProgramStore.getCustomProgramAccount()
             profileStore.getProfileAccount()
             pollsStore.getPollsAccounts()
+      - Add notifications for errors (2nd attempts, no SOL, no Profile, etc)
   */
 
 	const network = constants.NETWORK;
@@ -50,7 +51,7 @@
 	});
 
 	beforeUpdate(() => console.log('Component BEFORE UPDATE.'));
-	afterUpdate(() => console.log('Component AFTER UPDATE.'));
+	afterUpdate(() => console.log('Component AFTER UPDATE.\n =================='));
 
 	// Global state
 	// Q: Any way to access the PDA Address from Stores?
@@ -99,18 +100,29 @@
 	// REF: https://svelte-recipes.netlify.app/language/#variable-deconstruction
 	// $: ({ publicKey, sendTransaction } = $walletStore);
 	// REF: https://svelte-recipes.netlify.app/language/#defining-dependencies
-  // Q: Watch the entire walletStore or just walletStore.publicKey or walletStore.connected?
   // U: Think I may need to reset my Stores before the fetch...
-	// $: $walletStore && getAllProgramAccounts();
-	$: $walletStore.publicKey && getAllProgramAccounts();
+  // A: Yep, added a reset() just before updating my arrays Stores
+  // Q: Watch the entire walletStore or just walletStore.publicKey or walletStore.connected?
+  // U: publicKey or connected seem to invoke at the same time.
+  // U: Looks like connected == true && connecting == false is the best... need to test
+  // Otherwise, it gPA() gets invoked multiple times.
+  // U: Actually: connected=true && connecting=false && disconnecting=false
+	// $: $walletStore && getAllProgramAccounts(); // Too many triggers
+	// $: $walletStore.publicKey && getAllProgramAccounts();
+	// $: $walletStore.connected && getAllProgramAccounts(); // Runs SEVERAL times
+	// $: $walletStore.connected && !$walletStore.connecting && getAllProgramAccounts(); // Runs TWICE (disconnect & connect)
+	$: $walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting && getAllProgramAccounts(); // Runs ONCE
 
 	$: {
 		console.log('walletStore: ', $walletStore);
-		console.log('walletStore.publicKey: ', $walletStore);
+		console.log('walletStore.PUBLICKEY: ', $walletStore.publicKey?.toBase58());
+		console.log('walletStore.CONNECTED: ', $walletStore.connected);
+		console.log('walletStore.CONNECTING: ', $walletStore.connecting);
+		console.log('walletStore.DISCONNECTING: ', $walletStore.disconnecting);
 		// console.log('customProgram: ', customProgram);
 		console.log('customProgramStore: ', $customProgramStore);
 		// console.log('profilePda: ', profilePda?.toBase58());
-		// console.log('profileStore: ', $profileStore);
+		console.log('profileStore: ', $profileStore);
 		// console.log('pollPda: ', pollPda);
 		// console.log('pollStore: ', $pollStore);
 		// console.log('pollsStore: ', $pollsStore);
@@ -297,8 +309,8 @@
 		if (!$walletStore) throw Error('Wallet not connected!');
 		if (!$workspaceStore) throw Error('Workspace not found!');
 
-    pollsStore.reset();
-
+    // NOTE After some testing, looks like the best condition to trigger this fn is:
+    // walletStore.connected=true, connecting=false, disconnecting=false
     console.log("getAllProgramAccounts INVOKED!")
 
 		// 1. Establish a connection
@@ -380,12 +392,19 @@
 			{
 				dataSize: 65
 			},
+      // FIXME
+      // U: Do I need this extra filter? For some reason it's not
+      // getting the account on page refresh (Profile works). The response
+      // from gPA() using this filter returns empty array. Only after I make
+      // some file change/save does it seem to work. Odd...
+      // TODO Need to test out using memcmp with matching authority and then refresh
+      // the page and see...
 			{
 				memcmp: {
 					offset: 8, // 32 when 'authority' was just before bump
 					// Q: Shouldn't the authority be a CONST instead of wallet-based?
-					// bytes: $walletStore.publicKey!.toBase58()
-					bytes: '2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE'
+					bytes: $walletStore.publicKey!.toBase58() 
+					// bytes: "2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE"
 				}
 			}
 		];
@@ -407,6 +426,7 @@
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: customProgramFilter }
 		);
+    console.log('customProgramAccount AFTER gPA()+filters', customProgramAccount);
 
 		// Only filtering on dataSize to reduce requests
 		const profileAccounts = await connection.getProgramAccounts(
@@ -434,9 +454,10 @@
 		// 	$workspaceStore.program?.programId as PublicKey
 		// );
 
-		// const programAccounts = await connection.getProgramAccounts(
-		// 	$workspaceStore.program?.programId as anchor.web3.PublicKey
-		// );
+		const programAccounts = await connection.getProgramAccounts(
+			$workspaceStore.program?.programId as anchor.web3.PublicKey
+		);
+    console.log('ALL programAccounts: ', programAccounts);
 
 		// Q: What does program.state return?
 		// U: Nothing??? Need to look into this more.
@@ -453,7 +474,8 @@
 		// A: Need to manually decode using program.coder!
 		// console.log('=== CustomProgram ===');
 		// NOTE Each item in array is type: { account: AccountInfo<Buffer>, pubkey: PublicKey }
-		customProgramAccount.forEach((value) => {
+    // NOTE Must use map() NOT forEach()!
+		customProgramAccount.map((value) => {
 			// const parsedAccountInfo = value.account.data as anchor.web3.ParsedAccountData;
 			// console.log(parsedAccountInfo); // Uint8Array
 			// // console.log(parsedAccountInfo.parsed); // null
@@ -463,9 +485,10 @@
 				'CustomProgram',
 				value.account.data
 			); // WORKS! It's CAPITAL 'P'!
-			// console.log('decodedAccountInfo: ', decodedAccountInfo);
+			console.log('decodedAccountInfo: ', decodedAccountInfo);
 
 			// Update Store state
+      console.log("UPDATING customProgramStore from inside gPA()")
 			customProgramStore.set({ customProgram: decodedAccountInfo, pda: value.pubkey });
 		});
 
@@ -487,6 +510,7 @@
     // Q: Should I reset my Stores before the fetch? I think so, 
     // since my pollsStore, profilesStore arrays are duplicating.
     // U: Gonna try only resetting my arrays
+    // A: Yep, seems to be working correctly now...
     profilesStore.reset();
 		const decodedProfileAccounts = profileAccounts.map((value) => {
 			const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
@@ -495,6 +519,7 @@
 			); // WORKS! It's CAPITAL 'P'!
 
 			// Update Store state
+      console.log("UPDATING profilesStore from inside gPA()")
 			profilesStore.addProfile(decodedAccountInfo, value.pubkey);
 			// profilesStore.update((profiles) => [...profiles, decodedAccountInfo]);
 		});
@@ -505,6 +530,7 @@
 				value.account.data
 			);
 			// Update Store state
+      console.log("UPDATING profileStore from inside gPA()")
 			profileStore.set({ profile: decodedAccountInfo, pda: value.pubkey });
 
 			// === Debugging below ===
@@ -537,6 +563,7 @@
     // Q: Should I reset my Stores before the fetch? I think so, 
     // since my pollsStore, profilesStore arrays are duplicating.
     // U: Gonna try only resetting my arrays
+    // A: Yep, seems to be working correctly now...
     pollsStore.reset();
 		const decodedPollAccounts = pollAccounts.map((value) => {
 			// Manually decode the account data using coder
@@ -640,11 +667,6 @@
 			>
 			<pre>customProgramStore: {JSON.stringify($customProgramStore, null, 2)}</pre>
 			<br />
-			<Button disabled={!$walletStore.publicKey} on:click={handleGetCustomProgram}
-				>Get Custom Program Store</Button
-			>
-			<pre>customProgramStore: {JSON.stringify($customProgramStore, null, 2)}</pre>
-
 			<Button disabled={!$walletStore.publicKey} on:click={handleCreateProfile}
 				>Create Profile</Button
 			>
