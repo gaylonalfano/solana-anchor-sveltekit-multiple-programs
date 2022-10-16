@@ -403,25 +403,38 @@
 				memcmp: {
 					offset: 8, // 32 when 'authority' was just before bump
 					// Q: Shouldn't the authority be a CONST instead of wallet-based?
-					bytes: $walletStore.publicKey!.toBase58() 
-					// bytes: "2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE"
+					// bytes: $walletStore.publicKey!.toBase58() 
+					bytes: "2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE"
 				}
 			}
 		];
 
-		//   const votesFilter: GetProgramAccountsFilter[] = [
-		// 	{
-		// 		dataSize: 65
-		// 	},
-		// 	{
-		// 		memcmp: {
-		// 			offset: 8, // 32 when 'authority' was just before bump
-		// 			bytes: $walletStore.publicKey!.toBase58()
-		// 		}
-		// 	}
-		// ];
+    const votesFilter: GetProgramAccountsFilter[] = [
+			{
+				dataSize: 115
+			},
+		];
+
+
+		const votesByAuthorityFilter: GetProgramAccountsFilter[] = [
+			{
+				dataSize: 115
+			},
+			{
+				memcmp: {
+					offset: 8, // 32 when 'authority' was just before bump
+					bytes: $walletStore.publicKey!.toBase58()
+				}
+			}
+		];
 
 		// 3. Get the accounts based on filters
+		// NOTE No filter - get all accounts and check size
+		const programAccounts = await connection.getProgramAccounts(
+			$workspaceStore.program?.programId as anchor.web3.PublicKey
+		);
+    console.log('ALL programAccounts: ', programAccounts);
+
 		const customProgramAccount = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: customProgramFilter }
@@ -449,15 +462,21 @@
 			{ filters: pollsByAuthorityFilter }
 		);
 
-		// NOTE No filter - get all accounts and check size
+    const voteAccounts = await connection.getProgramAccounts(
+      $workspaceStore.program?.programId as PublicKey,
+      { filters: votesFilter }
+    );
+
+    const voteAccountsByAuthority = await connection.getProgramAccounts(
+      $workspaceStore.program?.programId as PublicKey,
+      { filters: votesByAuthorityFilter }
+    );
+
+
 		// const parsedProgramAccounts = await connection.getParsedProgramAccounts(
 		// 	$workspaceStore.program?.programId as PublicKey
 		// );
 
-		const programAccounts = await connection.getProgramAccounts(
-			$workspaceStore.program?.programId as anchor.web3.PublicKey
-		);
-    console.log('ALL programAccounts: ', programAccounts);
 
 		// Q: What does program.state return?
 		// U: Nothing??? Need to look into this more.
@@ -489,7 +508,12 @@
 
 			// Update Store state
       console.log("UPDATING customProgramStore from inside gPA()")
-			customProgramStore.set({ customProgram: decodedAccountInfo, pda: value.pubkey });
+			customProgramStore.set({ customProgram: decodedAccountInfo, pda: value.pubkey }); // ?
+			// customProgramStore.update((current) => {
+   //      current.customProgram = decodedAccountInfo;
+   //      current.pda = value.pubkey;
+   //      return current;
+   //    }) // WORKS!
 		});
 
 		// console.log('=== Profiles ===');
