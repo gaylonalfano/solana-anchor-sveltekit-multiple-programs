@@ -5,6 +5,13 @@
 	import { balanceStore } from '$stores/balance';
 	import type { PublicKey } from '@solana/web3.js';
 
+	// NOTE The below syntax forces JS to intepret the statement as an expression,
+	// destructuring the values.
+	// REF: https://svelte-recipes.netlify.app/language/#variable-deconstruction
+	// $: ({ publicKey, sendTransaction } = $walletStore);
+	// REF: https://svelte-recipes.netlify.app/language/#defining-dependencies
+  // NOTE Similarly, if you only want to rerun a function when a variable changes AND is truthy
+  // then you can use the following pattern:
 	$: $walletStore.connected &&
 		balanceStore.getUserSOLBalance($walletStore.publicKey as PublicKey, $workspaceStore.connection);
 </script>

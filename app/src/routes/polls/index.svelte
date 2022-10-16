@@ -99,10 +99,13 @@
 	// REF: https://svelte-recipes.netlify.app/language/#variable-deconstruction
 	// $: ({ publicKey, sendTransaction } = $walletStore);
 	// REF: https://svelte-recipes.netlify.app/language/#defining-dependencies
-	$: $walletStore && getAllProgramAccounts();
+  // Q: Watch the entire walletStore or just walletStore.publicKey?
+	// $: $walletStore && getAllProgramAccounts();
+	$: $walletStore.publicKey && getAllProgramAccounts();
 
 	$: {
 		console.log('walletStore: ', $walletStore);
+		console.log('walletStore.publicKey: ', $walletStore);
 		// console.log('customProgram: ', customProgram);
 		console.log('customProgramStore: ', $customProgramStore);
 		// console.log('profilePda: ', profilePda?.toBase58());
@@ -661,7 +664,7 @@
 				{#each $pollsStore as { poll, pda } (pda)}
 					<div class="card w-96 bg-neutral text-neutral-content">
 						<div class="card-body items-center text-center">
-							<a class="link link-secondary" href="polls/{poll?.pollNumber}">
+							<a class="link link-secondary" href="polls/{pda}">
 								<h2 class="card-title">
 									{poll?.optionADisplayLabel} || {poll?.optionBDisplayLabel}
 								</h2>
