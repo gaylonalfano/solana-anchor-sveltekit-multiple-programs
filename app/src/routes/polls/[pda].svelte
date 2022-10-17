@@ -30,7 +30,7 @@
 		CustomProgramObject
 	} from '../../models/polls-types';
 	import { Button } from '$lib/index';
-	import * as constants from '../../utils/constants';
+	import * as constants from '../../helpers/constants';
 
 	const network = 'http://localhost:8899';
 

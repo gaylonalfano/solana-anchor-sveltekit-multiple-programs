@@ -6,7 +6,7 @@
 	import { PublicKey, type GetProgramAccountsFilter } from '@solana/web3.js';
 	import type { OnchainVotingMultiplePolls } from '../../idl/onchain_voting_multiple_polls';
 	import idl from '../../../../target/idl/onchain_voting_multiple_polls.json';
-	import { onMount, beforeUpdate, afterUpdate } from 'svelte';
+	import { onMount, beforeUpdate, afterUpdate, tick } from 'svelte';
 	import type { Writable } from 'svelte/store';
 	import { get } from 'svelte/store';
 	import { notificationStore } from '$stores/notification';
@@ -17,7 +17,7 @@
 	import { pollsStore } from '$stores/polls/polls-store';
 	import { Button } from '$lib/index';
 	// import Poll from '$lib/Poll.svelte';
-	import * as constants from '../../utils/constants';
+	import * as constants from '../../helpers/polls/constants';
 	import type {
 		CustomProgramObject,
 		ProfileObject,
@@ -111,14 +111,33 @@
 	// $: $walletStore.publicKey && getAllProgramAccounts();
 	// $: $walletStore.connected && getAllProgramAccounts(); // Runs SEVERAL times
 	// $: $walletStore.connected && !$walletStore.connecting && getAllProgramAccounts(); // Runs TWICE (disconnect & connect)
-	$: $walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting && getAllProgramAccounts(); // Runs ONCE
+	// $: $walletStore.connected 
+ //    && !$walletStore.connecting 
+ //    && !$walletStore.disconnecting 
+ //    && getAllProgramAccounts(); // First call is EMTPY!
+	// $: $walletStore.connected 
+ //    && !$walletStore.connecting 
+ //    && !$walletStore.disconnecting 
+ //    && getAllProgramAccounts().then(response => console.log('gPA response:', response)); // First call is EMPTY!
+  // U: Trying $: tick().then(() => ....)
+  // REF: https://dev.to/isaachagoel/svelte-reactivity-gotchas-solutions-if-you-re-using-svelte-in-production-you-should-read-this-3oj3
+  // $: tick().then(async () => {
+  //   if($walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting) {
+  //     await getAllProgramAccounts();
+  //   }
+  // }) // WORKS on refresh!
+  $: tick().then(() => {
+    if($walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting) {
+      getAllProgramAccounts();
+    }
+  }) // WORKS on refresh! async/await not needed it seems...
 
 	$: {
-		console.log('walletStore: ', $walletStore);
-		console.log('walletStore.PUBLICKEY: ', $walletStore.publicKey?.toBase58());
-		console.log('walletStore.CONNECTED: ', $walletStore.connected);
-		console.log('walletStore.CONNECTING: ', $walletStore.connecting);
-		console.log('walletStore.DISCONNECTING: ', $walletStore.disconnecting);
+		// console.log('walletStore: ', $walletStore);
+		// console.log('walletStore.PUBLICKEY: ', $walletStore.publicKey?.toBase58());
+		// console.log('walletStore.CONNECTED: ', $walletStore.connected);
+		// console.log('walletStore.CONNECTING: ', $walletStore.connecting);
+		// console.log('walletStore.DISCONNECTING: ', $walletStore.disconnecting);
 		// console.log('customProgram: ', customProgram);
 		console.log('customProgramStore: ', $customProgramStore);
 		// console.log('profilePda: ', profilePda?.toBase58());
@@ -126,6 +145,7 @@
 		// console.log('pollPda: ', pollPda);
 		// console.log('pollStore: ', $pollStore);
 		// console.log('pollsStore: ', $pollsStore);
+		console.log('workspaceStore: ', $workspaceStore);
 	}
 
 	/*
@@ -392,13 +412,6 @@
 			{
 				dataSize: 65
 			},
-      // FIXME
-      // U: Do I need this extra filter? For some reason it's not
-      // getting the account on page refresh (Profile works). The response
-      // from gPA() using this filter returns empty array. Only after I make
-      // some file change/save does it seem to work. Odd...
-      // TODO Need to test out using memcmp with matching authority and then refresh
-      // the page and see...
 			{
 				memcmp: {
 					offset: 8, // 32 when 'authority' was just before bump
@@ -423,54 +436,137 @@
 			{
 				memcmp: {
 					offset: 8, // 32 when 'authority' was just before bump
-					bytes: $walletStore.publicKey!.toBase58()
+					bytes: $walletStore.publicKey!.toBase58(),
 				}
-			}
+			},
 		];
 
 		// 3. Get the accounts based on filters
-		// NOTE No filter - get all accounts and check size
-		const customProgramAccount = await connection.getProgramAccounts(
+    // FIXME For some reason, whichever function runs next comes back empty!
+    // You can swap the order and still comes back empty while the rest work.
+    // Is my reactive able to be async to await these? Strange...
+    // My function is async, but the reactive cannot await, so I feel like
+    // the first function is getting skipped (not awaited).
+    // Q: Do I need to use .then() inside the reactive statement?
+    // U: Don't think so since this fn returns void...
+    // U: I think I'm BLOCKING by doing multiple awaits. 
+    // I believe I should maybe remove the 'await' and just get the Promises,
+    // and then using 'await Promise.all(promises)' at the very end.
+    // REF: https://www.learnwithjason.dev/blog/keep-async-await-from-blocking-execution
+    // REF: https://www.notion.so/JavaScript-Quick-Reference-fa8a9e4d328d4a40aec6399a45422c53#eeb2c037a55c4f0e845389b1965a888d
+    // === PROMISE.ALL()
+    console.log('connection BEFORE gPA(): ', connection);
+		const customProgramAccountsPromise = connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: customProgramFilter }
 		);
-    console.log('customProgramAccount AFTER gPA()+filters', customProgramAccount);
+    console.log('1. customProgramAccountsPromise AFTER gPA()+filters', customProgramAccountsPromise);
+
+		// Only filtering on dataSize to reduce requests
+		const profileAccountsPromise = connection.getProgramAccounts(
+			$workspaceStore.program?.programId as PublicKey,
+			{ filters: profilesFilter }
+		);
+    console.log('2. profileAccounts AFTER gPA()+filters', profileAccountsPromise);
+
+		const profileAccountsByAuthorityPromise = connection.getProgramAccounts(
+			$workspaceStore.program?.programId as PublicKey,
+			{ filters: profilesByAuthorityFilter }
+		);
+    console.log('3. profileAccountsByAuthority AFTER gPA()+filters', profileAccountsByAuthorityPromise);
+
+		const pollAccountsPromise = connection.getProgramAccounts(
+			$workspaceStore.program?.programId as PublicKey,
+			{ filters: pollsFilter }
+		);
+    console.log('4. pollAccounts AFTER gPA()+filters', pollAccountsPromise);
+
+		const pollAccountsByAuthorityPromise = connection.getProgramAccounts(
+			$workspaceStore.program?.programId as PublicKey,
+			{ filters: pollsByAuthorityFilter }
+		);
+    console.log('5. pollAccountsByAuthority AFTER gPA()+filters', pollAccountsByAuthorityPromise);
+
+    const voteAccountsPromise = connection.getProgramAccounts(
+      $workspaceStore.program?.programId as PublicKey,
+      { filters: votesFilter }
+    );
+    console.log('6. voteAccounts AFTER gPA()+filters', voteAccountsPromise);
+
+    const voteAccountsByAuthorityPromise = connection.getProgramAccounts(
+      $workspaceStore.program?.programId as PublicKey,
+      { filters: votesByAuthorityFilter }
+    );
+    console.log('7. voteAccountsByAuthority AFTER gPA()+filters', voteAccountsByAuthorityPromise);
+
+    // NOTE Trying to use Promise.all() instead of blocking with multiple 'await' calls
+    const accountsPromises = [
+      customProgramAccountsPromise,
+      profileAccountsPromise,
+      profileAccountsByAuthorityPromise,
+      pollAccountsPromise,
+      pollAccountsByAuthorityPromise,
+      voteAccountsPromise,
+      voteAccountsByAuthorityPromise
+    ];
+    const resultsPromiseAll = await Promise.all(accountsPromises);
+    console.log('results after Promise.all(): ', resultsPromiseAll);
+
+
+
+    // === AWAIT
+    const customProgramAccounts = await connection.getProgramAccounts(
+			$workspaceStore.program?.programId as PublicKey,
+			{ filters: customProgramFilter }
+		);
+    console.log('1. customProgramAccounts AFTER gPA()+filters', customProgramAccounts);
 
 		// Only filtering on dataSize to reduce requests
 		const profileAccounts = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: profilesFilter }
 		);
+    console.log('2. profileAccounts AFTER gPA()+filters', profileAccounts);
 
 		const profileAccountsByAuthority = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: profilesByAuthorityFilter }
 		);
+    console.log('3. profileAccountsByAuthority AFTER gPA()+filters', profileAccountsByAuthority);
 
 		const pollAccounts = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: pollsFilter }
 		);
+    console.log('4. pollAccounts AFTER gPA()+filters', pollAccounts);
 
 		const pollAccountsByAuthority = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: pollsByAuthorityFilter }
 		);
+    console.log('5. pollAccountsByAuthority AFTER gPA()+filters', pollAccountsByAuthority);
 
     const voteAccounts = await connection.getProgramAccounts(
       $workspaceStore.program?.programId as PublicKey,
       { filters: votesFilter }
     );
+    console.log('6. voteAccounts AFTER gPA()+filters', voteAccounts);
 
     const voteAccountsByAuthority = await connection.getProgramAccounts(
       $workspaceStore.program?.programId as PublicKey,
       { filters: votesByAuthorityFilter }
     );
+    console.log('7. voteAccountsByAuthority AFTER gPA()+filters', voteAccountsByAuthority);
 
+		// NOTE No filter - get all accounts and check size
 		const programAccounts = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as anchor.web3.PublicKey
 		);
-    console.log('ALL programAccounts: ', programAccounts);
+    console.log('8. ALL programAccounts: ', programAccounts);
+
+
+
+
 
 		// const parsedProgramAccounts = await connection.getParsedProgramAccounts(
 		// 	$workspaceStore.program?.programId as PublicKey
@@ -493,7 +589,8 @@
 		// console.log('=== CustomProgram ===');
 		// NOTE Each item in array is type: { account: AccountInfo<Buffer>, pubkey: PublicKey }
     // NOTE Must use map() NOT forEach()!
-		customProgramAccount.map((value) => {
+    customProgramStore.reset();
+		const decodedCustomProgramAccounts = customProgramAccounts.map((value) => {
 			// const parsedAccountInfo = value.account.data as anchor.web3.ParsedAccountData;
 			// console.log(parsedAccountInfo); // Uint8Array
 			// // console.log(parsedAccountInfo.parsed); // null

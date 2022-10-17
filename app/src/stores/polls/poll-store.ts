@@ -3,7 +3,7 @@ import type anchor from '@project-serum/anchor';
 import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 import type { PollObject } from '../../models/polls-types';
-import { POLL_SEED_PREFIX } from '../../utils/constants';
+import { POLL_SEED_PREFIX } from '../../helpers/polls/constants';
 import { PublicKey } from '@solana/web3.js';
 
 
