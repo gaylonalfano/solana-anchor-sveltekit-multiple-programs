@@ -322,12 +322,12 @@
 	}
 
 
-	// Try to fetch program accounts using getProgramAccounts()
+  // Try to fetch program accounts using getProgramAccounts()
 	// REF: https://www.notion.so/Solana-Quick-Reference-c0704fee2afa4ee5827ded6937ef47df#680c6b9f0f074a37bfe02579309faad2
 	// REF: https://solanacookbook.com/guides/get-program-accounts.html#filters
 	async function getAllProgramAccounts() {
-		if (!$walletStore) throw Error('Wallet not connected!');
-		if (!$workspaceStore) throw Error('Workspace not found!');
+		if (!get(walletStore)) throw Error('Wallet not connected!');
+		if (!get(workspaceStore)) throw Error('Workspace not found!');
 
     // NOTE After some testing, looks like the best condition to trigger this fn is:
     // walletStore.connected=true, connecting=false, disconnecting=false
@@ -509,9 +509,8 @@
       voteAccountsPromise,
       voteAccountsByAuthorityPromise
     ];
-    const resultsPromiseAll = await Promise.all(accountsPromises);
-    console.log('results after Promise.all(): ', resultsPromiseAll);
-
+    const filteredResults = await Promise.all(accountsPromises);
+    console.log('results after Promise.all(): ', filteredResults);
 
 
     // === AWAIT
@@ -745,6 +744,18 @@
 		// });
 	}
 
+  async function loadAllProgramAccounts() {
+    // ===UPDATE===
+    // WAIT on this... let's get it working and then can refactor later
+
+    // Get the accounts from 'await Promise.all()'
+    const accounts = await getAllProgramAccounts();
+
+    // Decode the data
+    // Update Stores
+
+  }
+
 	// Q: Can I use this to update/fetch my Stores?
 	async function derivePda(seeds: Buffer[]) {
 		// NOTE This is key! We can derive PDA WITHOUT hitting our program!
@@ -760,6 +771,7 @@
 
 		return pda;
 	}
+
 
 	// Testing out my customProgramStore.getCustomProgramAccount()
 	async function handleGetCustomProgram() {
