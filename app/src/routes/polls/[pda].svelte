@@ -17,7 +17,7 @@
 	import { AnchorConnectionProvider } from '@svelte-on-solana/wallet-adapter-anchor';
 	import { clusterApiUrl, PublicKey } from '@solana/web3.js';
 	import idl from '../../../../target/idl/onchain_voting_multiple_polls.json';
-	import { onMount } from 'svelte';
+	import { onMount, beforeUpdate, afterUpdate, tick } from 'svelte';
 	import { notificationStore } from '$stores/notification';
 	import { customProgramStore } from '$stores/polls/custom-program-store';
 	import { profileStore } from '$stores/polls/profile-store';
@@ -30,7 +30,7 @@
 		CustomProgramObject
 	} from '../../models/polls-types';
 	import { Button } from '$lib/index';
-	import * as constants from '../../helpers/constants';
+	import * as constants from '../../helpers/polls/constants';
 
 	const network = 'http://localhost:8899';
 
@@ -49,13 +49,13 @@
 	// 	return p.pollNumber.words[0] === parseInt($page.params.pollNumber);
 	// }) as anchor.IdlTypes<anchor.Idl>['Poll']; // NOTE MUST cast for Types!
 	$: {
+    console.log('$workspaceStore: ', $workspaceStore);
 		console.log('$pollsStore: ', $pollsStore);
 		console.log('$pollStore: ', $pollStore);
 	}
 
-
-
 	onMount(() => {
+    console.log("ONMOUNT")
 		// Q: Can I create some custom Types that align with IDL?
 		// A: Believe so! Check out PollObject type definition
 		// let poll = $pollsStore.find((p) => {
@@ -63,13 +63,28 @@
 		// }) as PollObject; // NOTE MUST cast for Types!
 
 		// Set/update the single pollStore
-		let { poll, pda } = $pollsStore.find((p: PollStore) => {
-			return p.pda?.toBase58() === $page.params.pda;
-		}) as PollObject; // NOTE MUST cast for Types!
+    try {
+      console.log($pollsStore);
+      if ($pollsStore.length > 0) {
+        console.log($pollsStore);
+        let { poll, pda } = $pollsStore.find((p: PollStore) => {
+          return p.pda?.toBase58() === $page.params.pda;
+        }) as PollObject; // NOTE MUST cast for Types!
 
-		// Update pollStore
-		pollStore.set({ poll, pda });
+        // Update pollStore
+        pollStore.set({ poll, pda });
+      } else {
+        // Fresh fetch?
+        pollStore.getPollAccount(new PublicKey($page.params.pda));
+      }
+    } catch (e) {
+      console.log(e);
+    } 
 	});
+
+  beforeUpdate(() => console.log('Component BEFORE UPDATE.'));
+	afterUpdate(() => console.log('Component AFTER UPDATE.\n =================='));
+
 
 	async function handleCreateVoteForOptionA() {
 		// Q: Refactor with params?
@@ -227,22 +242,6 @@
 			customProgram: currentCustomProgram,
 			pda: $customProgramStore.pda as anchor.web3.PublicKey
 		});
-	}
-
-	// Q: Can I use this to update/fetch my Stores?
-	async function derivePda(seeds: Buffer[]) {
-		// NOTE This is key! We can derive PDA WITHOUT hitting our program!
-		// Then we can use this PDA address in our functions as a check to see
-		// whether there is a ledger account at this PDA address.
-		// Then, MOST IMPORTANTLY, we can fetch the account's data from the CLIENT
-		// and use its data.
-		// NOTE pubkey is actually provider.wallet.publicKey
-		let [pda, _] = await anchor.web3.PublicKey.findProgramAddress(
-			seeds,
-			$workspaceStore.program?.programId as anchor.web3.PublicKey
-		);
-
-		return pda;
 	}
 
 </script>

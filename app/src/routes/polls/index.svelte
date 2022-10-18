@@ -37,6 +37,7 @@
             profileStore.getProfileAccount()
             pollsStore.getPollsAccounts()
       - Add notifications for errors (2nd attempts, no SOL, no Profile, etc)
+      - Look into how to move getAllProgramAccounts() to separate file
   */
 
 	const network = constants.NETWORK;
@@ -88,8 +89,6 @@
 	// 	});
 	// }
 
-	// TODO Look into using reactive statements to replicate the useEffect()
-	// to trigger some data fetch when wallet.pubkey changes...
 	// REF: Check out SolAndy's YT video on deserializing account data
 	// Q: How to pre-fetch data? How to use getAllProgramAccounts()
 	//    Need to wait for workspace and wallet Stores before invoking...
@@ -125,7 +124,7 @@
   //   if($walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting) {
   //     await getAllProgramAccounts();
   //   }
-  // }) // WORKS on refresh!
+  // }) // WORKS on refresh! Q: Need async/await? A: No. See below
   $: tick().then(() => {
     if($walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting) {
       getAllProgramAccounts();
@@ -325,7 +324,7 @@
   // Try to fetch program accounts using getProgramAccounts()
 	// REF: https://www.notion.so/Solana-Quick-Reference-c0704fee2afa4ee5827ded6937ef47df#680c6b9f0f074a37bfe02579309faad2
 	// REF: https://solanacookbook.com/guides/get-program-accounts.html#filters
-	async function getAllProgramAccounts() {
+	export async function getAllProgramAccounts() {
 		if (!get(walletStore)) throw Error('Wallet not connected!');
 		if (!get(workspaceStore)) throw Error('Workspace not found!');
 
@@ -455,7 +454,6 @@
     // REF: https://www.learnwithjason.dev/blog/keep-async-await-from-blocking-execution
     // REF: https://www.notion.so/JavaScript-Quick-Reference-fa8a9e4d328d4a40aec6399a45422c53#eeb2c037a55c4f0e845389b1965a888d
     // === PROMISE.ALL()
-    console.log('connection BEFORE gPA(): ', connection);
 		const customProgramAccountsPromise = connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: customProgramFilter }
@@ -510,7 +508,7 @@
       voteAccountsByAuthorityPromise
     ];
     const filteredResults = await Promise.all(accountsPromises);
-    console.log('results after Promise.all(): ', filteredResults);
+    console.log('filteredResults after Promise.all(): ', filteredResults);
 
 
     // === AWAIT
@@ -745,14 +743,15 @@
 	}
 
   async function loadAllProgramAccounts() {
+    // TODO Refactor
     // ===UPDATE===
     // WAIT on this... let's get it working and then can refactor later
 
-    // Get the accounts from 'await Promise.all()'
+    // 1. Get the accounts from 'await Promise.all()'
     const accounts = await getAllProgramAccounts();
 
-    // Decode the data
-    // Update Stores
+    // 2. Decode the data
+    // 3. Update Stores
 
   }
 
