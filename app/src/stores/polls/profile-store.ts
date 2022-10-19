@@ -19,7 +19,7 @@ function createProfileStore() {
     subscribe,
     set,
     update,
-    getProfileAccount: async (profilePda?: anchor.web3.PublicKey) => {
+    getProfileAccountWithWorkspace: async (profilePda?: anchor.web3.PublicKey) => {
       let pda = profilePda ? profilePda : null;
       if (!pda) {
         // Need to find the PDA
@@ -39,13 +39,14 @@ function createProfileStore() {
       }
 
       try {
-        let profile = await get(workspaceStore).program?.account.program.fetch(pda as anchor.web3.PublicKey) as ProfileObject;
+        let profile = await get(workspaceStore).program?.account.profile.fetch(pda as anchor.web3.PublicKey) as ProfileObject;
 
         set({ profile, pda })
       } catch (e) {
         console.log(`Error getting account: `, e);
       }
     },
+    // TODO Add a standard getProfileAccount that uses gPA() + filter
     reset: () => set({ profile: null, pda: null })
   }
 }

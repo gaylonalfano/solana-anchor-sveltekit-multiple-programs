@@ -4,8 +4,17 @@ import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 import type { PollObject } from '../../models/polls-types';
 import { POLL_SEED_PREFIX } from '../../helpers/polls/constants';
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, type GetProgramAccountsFilter } from '@solana/web3.js';
+import { pollsStore } from './polls-store';
 
+// NOTE This store doesn't have access to the workspaceStore in its fullest
+// with the correct Program and IDL, etc. Therefore, can't easily
+// rely on the handy functionality for fetching and decoding...
+// Q: Should I rebuild the Anchor Program here? Seems redundant...
+// U: Not going to (for now), but here's how you could start:
+// REF: https://coral-xyz.github.io/anchor/ts/classes/Program.html
+// new Program<IDL>(idl: IDL, programId: Address, provider?: Provider, coder?: Coder<string, string>): Program<IDL>
+// new AnchorProvider(connection: Connection, wallet: Wallet, opts: ConfirmOptions): AnchorProvider
 
 export type PollStore = {
   poll: PollObject | null,
@@ -19,7 +28,7 @@ function createPollStore() {
     subscribe,
     set,
     update,
-    getPollAccount: async (profilePda?: anchor.web3.PublicKey) => {
+    getPollWithWorkspace: async (profilePda?: anchor.web3.PublicKey) => {
       let pda = profilePda ? profilePda : null;
       if (!pda) {
         // Need to find the PDA
@@ -45,6 +54,63 @@ function createPollStore() {
       } catch (e) {
         console.log(`Error getting account: `, e);
       }
+    },
+    getPollAccount: async (
+      programId: anchor.web3.PublicKey, 
+      pollPda: anchor.web3.PublicKey,
+      connection: anchor.web3.Connection, 
+    ) => {
+      // Create the filter
+      // NOTE Can't filter on PDA, but could consider pollNumber perhaps
+      const pollsFilter: GetProgramAccountsFilter[] = [
+        {
+          dataSize: 162
+        }
+      ];
+
+      // Use gPA() + filter to get Poll data
+      const pollAccountsEncoded = await connection.getProgramAccounts(
+        programId,
+        { filters: pollsFilter }
+      );
+      console.log('pollAccountsEncoded: ', pollAccountsEncoded);
+
+
+      // // Decode data buffer
+      // pollAccounts.map((value) => {
+      //   // Manually decode account data using coder
+      //   // Q: Can we access workspaceStore? Was undefined on refresh...
+      //   // A: Not really because it doesn't know which Program<IDL> to use...
+      //   const decodedAccountInfo = get(workspaceStore).program!.coder.accounts.decode(
+      //     'Poll',
+      //     value.account.data
+      //   );
+
+      //   // Q: Update pollsStore here or no? If I do, then I need
+      //   // to probably pollsStore.reset() first to prevent dups, but
+      //   // this could affect other users on other polls, etc.
+      //   // U: Leaning toward performing this fetch and ONLY set() this
+      //   // single pollStore to limit impact.
+      //   pollsStore.addPoll(decodedAccountInfo, value.pubkey);
+      // });
+
+      // Update single pollStore
+      // let { poll, pda } = get(pollsStore).find((p: PollStore) => {
+      //   return p.pda?.toBase58() === pollPda.toBase58();
+      // }) as PollObject;
+
+      // Find the matching pda and ONLY decode the match
+      // const pollAccountEncoded = pollAccountsEncoded.find(value => value.pubkey === pollPda); // E: undefined
+      const pollAccountEncoded = pollAccountsEncoded.find((value) => value.pubkey.toBase58() === pollPda.toBase58()); // WORKS! 
+      console.log('pollAccountEncoded: ', pollAccountEncoded);
+      const decodedAccountInfo = get(workspaceStore).program?.coder.accounts.decode(
+        'Poll',
+        pollAccountEncoded?.account.data as Buffer
+      )
+
+
+      pollStore.set({ poll: decodedAccountInfo, pda: pollAccountEncoded?.pubkey } as PollStore);
+
     },
     reset: () => set({ poll: null, pda: null })
   }

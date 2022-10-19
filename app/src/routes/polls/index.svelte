@@ -125,11 +125,17 @@
   //     await getAllProgramAccounts();
   //   }
   // }) // WORKS on refresh! Q: Need async/await? A: No. See below
-  $: tick().then(() => {
-    if($walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting) {
+  // $: tick().then(() => {
+  //   if($walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting) {
+  //     getAllProgramAccounts();
+  //   }
+  // }) // WORKS on refresh! async/await not needed it seems...
+  // Q: tick() needed?
+  // A: Don't think so as long as I add conditions!
+  $: if($walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting) {
       getAllProgramAccounts();
-    }
-  }) // WORKS on refresh! async/await not needed it seems...
+    } // WORKS on refresh! tick() may not be needed after all when adding conditions!
+  
 
 	$: {
 		// console.log('walletStore: ', $walletStore);
@@ -783,7 +789,6 @@
 	}
 </script>
 
-<!-- <AnchorConnectionProvider {network} {idl} /> -->
 <AnchorConnectionProvider {network} {idl} />
 <div class="md:hero mx-auto p-4">
 	<div class="md:hero-content flex flex-col">
