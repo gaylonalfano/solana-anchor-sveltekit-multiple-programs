@@ -854,6 +854,12 @@
 			<Button disabled={!$walletStore.publicKey} on:click={getAllProgramAccounts}
 				>Get Program Accounts</Button
 			>
+			<Button disabled={!$walletStore.publicKey} on:click={() => pollsStore.getPollAccounts(
+        constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
+        $workspaceStore.connection,
+      )}
+				>Get Poll Accounts</Button
+			>
 		</div>
 	</div>
 </div>

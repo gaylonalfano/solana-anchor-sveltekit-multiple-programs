@@ -1,20 +1,62 @@
-import { writable, type Writable } from 'svelte/store';
+import { writable, get, type Writable } from 'svelte/store';
 import type anchor from '@project-serum/anchor';
+import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
+import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 import type { PollObject } from '../../models/polls-types';
 import type { PollStore } from './poll-store'
+import type { GetProgramAccountsFilter } from '@solana/web3.js';
+import { POLL_ACCOUNT_SPACE } from '../../helpers/polls/constants';
 
 
-// Q: Do I need this? Seems like would be better to just reuse the PollStore (single)
-// type we created earler.
-// U: Yep, going with just importing the PollStore type
-// WITHOUT custom type
+// Q: Do I need a custom type for this store (e.g. PollsStore)? 
+// Seems like would be better to just reuse the PollStore (single) type we created in poll-store.ts
+// U: Nope, going with just importing the PollStore type
 function createPollsStore() {
   const { subscribe, set, update } = writable<PollStore[]>([]);
-  
+
   return {
     subscribe,
     set,
     update,
+    getPollAccounts: async (programId: anchor.web3.PublicKey, connection: anchor.web3.Connection) => {
+      // Create the filter
+      // NOTE Can't filter on PDA, but could consider pollNumber perhaps
+      const pollsFilter: GetProgramAccountsFilter[] = [
+        {
+          dataSize: POLL_ACCOUNT_SPACE
+        }
+      ];
+
+      // Use gPA() + filter to get Poll data
+      const pollAccountsEncoded = await connection.getProgramAccounts(
+        programId,
+        { filters: pollsFilter }
+      );
+      console.log('pollAccountsEncoded: ', pollAccountsEncoded);
+
+      // Only update Store if gPA() is successful fetching data
+      if (pollAccountsEncoded) {
+        // Data fetch worked so time to reset, decode, and then update
+        pollsStore.reset();
+
+        // Decode data buffer
+        pollAccountsEncoded.forEach((value) => {
+          // Manually decode account data using coder
+          // Q: Can we access workspaceStore? Was undefined on refresh...
+          // U: Think so in some cases with get()...
+          // A: Yes! Working with get()
+          const decodedAccountInfo = get(workspaceStore).program!.coder.accounts.decode(
+            'Poll',
+            value.account.data
+          ) as PollObject;
+
+          // Q: Can this actually work? Is there a 'this' to use?
+          // Don't think I'll be able to use it like this since won't be defined...
+          // A: WORKS! Neat! Need to reset() first though or will add dups
+          pollsStore.addPoll(decodedAccountInfo, value.pubkey);
+        });
+      }
+    },
     // Q: Which addPoll method is better/accurate?
     // Leaning toward passing poll and pda as separate args
     addPoll: async (poll: PollObject, pda: anchor.web3.PublicKey) => {
@@ -26,7 +68,7 @@ function createPollsStore() {
             poll,
             pda
           }
-        ] 
+        ]
       });
     },
     addPollStore: async (pollStore: PollStore) => {

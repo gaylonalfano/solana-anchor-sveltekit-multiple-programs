@@ -3,7 +3,7 @@ import type anchor from '@project-serum/anchor';
 import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 import type { PollObject } from '../../models/polls-types';
-import { POLL_SEED_PREFIX } from '../../helpers/polls/constants';
+import { POLL_SEED_PREFIX, POLL_ACCOUNT_SPACE } from '../../helpers/polls/constants';
 import { PublicKey, type GetProgramAccountsFilter } from '@solana/web3.js';
 import { pollsStore } from './polls-store';
 
@@ -64,7 +64,7 @@ function createPollStore() {
       // NOTE Can't filter on PDA, but could consider pollNumber perhaps
       const pollsFilter: GetProgramAccountsFilter[] = [
         {
-          dataSize: 162
+          dataSize: POLL_ACCOUNT_SPACE
         }
       ];
 
@@ -74,30 +74,6 @@ function createPollStore() {
         { filters: pollsFilter }
       );
       console.log('pollAccountsEncoded: ', pollAccountsEncoded);
-
-
-      // // Decode data buffer
-      // pollAccounts.map((value) => {
-      //   // Manually decode account data using coder
-      //   // Q: Can we access workspaceStore? Was undefined on refresh...
-      //   // A: Not really because it doesn't know which Program<IDL> to use...
-      //   const decodedAccountInfo = get(workspaceStore).program!.coder.accounts.decode(
-      //     'Poll',
-      //     value.account.data
-      //   );
-
-      //   // Q: Update pollsStore here or no? If I do, then I need
-      //   // to probably pollsStore.reset() first to prevent dups, but
-      //   // this could affect other users on other polls, etc.
-      //   // U: Leaning toward performing this fetch and ONLY set() this
-      //   // single pollStore to limit impact.
-      //   pollsStore.addPoll(decodedAccountInfo, value.pubkey);
-      // });
-
-      // Update single pollStore
-      // let { poll, pda } = get(pollsStore).find((p: PollStore) => {
-      //   return p.pda?.toBase58() === pollPda.toBase58();
-      // }) as PollObject;
 
       // Find the matching pda and ONLY decode the match
       // const pollAccountEncoded = pollAccountsEncoded.find(value => value.pubkey === pollPda); // E: undefined

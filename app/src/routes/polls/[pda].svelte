@@ -49,12 +49,22 @@
 	// 	// return p.pollNumber.words[0] === parseInt(pollNumberFromLoad);
 	// 	return p.pollNumber.words[0] === parseInt($page.params.pollNumber);
 	// }) as anchor.IdlTypes<anchor.Idl>['Poll']; // NOTE MUST cast for Types!
-	// $: {
- //    console.log('$workspaceStore: ', $workspaceStore);
- //    console.log('$profileStore: ', $profileStore);
-	// 	console.log('$pollsStore: ', $pollsStore);
-	// 	console.log('$pollStore: ', $pollStore);
-	// }
+
+	$: {
+  //   console.log('$workspaceStore: ', $workspaceStore);
+  //   console.log('$profileStore: ', $profileStore);
+		// console.log('$pollsStore: ', $pollsStore);
+		// console.log('$pollStore: ', $pollStore);
+    console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
+    console.log('hasPollStoreValues: ', hasPollStoreValues);
+    console.log('hasPollsStoreValues: ', hasPollsStoreValues);
+	}
+
+
+  // Create some variables to react to Stores state
+  $: hasWalletReadyForFetch = $walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting
+  $: hasPollStoreValues = $pollStore.pda !== null && $pollStore.poll !== null;
+  $: hasPollsStoreValues = $pollsStore.length > 0;
 
   // Q: tick() needed if I add the conditional check?
   // U: Seems needed as it doesn't error. However, tick() fires a lot
@@ -65,10 +75,13 @@
   // Q: What about separating into separate statements?
   // A: NOPE! Still triggers pollStore.getPollAccount() 4 times.
   // Q: Can I use this outside of tick()?
-  // U: Kinda works but getting uncaught error with gPA inside pollStore.getPollAccount()
-  // but the pollStore doesn't get updated...
+  // U: Not really bc getting uncaught error with gPA inside pollStore.getPollAccount()
+  // but the pollStore does get updated...
+  // U: I believe tick() is firing a couple times BEFORE the walletStore is ready for fetch
+  // Check out the hasWalletReadyForFetch in the logs.
+  // U: Yep! Using my reactive helpers results in only 2 invokes of pollStore.getPollAccount()!
   $: tick().then(() => {
-    if($walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting) {
+    if(hasWalletReadyForFetch) {
       // Attempt to get stores (if exists)
       get(pollStore);
       console.log('$pollStore from TICK: ', $pollStore)
@@ -81,12 +94,7 @@
     // console.log(typeof $pollStore); // object
     // console.log($pollStore == undefined); // false
     // console.log($pollStore === undefined); // false
-    if($walletStore.connected
-      && !$walletStore.connecting
-      && !$walletStore.disconnecting
-      && $pollStore.pda === null
-      && $pollStore.poll === null
-    ) {
+    if(hasWalletReadyForFetch && !hasPollStoreValues) {
       console.log('$pollStore values are null. Refetching...')
       // Refetch pollStore
       pollStore.getPollAccount(
@@ -95,11 +103,13 @@
         $workspaceStore.connection
       )
     }
+
+    // TODO Consider the case when pollsStore is available (but not pollStore)
+
   }) // WORKS on refresh! async/await not needed it seems...
 
 
 
-  // TODO Consider the case when pollsStore is available (but not pollStore)
   // TODO Add a getPolls() helper to pollsStore perhaps
 
 
