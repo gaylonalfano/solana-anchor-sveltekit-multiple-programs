@@ -69,10 +69,5 @@
       <h2 class="card-title">{optionADisplayLabel} vs. {optionBDisplayLabel}</h2>
     </button>
     <p>Votooooor #:{pollNumber} has {voteCount} total votes!</p>
-    <p>Address {pda}</p>
-    <div class="card-actions justify-end">
-      <button class="btn btn-primary">{optionADisplayLabel}</button>
-      <button class="btn btn-ghost">{optionBDisplayLabel}</button>
-    </div>
   </div>
 </div>

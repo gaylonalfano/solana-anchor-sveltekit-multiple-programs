@@ -24,6 +24,8 @@
 	import { profileStore } from '$stores/polls/profile-store';
 	import { pollStore, type PollStore } from '$stores/polls/poll-store';
 	import { pollsStore } from '$stores/polls/polls-store';
+	import { votesStore } from '$stores/polls/votes-store';
+  import { pollVotesStore } from '$stores/polls/poll-votes-store';
 	import type {
 		VoteObject,
 		PollObject,
@@ -32,8 +34,9 @@
 	} from '../../models/polls-types';
 	import { Button } from '$lib/index';
 	import * as constants from '../../helpers/polls/constants';
+	import { each } from 'svelte/internal';
 
-	const network = 'http://localhost:8899';
+	const network = constants.NETWORK;
 
 	// Q: How to match up types between pollNumber (BN) and pollNumberFromLoad?
 	// A: It's a Type mismatch! The IDL Poll.pollNumber.words[0] is 'number'!
@@ -54,6 +57,7 @@
 		// console.log('$pollsStore: ', $pollsStore);
     // console.log('$pollsStore.length: ', $pollsStore.length);
 		// console.log('$pollStore: ', $pollStore);
+    console.log('pollVotesStore: ', $pollVotesStore);
     console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
     console.log('hasPollStoreValues: ', hasPollStoreValues);
     console.log('hasPollsStoreValues: ', hasPollsStoreValues);
@@ -292,4 +296,12 @@
     </div>
   </div>
   <pre>{JSON.stringify($pollStore, null, 2)}</pre>
+  {#if $votesStore}
+    {#each $votesStore as vote (vote.voteNumber)}
+      <h5>wallet: {vote.authority}</h5>
+      <p>number: {vote.voteNumber}</p>
+      <p>selection: {vote.voteOption}</p>
+    {/each}
+
+  {/if}
 {/if}

@@ -16,6 +16,14 @@ import { pollsStore } from './polls-store';
 // new Program<IDL>(idl: IDL, programId: Address, provider?: Provider, coder?: Coder<string, string>): Program<IDL>
 // new AnchorProvider(connection: Connection, wallet: Wallet, opts: ConfirmOptions): AnchorProvider
 
+// Q: Thinking of adding votes property to this Store to track votes
+// Or, do I create a separate votesStore? When I have to do a fresh gPA()
+// fetch + filters + decode, I'll have to seperate anyway due to different
+// accounts. Hmmm... leaning toward separating them and then perhaps adding
+// a derived([pollStore, votesStore]) setup. Need to experiment, but I think
+// adding a 'votes' property could also work, but perhaps a bit harder.
+// U: Trying votes-store.ts and poll-votes-store.ts first.
+
 export type PollStore = {
   poll: PollObject | null,
   pda: anchor.web3.PublicKey | null,
@@ -73,12 +81,12 @@ function createPollStore() {
         programId,
         { filters: pollsFilter }
       );
-      console.log('pollAccountsEncoded: ', pollAccountsEncoded);
+      // console.log('pollAccountsEncoded: ', pollAccountsEncoded);
 
       // Find the matching pda and ONLY decode the match
       // const pollAccountEncoded = pollAccountsEncoded.find(value => value.pubkey === pollPda); // E: undefined
       const pollAccountEncoded = pollAccountsEncoded.find((value) => value.pubkey.toBase58() === pollPda.toBase58()); // WORKS! 
-      console.log('pollAccountEncoded: ', pollAccountEncoded);
+      // console.log('pollAccountEncoded: ', pollAccountEncoded);
       const decodedAccountInfo = get(workspaceStore).program?.coder.accounts.decode(
         'Poll',
         pollAccountEncoded?.account.data as Buffer

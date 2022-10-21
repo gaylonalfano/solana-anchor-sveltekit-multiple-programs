@@ -4,4 +4,8 @@ import type anchor from '@project-serum/anchor';
 export type CustomProgramObject = anchor.IdlTypes<anchor.Idl>['CustomProgram'];
 export type ProfileObject = anchor.IdlTypes<anchor.Idl>['Profile'];
 export type PollObject = anchor.IdlTypes<anchor.Idl>['Poll'];
+export type PollStore = {
+  poll: PollObject | null,
+  pda: anchor.web3.PublicKey | null,
+}
 export type VoteObject = anchor.IdlTypes<anchor.Idl>['Vote'];

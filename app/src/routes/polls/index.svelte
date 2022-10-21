@@ -16,6 +16,7 @@
 	import { profilesStore } from '$stores/polls/profiles-store';
 	import { pollStore } from '$stores/polls/poll-store';
 	import { pollsStore } from '$stores/polls/polls-store';
+	import { votesStore } from '$stores/polls/votes-store';
 	import { Button } from '$lib/index';
 	import Poll from '$lib/Poll.svelte';
 	import * as constants from '../../helpers/polls/constants';
@@ -59,6 +60,7 @@
 		// console.log('pollPda: ', pollPda);
 		// console.log('pollStore: ', $pollStore);
 		console.log('pollsStore: ', $pollsStore);
+		console.log('votesStore: ', $votesStore);
 		console.log('workspaceStore: ', $workspaceStore);
     console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
     console.log('hasPollsStoreValues: ', hasPollsStoreValues);
@@ -149,20 +151,24 @@
   // A: Don't think so as long as I add conditions!
   // Q: Why does this fire when navigating 'back' from /polls/[pda]? Guess it could re-fetch
   // and update but seems like a lot of fetches...
-  $: if(hasWalletReadyForFetch) {
+  // A: This triggers even we have pollsStore data. Not always necessary I think...
+  // $: if(hasWalletReadyForFetch) {
+  //     getAllProgramAccounts();
+  //   } // WORKS on refresh! tick() may not be needed after all when adding conditions!
+
+  $: if(hasWalletReadyForFetch && !hasPollsStoreValues) {
       getAllProgramAccounts();
-    } // WORKS on refresh! tick() may not be needed after all when adding conditions!
+    } // BETTER on refresh! tick() may not be needed after all when adding conditions!
 
   // Clear/reset single pollStore if user clicks 'back' from [pda] route
   // Q: How to know when they hit 'back' button from [pda]? Sveltekit has before/afterNavigate()
   // Also have beforeunload
   // REF: https://stackoverflow.com/questions/63161871/svelte-how-to-trap-browser-back-button-or-unload
   // REF: https://kit.svelte.dev/docs/modules#$app-navigation-afternavigate
-  // $: if(hasPollStoreValues) {
+  // $: if(hasPollStoreValues && [otherConditionOrAlwaysResets]) {
   //   pollStore.reset();
   // }
   
-
 
 	/*
 	 * Create a dApp level PDA data account
@@ -712,6 +718,21 @@
 
     // NOTE I'm currently not updating the single pollStore from this
     // call, since it depends on the route/pda, etc.
+
+    // console.log('=== Votes ===');
+    votesStore.reset();
+		const decodedVoteAccounts = voteAccounts.map((value) => {
+			// Manually decode the account data using coder
+			const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
+				'Vote',
+				value.account.data
+			);
+
+			// Update Store
+      // NOTE Not storing PDA for Votes as I don't see the point...
+			votesStore.addVote(decodedAccountInfo);
+		});
+
 
 		// console.log('=== All PARSED ProgramAccounts ===');
 		// parsedProgramAccounts.forEach((value, i) => {
