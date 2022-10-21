@@ -9,6 +9,7 @@
 	import { onMount, beforeUpdate, afterUpdate, tick } from 'svelte';
 	import type { Writable } from 'svelte/store';
 	import { get } from 'svelte/store';
+  import { goto } from '$app/navigation';
 	import { notificationStore } from '$stores/notification';
 	import { customProgramStore } from '$stores/polls/custom-program-store';
 	import { profileStore } from '$stores/polls/profile-store';
@@ -38,7 +39,29 @@
             pollsStore.getPollsAccounts()
       - Add notifications for errors (2nd attempts, no SOL, no Profile, etc)
       - Look into how to move getAllProgramAccounts() to separate file
+      - How to pass or set() the pollStore on route change? This would save
+        having to refetch the data or filter through pollsStore in /[pda].svelte
+        Could consider adding a Poll component that takes props? Look into goto()
+        REF: https://stackoverflow.com/questions/60424634/how-to-persist-svelte-store-state-across-route-change
   */
+
+	$: {
+		// console.log('walletStore: ', $walletStore);
+		// console.log('walletStore.PUBLICKEY: ', $walletStore.publicKey?.toBase58());
+		// console.log('walletStore.CONNECTED: ', $walletStore.connected);
+		// console.log('walletStore.CONNECTING: ', $walletStore.connecting);
+		// console.log('walletStore.DISCONNECTING: ', $walletStore.disconnecting);
+		// console.log('customProgram: ', customProgram);
+		console.log('customProgramStore: ', $customProgramStore);
+		// console.log('profilePda: ', profilePda?.toBase58());
+		console.log('profileStore: ', $profileStore);
+		// console.log('pollPda: ', pollPda);
+		// console.log('pollStore: ', $pollStore);
+		console.log('pollsStore: ', $pollsStore);
+		console.log('workspaceStore: ', $workspaceStore);
+    console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
+    console.log('hasPollsStoreValues: ', hasPollsStoreValues);
+	}
 
 	const network = constants.NETWORK;
 
@@ -73,21 +96,11 @@
 	let vote: VoteObject;
 	let votePda: anchor.web3.PublicKey;
 
-	// Q: How to update the profile (and its PDA) whenever wallet changes?
-	// FIXME Infinite loop!
-	// $: if ($profileStore && $walletStore.publicKey) {
-	// 	PublicKey.findProgramAddress(
-	// 		[
-	// 			anchor.utils.bytes.utf8.encode(PROFILE_SEED_PREFIX),
-	// 			($walletStore.publicKey as anchor.web3.PublicKey).toBuffer(), // authority
-	// 			anchor.utils.bytes.utf8.encode($profileStore.profileNumber)
-	// 		],
-	// 		$workspaceStore.program?.programId as anchor.web3.PublicKey
-	// 	).then((response) => {
-	// 		profilePda = response[0];
-	// 		console.log('UPDATED profilePda!', profilePda);
-	// 	});
-	// }
+
+  // Create some variables to react to Stores' state
+  $: hasWalletReadyForFetch = $walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting
+  $: hasPollsStoreValues = $pollsStore.length > 0;
+
 
 	// REF: Check out SolAndy's YT video on deserializing account data
 	// Q: How to pre-fetch data? How to use getAllProgramAccounts()
@@ -132,26 +145,13 @@
   // }) // WORKS on refresh! async/await not needed it seems...
   // Q: tick() needed?
   // A: Don't think so as long as I add conditions!
-  $: if($walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting) {
+  // Q: Why does this fire when navigating 'back' from /polls/[pda]? Guess it could re-fetch
+  // and update but seems like a lot of fetches...
+  $: if(hasWalletReadyForFetch) {
       getAllProgramAccounts();
     } // WORKS on refresh! tick() may not be needed after all when adding conditions!
   
 
-	$: {
-		// console.log('walletStore: ', $walletStore);
-		// console.log('walletStore.PUBLICKEY: ', $walletStore.publicKey?.toBase58());
-		// console.log('walletStore.CONNECTED: ', $walletStore.connected);
-		// console.log('walletStore.CONNECTING: ', $walletStore.connecting);
-		// console.log('walletStore.DISCONNECTING: ', $walletStore.disconnecting);
-		// console.log('customProgram: ', customProgram);
-		console.log('customProgramStore: ', $customProgramStore);
-		// console.log('profilePda: ', profilePda?.toBase58());
-		console.log('profileStore: ', $profileStore);
-		// console.log('pollPda: ', pollPda);
-		// console.log('pollStore: ', $pollStore);
-		// console.log('pollsStore: ', $pollsStore);
-		console.log('workspaceStore: ', $workspaceStore);
-	}
 
 	/*
 	 * Create a dApp level PDA data account
@@ -787,6 +787,23 @@
 		// Without PDA
 		await customProgramStore.getCustomProgramAccount(); // null
 	}
+
+  // Q: How to persist Store state/data across route changes?
+  // Without a Poll component, whenever I click a <a> link, pollStore
+  // isn't set. Or, whenever I hit 'back', my Stores reset.
+  // U: Look into Svelte's goto():
+  // REF: https://stackoverflow.com/questions/60424634/how-to-persist-svelte-store-state-across-route-change
+  async function navigateAndSaveStores(href: string) {
+    await goto(href);
+    // Save something, do something with db, etc.
+    // E.g., href=/polls/[pda]
+    // TODO
+    const matchingPoll = $pollsStore.find((p) => p.pda === href.slice())
+    pollStore.set
+
+
+
+  }
 </script>
 
 <AnchorConnectionProvider {network} {idl} />

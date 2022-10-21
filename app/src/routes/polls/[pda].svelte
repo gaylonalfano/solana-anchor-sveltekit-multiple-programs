@@ -54,6 +54,7 @@
   //   console.log('$workspaceStore: ', $workspaceStore);
   //   console.log('$profileStore: ', $profileStore);
 		// console.log('$pollsStore: ', $pollsStore);
+    // console.log('$pollsStore.length: ', $pollsStore.length);
 		// console.log('$pollStore: ', $pollStore);
     console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
     console.log('hasPollStoreValues: ', hasPollStoreValues);
