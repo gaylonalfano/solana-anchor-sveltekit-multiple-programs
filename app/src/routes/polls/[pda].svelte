@@ -35,8 +35,6 @@
 
 	const network = 'http://localhost:8899';
 
-	// export let pollNumberFromLoad: string;
-
 	// Q: How to match up types between pollNumber (BN) and pollNumberFromLoad?
 	// A: It's a Type mismatch! The IDL Poll.pollNumber.words[0] is 'number'!
 	// let poll = $pollsStore.find((p) => p.pollNumber.toBase58() === pollNumberFromLoad); // ERROR
@@ -76,7 +74,7 @@
   // Q: What about separating into separate statements?
   // A: NOPE! Still triggers pollStore.getPollAccount() 4 times.
   // Q: Can I use this outside of tick()?
-  // U: Not really bc getting uncaught error with gPA inside pollStore.getPollAccount()
+  // A: Not really bc getting uncaught error with gPA inside pollStore.getPollAccount()
   // but the pollStore does get updated...
   // U: I believe tick() is firing a couple times BEFORE the walletStore is ready for fetch
   // Check out the hasWalletReadyForFetch in the logs.
@@ -169,6 +167,7 @@
 			pda.toBase58()
 		);
 
+    // TODO Consider adding try/catch around transaction to add notifications
 		// Following this example to call the methods:
 		// https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
 		const tx = await $workspaceStore.program?.methods

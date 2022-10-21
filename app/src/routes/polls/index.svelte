@@ -17,7 +17,7 @@
 	import { pollStore } from '$stores/polls/poll-store';
 	import { pollsStore } from '$stores/polls/polls-store';
 	import { Button } from '$lib/index';
-	// import Poll from '$lib/Poll.svelte';
+	import Poll from '$lib/Poll.svelte';
 	import * as constants from '../../helpers/polls/constants';
 	import type {
 		CustomProgramObject,
@@ -43,6 +43,7 @@
         having to refetch the data or filter through pollsStore in /[pda].svelte
         Could consider adding a Poll component that takes props? Look into goto()
         REF: https://stackoverflow.com/questions/60424634/how-to-persist-svelte-store-state-across-route-change
+        - Seems like I could simply pass the Store as a prop to Poll component.
   */
 
 	$: {
@@ -61,6 +62,7 @@
 		console.log('workspaceStore: ', $workspaceStore);
     console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
     console.log('hasPollsStoreValues: ', hasPollsStoreValues);
+    console.log('hasPollStoreValues: ', hasPollStoreValues);
 	}
 
 	const network = constants.NETWORK;
@@ -100,6 +102,8 @@
   // Create some variables to react to Stores' state
   $: hasWalletReadyForFetch = $walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting
   $: hasPollsStoreValues = $pollsStore.length > 0;
+  $: hasPollStoreValues = $pollStore.pda !== null && $pollStore.poll !== null;
+
 
 
 	// REF: Check out SolAndy's YT video on deserializing account data
@@ -849,24 +853,29 @@
 				disabled={!$walletStore.publicKey && (!pollOptionADisplayName || !pollOptionBDisplayName)}
 				on:click={handleCreatePoll}>Create Poll</Button
 			>
-			{#if $pollsStore}
-				{#each $pollsStore as { poll, pda } (pda)}
-					<div class="card w-96 bg-neutral text-neutral-content">
-						<div class="card-body items-center text-center">
-							<a class="link link-secondary" href="polls/{pda}">
-								<h2 class="card-title">
-									{poll?.optionADisplayLabel} || {poll?.optionBDisplayLabel}
-								</h2>
-							</a>
-							<p>Votooooor #:{poll?.pollNumber} has {poll?.voteCount} total votes!</p>
-							<div class="card-actions justify-end">
-								<button class="btn btn-primary">{poll?.optionADisplayLabel}</button>
-								<button class="btn btn-ghost">{poll?.optionBDisplayLabel}</button>
-							</div>
-						</div>
-					</div>
-				{/each}
-			{/if}
+      {#if $pollsStore}
+        {#each $pollsStore as {poll, pda} (pda)}
+            <Poll poll={poll} pda={pda.toBase58()} />
+        {/each}
+      {/if}
+			<!-- {#if $pollsStore} -->
+			<!-- 	{#each $pollsStore as { poll, pda } (pda)} -->
+			<!-- 		<div class="card w-96 bg-neutral text-neutral-content"> -->
+			<!-- 			<div class="card-body items-center text-center"> -->
+			<!-- 				<a class="link link-secondary" href="polls/{pda}"> -->
+			<!-- 					<h2 class="card-title"> -->
+			<!-- 						{poll?.optionADisplayLabel} || {poll?.optionBDisplayLabel} -->
+			<!-- 					</h2> -->
+			<!-- 				</a> -->
+			<!-- 				<p>Votooooor #:{poll?.pollNumber} has {poll?.voteCount} total votes!</p> -->
+			<!-- 				<div class="card-actions justify-end"> -->
+			<!-- 					<button class="btn btn-primary">{poll?.optionADisplayLabel}</button> -->
+			<!-- 					<button class="btn btn-ghost">{poll?.optionBDisplayLabel}</button> -->
+			<!-- 				</div> -->
+			<!-- 			</div> -->
+			<!-- 		</div> -->
+			<!-- 	{/each} -->
+			<!-- {/if} -->
 			<br />
 			<Button disabled={!$walletStore.publicKey} on:click={getAllProgramAccounts}
 				>Get Program Accounts</Button
