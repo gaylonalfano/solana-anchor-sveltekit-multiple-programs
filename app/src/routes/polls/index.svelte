@@ -104,8 +104,6 @@
   $: hasPollsStoreValues = $pollsStore.length > 0;
   $: hasPollStoreValues = $pollStore.pda !== null && $pollStore.poll !== null;
 
-
-
 	// REF: Check out SolAndy's YT video on deserializing account data
 	// Q: How to pre-fetch data? How to use getAllProgramAccounts()
 	//    Need to wait for workspace and wallet Stores before invoking...
@@ -128,13 +126,13 @@
 	// $: $walletStore.connected && getAllProgramAccounts(); // Runs SEVERAL times
 	// $: $walletStore.connected && !$walletStore.connecting && getAllProgramAccounts(); // Runs TWICE (disconnect & connect)
 	// $: $walletStore.connected 
- //    && !$walletStore.connecting 
- //    && !$walletStore.disconnecting 
- //    && getAllProgramAccounts(); // First call is EMTPY!
+  //    && !$walletStore.connecting 
+  //    && !$walletStore.disconnecting 
+  //    && getAllProgramAccounts(); // First call is EMTPY!
 	// $: $walletStore.connected 
- //    && !$walletStore.connecting 
- //    && !$walletStore.disconnecting 
- //    && getAllProgramAccounts().then(response => console.log('gPA response:', response)); // First call is EMPTY!
+  //    && !$walletStore.connecting 
+  //    && !$walletStore.disconnecting 
+  //    && getAllProgramAccounts().then(response => console.log('gPA response:', response)); // First call is EMPTY!
   // U: Trying $: tick().then(() => ....)
   // REF: https://dev.to/isaachagoel/svelte-reactivity-gotchas-solutions-if-you-re-using-svelte-in-production-you-should-read-this-3oj3
   // $: tick().then(async () => {
@@ -154,6 +152,15 @@
   $: if(hasWalletReadyForFetch) {
       getAllProgramAccounts();
     } // WORKS on refresh! tick() may not be needed after all when adding conditions!
+
+  // Clear/reset single pollStore if user clicks 'back' from [pda] route
+  // Q: How to know when they hit 'back' button from [pda]? Sveltekit has before/afterNavigate()
+  // Also have beforeunload
+  // REF: https://stackoverflow.com/questions/63161871/svelte-how-to-trap-browser-back-button-or-unload
+  // REF: https://kit.svelte.dev/docs/modules#$app-navigation-afternavigate
+  // $: if(hasPollStoreValues) {
+  //   pollStore.reset();
+  // }
   
 
 

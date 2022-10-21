@@ -107,11 +107,6 @@
 
   }) // WORKS on refresh! async/await not needed it seems...
 
-
-
-  // TODO Add a getPolls() helper to pollsStore perhaps
-
-
   beforeUpdate(() => console.log('Component BEFORE UPDATE.'));
 	afterUpdate(() => console.log('Component AFTER UPDATE.\n =================='));
 
@@ -269,6 +264,7 @@
 		)) as CustomProgramObject;
 		// Q: update() or set() Store?
     // U: Going with set() for now unless I learn otherwise
+    // Kinda need to replace the original data
 		customProgramStore.set({
 			customProgram: currentCustomProgram,
 			pda: $customProgramStore.pda as anchor.web3.PublicKey
@@ -277,7 +273,6 @@
 
 </script>
 
-<!-- <pre>{JSON.stringify($pollStore, null, 2)}</pre> -->
 <AnchorConnectionProvider {idl} {network} />
 {#if $pollStore}
   <div class="stats shadow">
@@ -296,4 +291,5 @@
       >
     </div>
   </div>
+  <pre>{JSON.stringify($pollStore, null, 2)}</pre>
 {/if}
