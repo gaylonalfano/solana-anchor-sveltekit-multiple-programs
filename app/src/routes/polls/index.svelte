@@ -29,7 +29,7 @@
 
 	/*
     TODOs:
-      - Create some sort of onMount or possibly load() that fetches
+      - DONE Create some sort of onMount or possibly load() that fetches
         program accounts and updates customProgramStore, pollsStore,
         and profileStore WHEN WALLET CHANGES!
         - Look into $: reactive statements
@@ -40,11 +40,20 @@
             pollsStore.getPollsAccounts()
       - Add notifications for errors (2nd attempts, no SOL, no Profile, etc)
       - Look into how to move getAllProgramAccounts() to separate file
-      - How to pass or set() the pollStore on route change? This would save
+      - DONE How to pass or set() the pollStore on route change? This would save
         having to refetch the data or filter through pollsStore in /[pda].svelte
         Could consider adding a Poll component that takes props? Look into goto()
         REF: https://stackoverflow.com/questions/60424634/how-to-persist-svelte-store-state-across-route-change
         - Seems like I could simply pass the Store as a prop to Poll component.
+      - Clear input fields after entry
+      - Add 'Back' button navigation
+      - Add UI that shows Profile has already voted
+      - Add UI that shows Profile created Poll
+      - Add stores/polls/index.ts file for easier imports
+      - Add UI that lists votes by profile + vote choice
+      - Profile page?
+      - Prevent Polls with same choices just reversed being created
+      - Prevent Polls with lowercase or UPPERCASE being created
   */
 
 	$: {
@@ -94,8 +103,8 @@
 	let profileDisplayName: string = 'testDisplayName';
 
 	let poll: PollObject;
-	let pollOptionADisplayName: string = 'Option A';
-	let pollOptionBDisplayName: string = 'Option B';
+	let pollOptionADisplayName = '';
+	let pollOptionBDisplayName = '';
 
 	let vote: VoteObject;
 	let votePda: anchor.web3.PublicKey;
@@ -152,13 +161,18 @@
   // Q: Why does this fire when navigating 'back' from /polls/[pda]? Guess it could re-fetch
   // and update but seems like a lot of fetches...
   // A: This triggers even we have pollsStore data. Not always necessary I think...
-  // $: if(hasWalletReadyForFetch) {
-  //     getAllProgramAccounts();
-  //   } // WORKS on refresh! tick() may not be needed after all when adding conditions!
-
-  $: if(hasWalletReadyForFetch && !hasPollsStoreValues) {
+  // U: Actually, when navigating 'back', I do need to refresh this data since, if I don't,
+  // then pollsStore won't reflect latest state/votes, etc. The extra fetches may be needed...
+  // Q: If a new Vote occurs and updates the Poll, does this also update pollsStore? Or, is
+  // that too nested/removed so Svelte cannot subscribe?
+  $: if(hasWalletReadyForFetch) {
       getAllProgramAccounts();
-    } // BETTER on refresh! tick() may not be needed after all when adding conditions!
+    } // WORKS on refresh! tick() may not be needed after all when adding conditions!
+
+  // $: if(hasWalletReadyForFetch && !hasPollsStoreValues) {
+  //     getAllProgramAccounts();
+  //   } // BETTER on refresh! tick() may not be needed after all when adding conditions!
+  // U: TODO May use stale pollsStore data though... need to test.
 
   // Clear/reset single pollStore if user clicks 'back' from [pda] route
   // Q: How to know when they hit 'back' button from [pda]? Sveltekit has before/afterNavigate()
@@ -274,7 +288,13 @@
 		// Q: update() or set() Store?
 		// A: I believe just set() since we overwrite the whole thing
 		customProgramStore.set({ customProgram: currentCustomProgram, pda: $customProgramStore.pda });
+
+    // Clear inputs
+    pollOptionADisplayName = '';
+    pollOptionBDisplayName = '';
+
 	}
+
 
 	async function handleCreatePoll() {
 		// Q: If the same user goes between /polls or /polls/[pollNumber],
@@ -341,6 +361,11 @@
 		)) as CustomProgramObject;
 		// Q: update() or set() Store?
 		customProgramStore.set({ customProgram: currentCustomProgram, pda: $customProgramStore.pda });
+
+    // Clear inputs
+    pollOptionADisplayName = '';
+    pollOptionBDisplayName = '';
+
 	}
 
 
@@ -862,7 +887,7 @@
 					<span>Option A Display</span>
 					<input
 						type="text"
-						placeholder=""
+						placeholder="E.g., Dog"
 						class="input input-bordered"
 						bind:value={pollOptionADisplayName}
 					/>
@@ -871,7 +896,7 @@
 					<span>Option B Display</span>
 					<input
 						type="text"
-						placeholder=""
+						placeholder="E.g., Cat"
 						class="input input-bordered"
 						bind:value={pollOptionBDisplayName}
 					/>
@@ -886,25 +911,6 @@
             <Poll poll={poll} pda={pda.toBase58()} />
         {/each}
       {/if}
-			<!-- {#if $pollsStore} -->
-			<!-- 	{#each $pollsStore as { poll, pda } (pda)} -->
-			<!-- 		<div class="card w-96 bg-neutral text-neutral-content"> -->
-			<!-- 			<div class="card-body items-center text-center"> -->
-			<!-- 				<a class="link link-secondary" href="polls/{pda}"> -->
-			<!-- 					<h2 class="card-title"> -->
-			<!-- 						{poll?.optionADisplayLabel} || {poll?.optionBDisplayLabel} -->
-			<!-- 					</h2> -->
-			<!-- 				</a> -->
-			<!-- 				<p>Votooooor #:{poll?.pollNumber} has {poll?.voteCount} total votes!</p> -->
-			<!-- 				<div class="card-actions justify-end"> -->
-			<!-- 					<button class="btn btn-primary">{poll?.optionADisplayLabel}</button> -->
-			<!-- 					<button class="btn btn-ghost">{poll?.optionBDisplayLabel}</button> -->
-			<!-- 				</div> -->
-			<!-- 			</div> -->
-			<!-- 		</div> -->
-			<!-- 	{/each} -->
-			<!-- {/if} -->
-			<br />
 			<Button disabled={!$walletStore.publicKey} on:click={getAllProgramAccounts}
 				>Get Program Accounts</Button
 			>

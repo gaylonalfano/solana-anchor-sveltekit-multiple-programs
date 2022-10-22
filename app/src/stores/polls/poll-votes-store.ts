@@ -17,9 +17,3 @@ export const pollVotesStore = derived<
     return $votesStore.filter((v) => v.pollPubkey.toBase58() === $pollStore.pda?.toBase58());
   }
 )
-
-
-// TODO Add pollVotesStore to the markup inside [pda].svelte
-// TODO Confirm why/how to loop through $votesStore... voteNumber
-// isn't unique enough...
-

@@ -54,7 +54,7 @@
 	$: {
   //   console.log('$workspaceStore: ', $workspaceStore);
   //   console.log('$profileStore: ', $profileStore);
-		// console.log('$pollsStore: ', $pollsStore);
+		console.log('$pollsStore: ', $pollsStore);
     // console.log('$pollsStore.length: ', $pollsStore.length);
 		// console.log('$pollStore: ', $pollStore);
     console.log('pollVotesStore: ', $pollVotesStore);
@@ -186,11 +186,16 @@
 		// Fetch data after tx confirms & update global state
 		const currentVote = (await $workspaceStore.program?.account.vote.fetch(pda)) as VoteObject;
 		// Q: Need a voteStore? Eh....
+    // A: Yes. I've created a votesStore (writable) and pollVotesStore (derived)
+    // NOTE I could've added a 'votes' property to pollStore and may revert if needed
+    votesStore.addVote(currentVote);
 
 		const currentPoll = (await $workspaceStore.program?.account.poll.fetch(
 			$pollStore.pda as anchor.web3.PublicKey
 		)) as PollObject;
+    console.log('BEFORE setting pollStore. pollsStore update?')
 		pollStore.set({ poll: currentPoll, pda: $pollStore.pda });
+    console.log('AFTER setting pollStore. pollsStore update?')
 
 		const currentProfile = (await $workspaceStore.program?.account.profile.fetch(
 			$profileStore.pda as anchor.web3.PublicKey
@@ -252,11 +257,31 @@
 		// Fetch data after tx confirms & update global state
 		const currentVote = (await $workspaceStore.program?.account.vote.fetch(pda)) as VoteObject;
 		// Q: Need a voteStore? Don't think so since I have pollStore...
+    // A: Yes. I've created a votesStore (writable) and pollVotesStore (derived)
+    // NOTE I could've added a 'votes' property to pollStore and may revert if needed
+    votesStore.addVote(currentVote);
 
 		const currentPoll = (await $workspaceStore.program?.account.poll.fetch(
 			$pollStore.pda as anchor.web3.PublicKey
 		)) as PollObject;
-		pollStore.set({ poll: currentPoll, pda: $pollStore.pda as anchor.web3.PublicKey });
+    // Q: By setting pollStore will pollsStore update automatically? 
+    // U: I don't believe pollsStore updates when a new vote occurs using pollStore.set()
+    // Q: Should I use pollStore.update()? 
+    // A: Doesn't seem to help.
+    // Doing two commands seems error prone. Wonder if pollStore.update() could do the trick?
+    console.log('BEFORE setting pollStore. pollsStore update?') // U: Logs but voteCount inside pollsStore doesn't update
+		// pollStore.set({ poll: currentPoll, pda: $pollStore.pda }); // pollsStore DOESN'T update
+    // pollStore.update((self) => {
+    //   self.poll = currentPoll; 
+    //   self.pda = $pollStore.pda;
+    //   return self;
+    // }); // pollsStore DOESN'T update
+    // Q: Need to first pollStore.set() then pollsStore.updatePoll()?
+    // A: Yes, looks like I need to also update pollsStore or it can't see
+    // individual Poll updates. 
+		pollStore.set({ poll: currentPoll, pda: $pollStore.pda });
+    pollsStore.updatePoll($pollStore.pda as anchor.web3.PublicKey, currentPoll);
+    console.log('AFTER setting pollStore. pollsStore update?')
 
 		const currentProfile = (await $workspaceStore.program?.account.profile.fetch(
 			$profileStore.pda as anchor.web3.PublicKey
@@ -296,12 +321,11 @@
     </div>
   </div>
   <pre>{JSON.stringify($pollStore, null, 2)}</pre>
-  {#if $votesStore}
-    {#each $votesStore as vote (vote.voteNumber)}
+  {#if $pollVotesStore}
+    {#each $pollVotesStore as vote (vote.voteNumber)}
       <h5>wallet: {vote.authority}</h5>
       <p>number: {vote.voteNumber}</p>
       <p>selection: {vote.voteOption}</p>
     {/each}
-
   {/if}
 {/if}

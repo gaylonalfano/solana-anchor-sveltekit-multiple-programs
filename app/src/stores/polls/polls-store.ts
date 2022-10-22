@@ -61,9 +61,9 @@ function createPollsStore() {
     // Leaning toward passing poll and pda as separate args
     addPoll: async (poll: PollObject, pda: anchor.web3.PublicKey) => {
       // Won't have the PDA but can still add IDL ["Poll"] object
-      update((pollsStore: PollStore[]) => {
+      update((self: PollStore[]) => {
         return [
-          ...pollsStore,
+          ...self,
           {
             poll,
             pda
@@ -72,26 +72,30 @@ function createPollsStore() {
       });
     },
     addPollStore: async (pollStore: PollStore) => {
-      update((pollsStore: PollStore[]) => {
-        return [...pollsStore, pollStore]
+      update((self: PollStore[]) => {
+        return [...self, pollStore]
       });
     },
     updatePoll: async (pda: anchor.web3.PublicKey, poll: PollObject) => {
-      update((pollsStore: PollStore[]) => {
-        const pollToUpdate: PollStore | undefined = pollsStore.find(p => p.pda === pda);
+      update((self: PollStore[]) => {
+        console.log('Updating poll in pollsStore...');
+        console.log(self)
+        // NOTE Must compare PublicKeys as strings!
+        const pollToUpdate: PollStore | undefined = self.find(p => p.pda?.toBase58() === pda.toBase58());
+        console.log('pollToUpdate: ', pollToUpdate);
         if (pollToUpdate) {
           console.log('Poll found. Making updates.');
           pollToUpdate.poll = poll;
-          return pollsStore;
+          return self;
         } else {
           console.log('Poll not found in store. No updates made.');
-          return pollsStore;
+          return self;
         }
       })
     },
     deletePoll: (pda: anchor.web3.PublicKey) => {
-      update((pollsStore: PollStore[]) => {
-        return pollsStore.filter((pollStore: PollStore) => pollStore.pda !== pda);
+      update((self: PollStore[]) => {
+        return self.filter((pollStore: PollStore) => pollStore.pda !== pda);
       })
     },
     reset: () => set([])
