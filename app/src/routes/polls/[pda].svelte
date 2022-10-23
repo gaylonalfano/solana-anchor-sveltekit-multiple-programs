@@ -22,7 +22,7 @@
 	import { notificationStore } from '$stores/notification';
 	import { customProgramStore } from '$stores/polls/custom-program-store';
 	import { profileStore } from '$stores/polls/profile-store';
-	import { pollStore, type PollStore } from '$stores/polls/poll-store';
+	import { pollStore, type PollStoreObject } from '$stores/polls/poll-store';
 	import { pollsStore } from '$stores/polls/polls-store';
 	import { votesStore } from '$stores/polls/votes-store';
   import { pollVotesStore } from '$stores/polls/poll-votes-store';
@@ -53,7 +53,8 @@
 
 	$: {
   //   console.log('$workspaceStore: ', $workspaceStore);
-  //   console.log('$profileStore: ', $profileStore);
+    console.log('$customProgramStore: ', $customProgramStore);
+    console.log('$profileStore: ', $profileStore);
 		console.log('$pollsStore: ', $pollsStore);
     // console.log('$pollsStore.length: ', $pollsStore.length);
 		// console.log('$pollStore: ', $pollStore);
@@ -63,11 +64,19 @@
     console.log('hasPollsStoreValues: ', hasPollsStoreValues);
 	}
 
+  // FIXME On page refresh, I lose all my Stores state. These conditional reactives
+  // combined with tick() helps, but feels fragile. Could consider adding a
+  // polls/__layout.svelte that does this or something. Or, maybe there's a
+  // Svelte solution specifically for this scenario.
+
 
   // Create some variables to react to Stores state
   $: hasWalletReadyForFetch = $walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting
-  $: hasPollStoreValues = $pollStore.pda !== null && $pollStore.poll !== null;
+  $: hasPollStoreValues = $pollStore.poll !== null && $pollStore.pda !== null;
   $: hasPollsStoreValues = $pollsStore.length > 0;
+  $: hasVotesStoreValues = $votesStore.length > 0;
+  $: hasProfileStoreValues = $profileStore.profile !== null && $profileStore.pda !== null;
+  $: hasCustomProgramStoreValues = $customProgramStore.customProgram !== null && $customProgramStore.pda !== null;
 
   // Q: tick() needed if I add the conditional check?
   // U: Seems needed as it doesn't error. However, tick() fires a lot
@@ -83,43 +92,137 @@
   // U: I believe tick() is firing a couple times BEFORE the walletStore is ready for fetch
   // Check out the hasWalletReadyForFetch in the logs.
   // U: Yep! Using my reactive helpers results in only 2 invokes of pollStore.getPollAccount()!
-  $: tick().then(() => {
-    if(hasWalletReadyForFetch) {
-      // Attempt to get stores (if exists)
-      console.log('Wallet reconnected. Getting stores if available...')
-      get(pollStore);
-      console.log('$pollStore from TICK: ', $pollStore)
-      console.log($pollStore.pda === null); // true
-      console.log($pollStore.poll === null); // true
-      get(pollsStore);
-      console.log('$pollsStore from TICK: ', $pollsStore)
-    }
+  // $: tick().then(() => {
+  //   if(hasWalletReadyForFetch) {
+  //     // Attempt to get stores (if exists)
+  //     console.log('Wallet reconnected. Getting stores if available...')
+  //     get(customProgramStore);
+  //     console.log('$customProgramStore from TICK: ', $customProgramStore);
+  //     get(pollStore);
+  //     console.log('$pollStore from TICK: ', $pollStore)
+  //     console.log($pollStore.pda === null); // true
+  //     console.log($pollStore.poll === null); // true
+  //     get(pollsStore);
+  //     console.log('$pollsStore from TICK: ', $pollsStore);
+  //     get(votesStore);
+  //     console.log('$votesStore from TICK: ', $votesStore);
+  //     get(pollVotesStore);
+  //     console.log('$pollVotesStore from TICK: ', $pollVotesStore);
+  //     get(profileStore);
+  //     console.log('$profileStore from TICK: ', $profileStore);
+  //   }
 
-    if(hasWalletReadyForFetch && !hasPollsStoreValues) {
-      console.log('$pollsStore values are null. Refetching...')
-      // Refetch pollsStore (probably lost on disconnect, etc)
-      pollsStore.getPollAccounts(
-        $workspaceStore.program?.programId as anchor.web3.PublicKey,
-        $workspaceStore.connection
-      )
-    }
+  //   if(hasWalletReadyForFetch && !hasCustomProgramStoreValues) {
+  //     console.log('$customProgramStore values are null. Refetching...')
+  //     customProgramStore.getCustomProgramAccount()
+  //   }
 
-    // console.log(typeof $pollStore); // object
-    // console.log($pollStore == undefined); // false
-    // console.log($pollStore === undefined); // false
-    if(hasWalletReadyForFetch && !hasPollStoreValues) {
-      console.log('$pollStore values are null. Refetching...')
-      // Refetch pollStore
-      pollStore.getPollAccount(
-        $workspaceStore.program?.programId as anchor.web3.PublicKey,
-        new PublicKey($page.params.pda),
-        $workspaceStore.connection
-      )
-    }
+  //   if(hasWalletReadyForFetch && !hasPollsStoreValues) {
+  //     console.log('$pollsStore values are null. Refetching...')
+  //     // Refetch pollsStore (probably lost on disconnect, refresh, etc)
+  //     pollsStore.getPollAccounts(
+  //       $workspaceStore.program?.programId as anchor.web3.PublicKey,
+  //       $workspaceStore.connection
+  //     )
+  //   }
 
-    // TODO Consider the case when pollsStore is available (but not pollStore)
+  //   if(hasWalletReadyForFetch && !hasVotesStoreValues) {
+  //     // Check whether votesStore has values, otherwise need to refetch
+  //     // so that derived store pollVotesStore can update
+  //     // TODO Could consider adding a getVoteAccountsByPoll() helper
+  //     votesStore.getVoteAccounts(
+  //       $workspaceStore.program?.programId as anchor.web3.PublicKey,
+  //       $workspaceStore.connection
+  //     );
+  //   }
 
-  }) // WORKS on refresh! async/await not needed it seems...
+  //   // console.log(typeof $pollStore); // object
+  //   // console.log($pollStore == undefined); // false
+  //   // console.log($pollStore === undefined); // false
+  //   if(hasWalletReadyForFetch && !hasPollStoreValues) {
+  //     console.log('$pollStore values are null. Refetching...')
+  //     // Refetch pollStore
+  //     pollStore.getPollAccount(
+  //       $workspaceStore.program?.programId as anchor.web3.PublicKey,
+  //       new PublicKey($page.params.pda),
+  //       $workspaceStore.connection
+  //     );
+  //   }
+
+  //   if(hasWalletReadyForFetch && !hasProfileStoreValues) {
+  //     console.log('$profileStore values are null. Refetching...')
+  //     profileStore.getProfileAccount(
+  //       $walletStore.publicKey as anchor.web3.PublicKey,
+  //       $workspaceStore.program?.programId as anchor.web3.PublicKey,
+  //       $workspaceStore.connection
+  //     );
+  //   }
+
+  //   // TODO Consider the case when pollsStore is available (but not pollStore)
+
+  // }) // WORKS on refresh! async/await not needed it seems...
+
+
+  // Trying $: reactives WITHOUT tick().then() now that I've added some helper
+  // reactives and Store helper methods (getPollAccount(), getProfileAccount()).
+  // In many ways, this is achieving the same thing as my polls/index.svelte has
+  // with the getAllProgramAccounts() function...
+  $: if(hasWalletReadyForFetch) {
+    // Attempt to get stores (if exists)
+    console.log('Wallet reconnected. Getting stores if available...')
+    get(customProgramStore);
+    get(pollStore);
+    get(pollsStore);
+    get(votesStore);
+    get(pollVotesStore);
+    get(profileStore);
+  }
+
+  $: if(hasWalletReadyForFetch && !hasCustomProgramStoreValues) {
+    console.log('$customProgramStore values are null. Refetching...')
+    customProgramStore.getCustomProgramAccount()
+  }
+
+  $: if(hasWalletReadyForFetch && !hasPollsStoreValues) {
+    console.log('$pollsStore values are null. Refetching...')
+    // Refetch pollsStore (probably lost on disconnect, refresh, etc)
+    pollsStore.getPollAccounts(
+      $workspaceStore.program?.programId as anchor.web3.PublicKey,
+      $workspaceStore.connection
+    )
+  }
+
+  $: if(hasWalletReadyForFetch && !hasVotesStoreValues) {
+    // Check whether votesStore has values, otherwise need to refetch
+    // so that derived store pollVotesStore can update
+    // TODO Could consider adding a getVoteAccountsByPoll() helper
+    votesStore.getVoteAccounts(
+      $workspaceStore.program?.programId as anchor.web3.PublicKey,
+      $workspaceStore.connection
+    );
+  }
+
+  $: if(hasWalletReadyForFetch && !hasPollStoreValues) {
+    console.log('$pollStore values are null. Refetching...')
+    // Refetch pollStore
+    pollStore.getPollAccount(
+      $workspaceStore.program?.programId as anchor.web3.PublicKey,
+      new PublicKey($page.params.pda),
+      $workspaceStore.connection
+    );
+  }
+
+  $: if(hasWalletReadyForFetch && !hasProfileStoreValues) {
+    console.log('$profileStore values are null. Refetching...')
+    profileStore.getProfileAccount(
+      $walletStore.publicKey as anchor.web3.PublicKey,
+      $workspaceStore.program?.programId as anchor.web3.PublicKey,
+      $workspaceStore.connection
+    );
+  }
+
+
+
 
   beforeUpdate(() => console.log('Component BEFORE UPDATE.'));
 	afterUpdate(() => console.log('Component AFTER UPDATE.\n =================='));

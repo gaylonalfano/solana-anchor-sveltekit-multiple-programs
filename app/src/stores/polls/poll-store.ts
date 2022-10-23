@@ -2,7 +2,7 @@ import { writable, get, type Writable } from 'svelte/store';
 import type anchor from '@project-serum/anchor';
 import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
-import type { PollObject } from '../../models/polls-types';
+import type { PollObject, VoteObject } from '../../models/polls-types';
 import { POLL_SEED_PREFIX, POLL_ACCOUNT_SPACE } from '../../helpers/polls/constants';
 import { PublicKey, type GetProgramAccountsFilter } from '@solana/web3.js';
 import { pollsStore } from './polls-store';
@@ -22,15 +22,21 @@ import { pollsStore } from './polls-store';
 // accounts. Hmmm... leaning toward separating them and then perhaps adding
 // a derived([pollStore, votesStore]) setup. Need to experiment, but I think
 // adding a 'votes' property could also work, but perhaps a bit harder.
-// U: Trying votes-store.ts and poll-votes-store.ts first.
+// U: Trying votes-store.ts and poll-votes-store.ts first...
+// U: Derived pollVotesStore is okay but encounters issues when disconnecting
+// or on page refreshes. Going to add the 'votes' property to poll-store and test
+// A: Eh, adding 'votes' directly as prop is also complicated. Thinking of going
+// back to the derived store pollVotesStore instead and just refetch votesStore
+// if necessary to update pollVotesStore
 
-export type PollStore = {
+export type PollStoreObject = {
   poll: PollObject | null,
   pda: anchor.web3.PublicKey | null,
+  // votes: VoteObject[],
 }
 
 function createPollStore() {
-  const { subscribe, set, update } = writable<PollStore>({ poll: null, pda: null });
+  const { subscribe, set, update } = writable<PollStoreObject>({ poll: null, pda: null });
 
   return {
     subscribe,
@@ -81,7 +87,7 @@ function createPollStore() {
         programId,
         { filters: pollsFilter }
       );
-      // console.log('pollAccountsEncoded: ', pollAccountsEncoded);
+      console.log('pollAccountsEncoded: ', pollAccountsEncoded);
 
       // Find the matching pda and ONLY decode the match
       // const pollAccountEncoded = pollAccountsEncoded.find(value => value.pubkey === pollPda); // E: undefined
@@ -92,10 +98,67 @@ function createPollStore() {
         pollAccountEncoded?.account.data as Buffer
       )
 
-
-      pollStore.set({ poll: decodedAccountInfo, pda: pollAccountEncoded?.pubkey } as PollStore);
-
+      pollStore.set({ poll: decodedAccountInfo, pda: pollAccountEncoded?.pubkey } as PollStoreObject);
     },
+    // U: Attempted adding 'votes' as a property to pollStore. Gets a little complicated,
+    // since I am dealing with two different account types. Thinking the derived store
+    // approach (pollVotesStore) may be easier...
+    // getPollVoteAccounts: async (
+    //   pollPda: anchor.web3.PublicKey,
+    //   programId: anchor.web3.PublicKey,
+    //   connection: anchor.web3.Connection
+    // ) => {
+    //     // Q: Should I try getting from votesStore if available? Or would it be stale?
+    //     const votesByPollFilter: GetProgramAccountsFilter[] = [
+    //       {
+    //         dataSize: VOTE_ACCOUNT_SPACE
+    //       },
+    //       {
+    //         memcmp: {
+    //           // NOTE Matching on pollPubkey.toBase58()
+    //           // 8 + authority(32) + profile(32) + poll(32)
+    //           offset: 72,
+    //           bytes: pollPda.toBase58()
+    //         }
+    //       }
+    //     ];
+
+    //     // Use gPA() + filter
+    //     const voteAccountsEncoded = await connection.getProgramAccounts(
+    //       programId,
+    //       { filters: votesByPollFilter }
+    //     );
+    //     console.log('voteAccountsEncoded: ', voteAccountsEncoded);
+
+    //     // Only update Store if gPA() is successful
+    //     if(voteAccountsEncoded) {
+    //       // Loop through encoded values, decode account data, addVote()
+    //       // Q: Create a custom addVote() or simply set(votes)?
+    //       // Think a custom addVote() may be the way so it can update() instead of set()
+    //       voteAccountsEncoded.forEach((value) => {
+    //         const decodedAccountInfo = get(workspaceStore).program?.coder.accounts.decode(
+    //           'Vote',
+    //           value.account.data as Buffer
+    //         );
+    //         
+    //         // Add to 'votes' property
+    //         pollStore.addVote(decodedAccountInfo);
+    //       });
+    //     }
+    // },
+    // addVote: async (vote: VoteObject) => {
+    //   update((self: PollStoreObject) => {
+    //     return {
+    //       poll: self.poll,
+    //       pda: self.pda,
+    //       votes: [
+    //         ...self.votes,
+    //         vote
+    //       ]
+    //     }
+
+    //   });
+    // },
     reset: () => set({ poll: null, pda: null })
   }
 }

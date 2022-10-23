@@ -3,8 +3,8 @@ import type anchor from '@project-serum/anchor';
 import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 import type { ProfileObject } from 'src/models/polls-types';
-import { PROFILE_SEED_PREFIX } from '../../helpers/polls/constants';
-import { PublicKey } from '@solana/web3.js';
+import { PROFILE_SEED_PREFIX, POLL_ACCOUNT_SPACE, PROFILE_ACCOUNT_SPACE } from '../../helpers/polls/constants';
+import { PublicKey, type GetProgramAccountsFilter } from '@solana/web3.js';
 
 // =========== WITH CUSTOM TYPE TO STORE PDA ============
 export type ProfileStore = {
@@ -19,6 +19,50 @@ function createProfileStore() {
     subscribe,
     set,
     update,
+    getProfileAccount: async (
+      authority: anchor.web3.PublicKey,
+      programId: anchor.web3.PublicKey, 
+      connection: anchor.web3.Connection, 
+    ) => {
+      // Need to assert that each arg has values
+      console.log('authority: ', authority.toBase58());
+      console.log('programId: ', programId.toBase58());
+      console.log('connection: ', connection);
+      
+      // Create the filter
+      // NOTE Can't filter on PDA, but could consider pollNumber perhaps
+      const profilesByAuthorityFilter: GetProgramAccountsFilter[] = [
+        {
+          dataSize: PROFILE_ACCOUNT_SPACE
+        },
+        {
+          memcmp: {
+            offset: 8, // Starting point for 'authority'
+            bytes: authority.toBase58()
+          }
+        }
+      ];
+
+      // Use gPA() + filter to get data
+      const profileAccountsByAuthorityEncoded = await connection.getProgramAccounts(
+        programId,
+        { filters: profilesByAuthorityFilter }
+      );
+      console.log('profileAccountsByAuthorityEncoded: ', profileAccountsByAuthorityEncoded);
+
+      if(profileAccountsByAuthorityEncoded) {
+        // Find the matching pda and ONLY decode the match
+        const decodedAccountInfo = get(workspaceStore).program?.coder.accounts.decode(
+            'Profile',
+            profileAccountsByAuthorityEncoded[0].account.data as Buffer
+        );
+
+        profileStore.set({
+          profile: decodedAccountInfo, 
+          pda: profileAccountsByAuthorityEncoded[0].pubkey 
+        });
+      }
+    },
     getProfileAccountWithWorkspace: async (profilePda?: anchor.web3.PublicKey) => {
       let pda = profilePda ? profilePda : null;
       if (!pda) {

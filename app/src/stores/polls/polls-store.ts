@@ -3,7 +3,7 @@ import type anchor from '@project-serum/anchor';
 import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 import type { PollObject } from '../../models/polls-types';
-import type { PollStore } from './poll-store'
+import type { PollStoreObject } from './poll-store'
 import type { GetProgramAccountsFilter } from '@solana/web3.js';
 import { POLL_ACCOUNT_SPACE } from '../../helpers/polls/constants';
 
@@ -12,7 +12,7 @@ import { POLL_ACCOUNT_SPACE } from '../../helpers/polls/constants';
 // Seems like would be better to just reuse the PollStore (single) type we created in poll-store.ts
 // U: Nope, going with just importing the PollStore type
 function createPollsStore() {
-  const { subscribe, set, update } = writable<PollStore[]>([]);
+  const { subscribe, set, update } = writable<PollStoreObject[]>([]);
 
   return {
     subscribe,
@@ -61,27 +61,28 @@ function createPollsStore() {
     // Leaning toward passing poll and pda as separate args
     addPoll: async (poll: PollObject, pda: anchor.web3.PublicKey) => {
       // Won't have the PDA but can still add IDL ["Poll"] object
-      update((self: PollStore[]) => {
+      update((self: PollStoreObject[]) => {
         return [
           ...self,
           {
             poll,
-            pda
+            pda,
+            // TODO Add 'votes'
           }
         ]
       });
     },
-    addPollStore: async (pollStore: PollStore) => {
-      update((self: PollStore[]) => {
+    addPollStore: async (pollStore: PollStoreObject) => {
+      update((self: PollStoreObject[]) => {
         return [...self, pollStore]
       });
     },
     updatePoll: async (pda: anchor.web3.PublicKey, poll: PollObject) => {
-      update((self: PollStore[]) => {
+      update((self: PollStoreObject[]) => {
         console.log('Updating poll in pollsStore...');
         console.log(self)
         // NOTE Must compare PublicKeys as strings!
-        const pollToUpdate: PollStore | undefined = self.find(p => p.pda?.toBase58() === pda.toBase58());
+        const pollToUpdate: PollStoreObject | undefined = self.find(p => p.pda?.toBase58() === pda.toBase58());
         console.log('pollToUpdate: ', pollToUpdate);
         if (pollToUpdate) {
           console.log('Poll found. Making updates.');
@@ -94,8 +95,8 @@ function createPollsStore() {
       })
     },
     deletePoll: (pda: anchor.web3.PublicKey) => {
-      update((self: PollStore[]) => {
-        return self.filter((pollStore: PollStore) => pollStore.pda !== pda);
+      update((self: PollStoreObject[]) => {
+        return self.filter((pollStore: PollStoreObject) => pollStore.pda !== pda);
       })
     },
     reset: () => set([])
