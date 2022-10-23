@@ -7,9 +7,13 @@ export const PREFLIGHT_COMMITMENT = "confirmed";
 // export const TOKEN_METADATA_PROGRAM_ID = new anchor.web3.PublicKey(
 //     "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
 // );
+export const MULTIPLE_PROGRAMS_PROGRAM_ID = new anchor.web3.PublicKey(
+  "B29aHXp7o9Aa4PUwHsNxYREXP5vzw4KmAJbivfntTZ6X"
+);
 export const ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID = new anchor.web3.PublicKey(
   "2abHAR3JLTTtm1M8SsuWCriuJBmSXvSApMyszuVKTDJo"
-)
+);
+
 
 // Prefixes for seeds
 export const CUSTOM_PROGRAM_SEED_PREFIX = "custom-program";

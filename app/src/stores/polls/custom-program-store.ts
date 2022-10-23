@@ -3,7 +3,7 @@ import { PublicKey } from '@solana/web3.js';
 import type anchor from '@project-serum/anchor';
 import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 import type { CustomProgramObject } from 'src/models/polls-types';
-import { CUSTOM_PROGRAM_SEED_PREFIX } from '../../helpers/polls/constants';
+import { ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID, CUSTOM_PROGRAM_SEED_PREFIX } from '../../helpers/polls/constants';
 
 // IMPORTANT - Read comments below. This is a good example of how a custom type
 // can allow me to save/store the PDA to the Store (not to onchain account!).
@@ -39,7 +39,8 @@ function createCustomProgramStore() {
             // Q: Why can't it find $workspaceStore?
             // A: May have to use get(workspaceStore).program ...
             // $workspaceStore.program?.programId as anchor.web3.PublicKey // E: Cannot find $workspaceStore
-            get(workspaceStore).program?.programId as anchor.web3.PublicKey
+            // get(workspaceStore).program?.programId as anchor.web3.PublicKey
+            ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID
           )
 
           pda = tempPda;

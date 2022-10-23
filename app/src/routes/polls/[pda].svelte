@@ -53,6 +53,8 @@
 
 	$: {
   //   console.log('$workspaceStore: ', $workspaceStore);
+    console.log('$workspaceStore.program: ', $workspaceStore?.program);
+    console.log('hasWorkspaceProgramReady: ', hasWorkspaceProgramReady);
     console.log('$customProgramStore: ', $customProgramStore);
     console.log('$profileStore: ', $profileStore);
 		console.log('$pollsStore: ', $pollsStore);
@@ -68,9 +70,21 @@
   // combined with tick() helps, but feels fragile. Could consider adding a
   // polls/__layout.svelte that does this or something. Or, maybe there's a
   // Svelte solution specifically for this scenario.
+  // U: I think it may have something to do with __layout.svelte first setting
+  // workspaceStore to the main multiple_PROGRAMS program, instead of this
+  // multiple_POLLS program. This means it initially uses the wrong programId
+  // for the fetches. Need to monitor workspaceStore.program changes to confirm.
+  // U: After some testing, it takes a few cycles before the workspaceStore is
+  // properly updated with the correct program and other details. I can reduce the
+  // number of wasted fetches (without using tick().then()) by adding this condition.
+  // FIXED: Extra hasWorkspaceProgramReady condition is working! Not using tick().then()!
+  // Also, noticed from logs that fetches return asynchronously with profileStore last/slowest...
+  // TODO Consider making a polls/__layout.svelte component to set workspaceStore
 
 
   // Create some variables to react to Stores state
+  $: hasWorkspaceProgramReady = $workspaceStore && $workspaceStore.program && 
+    ($workspaceStore.program.programId.toBase58() === constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID.toBase58());
   $: hasWalletReadyForFetch = $walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting
   $: hasPollStoreValues = $pollStore.poll !== null && $pollStore.pda !== null;
   $: hasPollsStoreValues = $pollsStore.length > 0;
@@ -167,7 +181,7 @@
   // reactives and Store helper methods (getPollAccount(), getProfileAccount()).
   // In many ways, this is achieving the same thing as my polls/index.svelte has
   // with the getAllProgramAccounts() function...
-  $: if(hasWalletReadyForFetch) {
+  $: if(hasWorkspaceProgramReady && hasWalletReadyForFetch) {
     // Attempt to get stores (if exists)
     console.log('Wallet reconnected. Getting stores if available...')
     get(customProgramStore);
@@ -178,50 +192,52 @@
     get(profileStore);
   }
 
-  $: if(hasWalletReadyForFetch && !hasCustomProgramStoreValues) {
+  $: if(hasWorkspaceProgramReady && hasWalletReadyForFetch && !hasCustomProgramStoreValues) {
     console.log('$customProgramStore values are null. Refetching...')
     customProgramStore.getCustomProgramAccount()
   }
 
-  $: if(hasWalletReadyForFetch && !hasPollsStoreValues) {
+  $: if(hasWorkspaceProgramReady && hasWalletReadyForFetch && !hasPollsStoreValues) {
     console.log('$pollsStore values are null. Refetching...')
     // Refetch pollsStore (probably lost on disconnect, refresh, etc)
     pollsStore.getPollAccounts(
-      $workspaceStore.program?.programId as anchor.web3.PublicKey,
+      // $workspaceStore.program?.programId as anchor.web3.PublicKey,
+      constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
       $workspaceStore.connection
     )
   }
 
-  $: if(hasWalletReadyForFetch && !hasVotesStoreValues) {
+  $: if(hasWorkspaceProgramReady && hasWalletReadyForFetch && !hasVotesStoreValues) {
     // Check whether votesStore has values, otherwise need to refetch
     // so that derived store pollVotesStore can update
     // TODO Could consider adding a getVoteAccountsByPoll() helper
     votesStore.getVoteAccounts(
-      $workspaceStore.program?.programId as anchor.web3.PublicKey,
+      // $workspaceStore.program?.programId as anchor.web3.PublicKey,
+      constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
       $workspaceStore.connection
     );
   }
 
-  $: if(hasWalletReadyForFetch && !hasPollStoreValues) {
+  $: if(hasWorkspaceProgramReady && hasWalletReadyForFetch && !hasPollStoreValues) {
     console.log('$pollStore values are null. Refetching...')
     // Refetch pollStore
     pollStore.getPollAccount(
-      $workspaceStore.program?.programId as anchor.web3.PublicKey,
+      // $workspaceStore.program?.programId as anchor.web3.PublicKey,
+      constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
       new PublicKey($page.params.pda),
       $workspaceStore.connection
     );
   }
 
-  $: if(hasWalletReadyForFetch && !hasProfileStoreValues) {
+  $: if(hasWorkspaceProgramReady && hasWalletReadyForFetch && !hasProfileStoreValues) {
     console.log('$profileStore values are null. Refetching...')
     profileStore.getProfileAccount(
       $walletStore.publicKey as anchor.web3.PublicKey,
-      $workspaceStore.program?.programId as anchor.web3.PublicKey,
+      // $workspaceStore.program?.programId as anchor.web3.PublicKey,
+      constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
       $workspaceStore.connection
     );
   }
-
-
 
 
   beforeUpdate(() => console.log('Component BEFORE UPDATE.'));
