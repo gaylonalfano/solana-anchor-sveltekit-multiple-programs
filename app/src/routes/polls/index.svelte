@@ -11,12 +11,14 @@
 	import { get } from 'svelte/store';
   import { goto } from '$app/navigation';
 	import { notificationStore } from '$stores/notification';
-	import { customProgramStore } from '$stores/polls/custom-program-store';
-	import { profileStore } from '$stores/polls/profile-store';
-	import { profilesStore } from '$stores/polls/profiles-store';
-	import { pollStore } from '$stores/polls/poll-store';
-	import { pollsStore } from '$stores/polls/polls-store';
-	import { votesStore } from '$stores/polls/votes-store';
+  import { 
+    customProgramStore,
+    profileStore,
+    profilesStore,
+    pollStore,
+    pollsStore,
+    votesStore
+  } from '$stores/polls/index'
 	import { Button } from '$lib/index';
 	import Poll from '$lib/Poll.svelte';
 	import * as constants from '../../helpers/polls/constants';
@@ -44,12 +46,12 @@
         having to refetch the data or filter through pollsStore in /[pda].svelte
         Could consider adding a Poll component that takes props? Look into goto()
         REF: https://stackoverflow.com/questions/60424634/how-to-persist-svelte-store-state-across-route-change
-        - Seems like I could simply pass the Store as a prop to Poll component.
-      - Clear input fields after entry
+        - DONE Seems like I could simply pass the Store as a prop to Poll component.
+      - DONE Clear input fields after entry
       - Add 'Back' button navigation
       - Add UI that shows Profile has already voted
       - Add UI that shows Profile created Poll
-      - Add stores/polls/index.ts file for easier imports
+      - DONE Add stores/polls/index.ts file for easier imports
       - Add UI that lists votes by profile + vote choice
       - Profile page?
       - Prevent Polls with same choices just reversed being created

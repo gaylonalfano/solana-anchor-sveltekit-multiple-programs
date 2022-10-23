@@ -86,12 +86,22 @@
   $: tick().then(() => {
     if(hasWalletReadyForFetch) {
       // Attempt to get stores (if exists)
+      console.log('Wallet reconnected. Getting stores if available...')
       get(pollStore);
       console.log('$pollStore from TICK: ', $pollStore)
       console.log($pollStore.pda === null); // true
       console.log($pollStore.poll === null); // true
       get(pollsStore);
       console.log('$pollsStore from TICK: ', $pollsStore)
+    }
+
+    if(hasWalletReadyForFetch && !hasPollsStoreValues) {
+      console.log('$pollsStore values are null. Refetching...')
+      // Refetch pollsStore (probably lost on disconnect, etc)
+      pollsStore.getPollAccounts(
+        $workspaceStore.program?.programId as anchor.web3.PublicKey,
+        $workspaceStore.connection
+      )
     }
 
     // console.log(typeof $pollStore); // object
@@ -189,13 +199,25 @@
     // A: Yes. I've created a votesStore (writable) and pollVotesStore (derived)
     // NOTE I could've added a 'votes' property to pollStore and may revert if needed
     votesStore.addVote(currentVote);
-
 		const currentPoll = (await $workspaceStore.program?.account.poll.fetch(
 			$pollStore.pda as anchor.web3.PublicKey
 		)) as PollObject;
-    console.log('BEFORE setting pollStore. pollsStore update?')
+    // Q: By setting pollStore will pollsStore update automatically? 
+    // A: No. I don't believe pollsStore updates when a new vote occurs using pollStore.set()
+    // Q: Should I use pollStore.update()? 
+    // A: Doesn't seem to help.
+    // Doing two commands seems error prone. Wonder if pollStore.update() could do the trick?
+		// pollStore.set({ poll: currentPoll, pda: $pollStore.pda }); // pollsStore DOESN'T update
+    // pollStore.update((self) => {
+    //   self.poll = currentPoll; 
+    //   self.pda = $pollStore.pda;
+    //   return self;
+    // }); // pollsStore DOESN'T update
+    // Q: Need to first pollStore.set() then pollsStore.updatePoll()?
+    // A: Yes, looks like I need to also update pollsStore or it can't see
+    // individual Poll updates. 
 		pollStore.set({ poll: currentPoll, pda: $pollStore.pda });
-    console.log('AFTER setting pollStore. pollsStore update?')
+    pollsStore.updatePoll($pollStore.pda as anchor.web3.PublicKey, currentPoll);
 
 		const currentProfile = (await $workspaceStore.program?.account.profile.fetch(
 			$profileStore.pda as anchor.web3.PublicKey
@@ -265,7 +287,7 @@
 			$pollStore.pda as anchor.web3.PublicKey
 		)) as PollObject;
     // Q: By setting pollStore will pollsStore update automatically? 
-    // U: I don't believe pollsStore updates when a new vote occurs using pollStore.set()
+    // A: No. I don't believe pollsStore updates when a new vote occurs using pollStore.set()
     // Q: Should I use pollStore.update()? 
     // A: Doesn't seem to help.
     // Doing two commands seems error prone. Wonder if pollStore.update() could do the trick?
@@ -303,29 +325,37 @@
 </script>
 
 <AnchorConnectionProvider {idl} {network} />
-{#if $pollStore}
-  <div class="stats shadow">
-    <div class="stat place-items-center">
-      <div class="stat-title">{$pollStore.poll?.optionADisplayLabel}</div>
-      <div class="stat-value">{$pollStore.poll?.optionACount}</div>
-      <Button disabled={!$walletStore.publicKey} on:click={handleCreateVoteForOptionA}
-        >{$pollStore.poll?.optionADisplayLabel}</Button
-      >
+<div class="md:hero mx-auto p-4">
+	<div class="md:hero-content flex flex-col">
+    {#if $pollStore}
+    <div class="stats shadow">
+      <div class="stat place-items-center">
+        <div class="stat-title">{$pollStore.poll?.optionADisplayLabel}</div>
+        <div class="stat-value">{$pollStore.poll?.optionACount}</div>
+        <Button disabled={!$walletStore.publicKey} on:click={handleCreateVoteForOptionA}
+          >{$pollStore.poll?.optionADisplayLabel}</Button
+        >
+      </div>
+      <div class="stat place-items-center border-none">
+        <div class="stat-title">{$pollStore.poll?.optionBDisplayLabel}</div>
+        <div class="stat-value">{$pollStore.poll?.optionBCount}</div>
+        <Button disabled={!$walletStore.publicKey} on:click={handleCreateVoteForOptionB}
+          >{$pollStore.poll?.optionBDisplayLabel}</Button
+        >
+      </div>
     </div>
-    <div class="stat place-items-center">
-      <div class="stat-title">{$pollStore.poll?.optionBDisplayLabel}</div>
-      <div class="stat-value">{$pollStore.poll?.optionBCount}</div>
-      <Button disabled={!$walletStore.publicKey} on:click={handleCreateVoteForOptionB}
-        >{$pollStore.poll?.optionBDisplayLabel}</Button
-      >
+    <div class="flex items-center justify-center">
+      <a role="button" class="btn " href="/polls">Back</a>
     </div>
-  </div>
-  <pre>{JSON.stringify($pollStore, null, 2)}</pre>
-  {#if $pollVotesStore}
-    {#each $pollVotesStore as vote (vote.voteNumber)}
-      <h5>wallet: {vote.authority}</h5>
-      <p>number: {vote.voteNumber}</p>
-      <p>selection: {vote.voteOption}</p>
-    {/each}
-  {/if}
-{/if}
+    <pre>{JSON.stringify($pollStore, null, 2)}</pre>
+    {#if $pollVotesStore}
+      {#each $pollVotesStore as vote (vote.voteNumber)}
+        <h5>wallet: {vote.authority}</h5>
+        <p>number: {vote.voteNumber}</p>
+        <p>selection: {vote.voteOption}</p>
+      {/each}
+    {/if}
+    {/if}
+	</div>
+</div>
+
