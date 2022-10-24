@@ -48,7 +48,7 @@
         REF: https://stackoverflow.com/questions/60424634/how-to-persist-svelte-store-state-across-route-change
         - DONE Seems like I could simply pass the Store as a prop to Poll component.
       - DONE Clear input fields after entry
-      - Add 'Back' button navigation
+      - DONE Add 'Back' button navigation
       - Add UI that shows Profile has already voted
       - Add UI that shows Profile created Poll
       - DONE Add stores/polls/index.ts file for easier imports

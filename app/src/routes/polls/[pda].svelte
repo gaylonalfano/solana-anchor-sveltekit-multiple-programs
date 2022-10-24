@@ -35,6 +35,7 @@
 	import { Button } from '$lib/index';
 	import * as constants from '../../helpers/polls/constants';
 	import { each } from 'svelte/internal';
+	import { stringify } from 'postcss';
 
 	const network = constants.NETWORK;
 
@@ -51,22 +52,7 @@
 	// 	return p.pollNumber.words[0] === parseInt($page.params.pollNumber);
 	// }) as anchor.IdlTypes<anchor.Idl>['Poll']; // NOTE MUST cast for Types!
 
-	$: {
-  //   console.log('$workspaceStore: ', $workspaceStore);
-    console.log('$workspaceStore.program: ', $workspaceStore?.program);
-    console.log('hasWorkspaceProgramReady: ', hasWorkspaceProgramReady);
-    console.log('$customProgramStore: ', $customProgramStore);
-    console.log('$profileStore: ', $profileStore);
-		console.log('$pollsStore: ', $pollsStore);
-    // console.log('$pollsStore.length: ', $pollsStore.length);
-		// console.log('$pollStore: ', $pollStore);
-    console.log('pollVotesStore: ', $pollVotesStore);
-    console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
-    console.log('hasPollStoreValues: ', hasPollStoreValues);
-    console.log('hasPollsStoreValues: ', hasPollsStoreValues);
-	}
-
-  // FIXME On page refresh, I lose all my Stores state. These conditional reactives
+  // Q: Why losing Store state on page refresh? These conditional reactives
   // combined with tick() helps, but feels fragile. Could consider adding a
   // polls/__layout.svelte that does this or something. Or, maybe there's a
   // Svelte solution specifically for this scenario.
@@ -91,6 +77,9 @@
   $: hasVotesStoreValues = $votesStore.length > 0;
   $: hasProfileStoreValues = $profileStore.profile !== null && $profileStore.pda !== null;
   $: hasCustomProgramStoreValues = $customProgramStore.customProgram !== null && $customProgramStore.pda !== null;
+  // $: hasVoted = profileHasVoted($pollVotesStore);
+  $: profileHasVoted = $pollVotesStore.some(v => v.profilePubkey.toBase58() === $profileStore.pda?.toBase58());
+  
 
   // Q: tick() needed if I add the conditional check?
   // U: Seems needed as it doesn't error. However, tick() fires a lot
@@ -197,6 +186,16 @@
     customProgramStore.getCustomProgramAccount()
   }
 
+  $: if(hasWorkspaceProgramReady && hasWalletReadyForFetch && !hasProfileStoreValues) {
+    console.log('$profileStore values are null. Refetching...')
+    profileStore.getProfileAccount(
+      $walletStore.publicKey as anchor.web3.PublicKey,
+      // $workspaceStore.program?.programId as anchor.web3.PublicKey,
+      constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
+      $workspaceStore.connection
+    );
+  }
+
   $: if(hasWorkspaceProgramReady && hasWalletReadyForFetch && !hasPollsStoreValues) {
     console.log('$pollsStore values are null. Refetching...')
     // Refetch pollsStore (probably lost on disconnect, refresh, etc)
@@ -229,15 +228,6 @@
     );
   }
 
-  $: if(hasWorkspaceProgramReady && hasWalletReadyForFetch && !hasProfileStoreValues) {
-    console.log('$profileStore values are null. Refetching...')
-    profileStore.getProfileAccount(
-      $walletStore.publicKey as anchor.web3.PublicKey,
-      // $workspaceStore.program?.programId as anchor.web3.PublicKey,
-      constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
-      $workspaceStore.connection
-    );
-  }
 
 
   beforeUpdate(() => console.log('Component BEFORE UPDATE.'));
@@ -441,6 +431,24 @@
 		});
 	}
 
+  $: {
+  //   console.log('$workspaceStore: ', $workspaceStore);
+    console.log('$workspaceStore.program: ', $workspaceStore?.program);
+    console.log('hasWorkspaceProgramReady: ', hasWorkspaceProgramReady);
+    console.log('$customProgramStore: ', $customProgramStore);
+    console.log('$profileStore: ', $profileStore);
+    console.log('$profileStore.pda: ', $profileStore.pda?.toBase58());
+		console.log('$pollsStore: ', $pollsStore);
+    // console.log('$pollsStore.length: ', $pollsStore.length);
+		// console.log('$pollStore: ', $pollStore);
+    console.log('pollVotesStore: ', $pollVotesStore);
+    console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
+    console.log('hasPollStoreValues: ', hasPollStoreValues);
+    console.log('hasPollsStoreValues: ', hasPollsStoreValues);
+	}
+
+
+
 </script>
 
 <AnchorConnectionProvider {idl} {network} />
@@ -466,15 +474,19 @@
     <div class="flex items-center justify-center">
       <a role="button" class="btn " href="/polls">Back</a>
     </div>
-    <pre>{JSON.stringify($pollStore, null, 2)}</pre>
+    <!-- <pre>{JSON.stringify($pollStore, null, 2)}</pre> -->
     {#if $pollVotesStore}
       {#each $pollVotesStore as vote (vote.voteNumber)}
         <h5>wallet: {vote.authority}</h5>
         <p>number: {vote.voteNumber}</p>
+        <p>profile: {vote.profilePubkey}</p>
         <p>selection: {vote.voteOption}</p>
       {/each}
+      <!-- <Button disabled={!$walletStore.publicKey} on:click={() => profileHasVoted($pollVotesStore)}>Profile voted?</Button> -->
+      <h4 class="bg-secondary text-accent">Profile has voted: {profileHasVoted}</h4>
     {/if}
     {/if}
 	</div>
 </div>
+<pre>{JSON.stringify($profileStore, null, 2)}</pre>
 
