@@ -48,7 +48,7 @@ function createProfileStore() {
         programId,
         { filters: profilesByAuthorityFilter }
       );
-      console.log('profileAccountsByAuthorityEncoded: ', profileAccountsByAuthorityEncoded);
+      // console.log('profileAccountsByAuthorityEncoded: ', profileAccountsByAuthorityEncoded);
 
       if(profileAccountsByAuthorityEncoded) {
         // Find the matching pda and ONLY decode the match
