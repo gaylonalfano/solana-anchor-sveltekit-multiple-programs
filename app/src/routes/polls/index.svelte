@@ -22,6 +22,7 @@
 	import { Button } from '$lib/index';
 	import Poll from '$lib/Poll.svelte';
 	import * as constants from '../../helpers/polls/constants';
+  import { getAllProgramAccountsMapsPromises } from '../../helpers/polls/getAllProgramAccounts';
 	import type {
 		CustomProgramObject,
 		ProfileObject,
@@ -42,6 +43,7 @@
             pollsStore.getPollsAccounts()
       - Add notifications for errors (2nd attempts, no SOL, no Profile, etc)
       - Look into how to move getAllProgramAccounts() to separate file
+        - U: getAllProgramAccountsMapsPromises
       - DONE How to pass or set() the pollStore on route change? This would save
         having to refetch the data or filter through pollsStore in /[pda].svelte
         Could consider adding a Poll component that takes props? Look into goto()
@@ -58,25 +60,6 @@
       - Prevent Polls with lowercase or UPPERCASE being created
   */
 
-	$: {
-		// console.log('walletStore: ', $walletStore);
-		// console.log('walletStore.PUBLICKEY: ', $walletStore.publicKey?.toBase58());
-		// console.log('walletStore.CONNECTED: ', $walletStore.connected);
-		// console.log('walletStore.CONNECTING: ', $walletStore.connecting);
-		// console.log('walletStore.DISCONNECTING: ', $walletStore.disconnecting);
-		// console.log('customProgram: ', customProgram);
-		console.log('customProgramStore: ', $customProgramStore);
-		// console.log('profilePda: ', profilePda?.toBase58());
-		console.log('profileStore: ', $profileStore);
-		// console.log('pollPda: ', pollPda);
-		// console.log('pollStore: ', $pollStore);
-		console.log('pollsStore: ', $pollsStore);
-		console.log('votesStore: ', $votesStore);
-		console.log('workspaceStore: ', $workspaceStore);
-    console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
-    console.log('hasPollsStoreValues: ', hasPollsStoreValues);
-    console.log('hasPollStoreValues: ', hasPollStoreValues);
-	}
 
 	const network = constants.NETWORK;
 
@@ -113,6 +96,8 @@
 
 
   // Create some variables to react to Stores' state
+  $: hasWorkspaceProgramReady = $workspaceStore && $workspaceStore.program && 
+    ($workspaceStore.program.programId.toBase58() === constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID.toBase58());
   $: hasWalletReadyForFetch = $walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting
   $: hasPollsStoreValues = $pollsStore.length > 0;
   $: hasPollStoreValues = $pollStore.pda !== null && $pollStore.poll !== null;
@@ -169,7 +154,20 @@
   // that too nested/removed so Svelte cannot subscribe?
   $: if(hasWalletReadyForFetch) {
       getAllProgramAccounts();
+    //   getAllProgramAccountsMapsPromises(
+    //   constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
+    //   $workspaceStore.connection,
+    //   $walletStore.publicKey as anchor.web3.PublicKey
+    // );
     } // WORKS on refresh! tick() may not be needed after all when adding conditions!
+
+  $: if(hasWalletReadyForFetch && hasWorkspaceProgramReady) {
+      console.log("Triggered!")
+      getAllProgramAccountsMapsPromises(
+        constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
+        $workspaceStore.connection,
+        $walletStore.publicKey as anchor.web3.PublicKey
+    )};
 
   // $: if(hasWalletReadyForFetch && !hasPollsStoreValues) {
   //     getAllProgramAccounts();
@@ -185,6 +183,26 @@
   //   pollStore.reset();
   // }
   
+	$: {
+		// console.log('walletStore: ', $walletStore);
+		// console.log('walletStore.PUBLICKEY: ', $walletStore.publicKey?.toBase58());
+		// console.log('walletStore.CONNECTED: ', $walletStore.connected);
+		// console.log('walletStore.CONNECTING: ', $walletStore.connecting);
+		// console.log('walletStore.DISCONNECTING: ', $walletStore.disconnecting);
+		// console.log('customProgram: ', customProgram);
+		console.log('customProgramStore: ', $customProgramStore);
+		// console.log('profilePda: ', profilePda?.toBase58());
+		console.log('profileStore: ', $profileStore);
+		// console.log('pollPda: ', pollPda);
+		// console.log('pollStore: ', $pollStore);
+		console.log('pollsStore: ', $pollsStore);
+		console.log('votesStore: ', $votesStore);
+		console.log('workspaceStore: ', $workspaceStore);
+    console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
+    console.log('hasWorkspaceProgramReady: ', hasWalletReadyForFetch);
+    console.log('hasPollsStoreValues: ', hasPollsStoreValues);
+    console.log('hasPollStoreValues: ', hasPollStoreValues);
+	}
 
 	/*
 	 * Create a dApp level PDA data account
@@ -508,44 +526,44 @@
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: customProgramFilter }
 		);
-    console.log('1. customProgramAccountsPromise AFTER gPA()+filters', customProgramAccountsPromise);
+    // console.log('1. customProgramAccountsPromise AFTER gPA()+filters', customProgramAccountsPromise);
 
 		// Only filtering on dataSize to reduce requests
 		const profileAccountsPromise = connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: profilesFilter }
 		);
-    console.log('2. profileAccounts AFTER gPA()+filters', profileAccountsPromise);
+    // console.log('2. profileAccounts AFTER gPA()+filters', profileAccountsPromise);
 
 		const profileAccountsByAuthorityPromise = connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: profilesByAuthorityFilter }
 		);
-    console.log('3. profileAccountsByAuthority AFTER gPA()+filters', profileAccountsByAuthorityPromise);
+    // console.log('3. profileAccountsByAuthority AFTER gPA()+filters', profileAccountsByAuthorityPromise);
 
 		const pollAccountsPromise = connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: pollsFilter }
 		);
-    console.log('4. pollAccounts AFTER gPA()+filters', pollAccountsPromise);
+    // console.log('4. pollAccounts AFTER gPA()+filters', pollAccountsPromise);
 
 		const pollAccountsByAuthorityPromise = connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: pollsByAuthorityFilter }
 		);
-    console.log('5. pollAccountsByAuthority AFTER gPA()+filters', pollAccountsByAuthorityPromise);
+    // console.log('5. pollAccountsByAuthority AFTER gPA()+filters', pollAccountsByAuthorityPromise);
 
     const voteAccountsPromise = connection.getProgramAccounts(
       $workspaceStore.program?.programId as PublicKey,
       { filters: votesFilter }
     );
-    console.log('6. voteAccounts AFTER gPA()+filters', voteAccountsPromise);
+    // console.log('6. voteAccounts AFTER gPA()+filters', voteAccountsPromise);
 
     const voteAccountsByAuthorityPromise = connection.getProgramAccounts(
       $workspaceStore.program?.programId as PublicKey,
       { filters: votesByAuthorityFilter }
     );
-    console.log('7. voteAccountsByAuthority AFTER gPA()+filters', voteAccountsByAuthorityPromise);
+    // console.log('7. voteAccountsByAuthority AFTER gPA()+filters', voteAccountsByAuthorityPromise);
 
     // NOTE Trying to use Promise.all() instead of blocking with multiple 'await' calls
     const accountsPromises = [
@@ -566,44 +584,44 @@
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: customProgramFilter }
 		);
-    console.log('1. customProgramAccounts AFTER gPA()+filters', customProgramAccounts);
+    // console.log('1. customProgramAccounts AFTER gPA()+filters', customProgramAccounts);
 
 		// Only filtering on dataSize to reduce requests
 		const profileAccounts = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: profilesFilter }
 		);
-    console.log('2. profileAccounts AFTER gPA()+filters', profileAccounts);
+    // console.log('2. profileAccounts AFTER gPA()+filters', profileAccounts);
 
 		const profileAccountsByAuthority = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: profilesByAuthorityFilter }
 		);
-    console.log('3. profileAccountsByAuthority AFTER gPA()+filters', profileAccountsByAuthority);
+    // console.log('3. profileAccountsByAuthority AFTER gPA()+filters', profileAccountsByAuthority);
 
 		const pollAccounts = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: pollsFilter }
 		);
-    console.log('4. pollAccounts AFTER gPA()+filters', pollAccounts);
+    // console.log('4. pollAccounts AFTER gPA()+filters', pollAccounts);
 
 		const pollAccountsByAuthority = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: pollsByAuthorityFilter }
 		);
-    console.log('5. pollAccountsByAuthority AFTER gPA()+filters', pollAccountsByAuthority);
+    // console.log('5. pollAccountsByAuthority AFTER gPA()+filters', pollAccountsByAuthority);
 
     const voteAccounts = await connection.getProgramAccounts(
       $workspaceStore.program?.programId as PublicKey,
       { filters: votesFilter }
     );
-    console.log('6. voteAccounts AFTER gPA()+filters', voteAccounts);
+    // console.log('6. voteAccounts AFTER gPA()+filters', voteAccounts);
 
     const voteAccountsByAuthority = await connection.getProgramAccounts(
       $workspaceStore.program?.programId as PublicKey,
       { filters: votesByAuthorityFilter }
     );
-    console.log('7. voteAccountsByAuthority AFTER gPA()+filters', voteAccountsByAuthority);
+    // console.log('7. voteAccountsByAuthority AFTER gPA()+filters', voteAccountsByAuthority);
 
 		// NOTE No filter - get all accounts and check size
 		const programAccounts = await connection.getProgramAccounts(

@@ -31,7 +31,7 @@ import type {
 // Try to fetch program accounts using getProgramAccounts()
 // REF: https://www.notion.so/Solana-Quick-Reference-c0704fee2afa4ee5827ded6937ef47df#680c6b9f0f074a37bfe02579309faad2
 // REF: https://solanacookbook.com/guides/get-program-accounts.html#filters
-export async function getAllProgramAccounts(
+export async function getAllProgramAccountsMapsPromises(
   programId: anchor.web3.PublicKey,
   connection: anchor.web3.Connection,
   authority: anchor.web3.PublicKey,
@@ -41,7 +41,7 @@ export async function getAllProgramAccounts(
 
   // NOTE After some testing, looks like the best condition to trigger this fn is:
   // walletStore.connected=true, connecting=false, disconnecting=false
-  console.log("getAllProgramAccounts INVOKED!")
+  console.log("getAllProgramAccountsMapsPromises INVOKED!")
 
   // 1. Establish a connection
   // const { connection } = $workspaceStore;
@@ -161,6 +161,7 @@ export async function getAllProgramAccounts(
     votesFilter,
     votesByAuthorityFilter,
   ];
+  // filters.forEach((f) => console.log("filter: ", f));
 
   // 3. Get the accounts based on filters
   // FIXME For some reason, whichever function runs next comes back empty!
@@ -176,61 +177,48 @@ export async function getAllProgramAccounts(
   // REF: https://www.learnwithjason.dev/blog/keep-async-await-from-blocking-execution
   // REF: https://www.notion.so/JavaScript-Quick-Reference-fa8a9e4d328d4a40aec6399a45422c53#eeb2c037a55c4f0e845389b1965a888d
   // === PROMISE.ALL()
-  const customProgramAccountsPromise = connection.getProgramAccounts(
-    programId,
-    { filters: customProgramFilter }
-  );
-  console.log('1. customProgramAccountsPromise AFTER gPA()+filters', customProgramAccountsPromise);
+  // const customProgramAccountsPromise = connection.getProgramAccounts(
+  //   programId,
+  //   { filters: customProgramFilter }
+  // );
+  // console.log('1. customProgramAccountsPromise AFTER gPA()+filters', customProgramAccountsPromise);
 
-  // Only filtering on dataSize to reduce requests
-  const profileAccountsPromise = connection.getProgramAccounts(
-    programId,
-    { filters: profilesFilter }
-  );
-  console.log('2. profileAccounts AFTER gPA()+filters', profileAccountsPromise);
+  // // Only filtering on dataSize to reduce requests
+  // const profileAccountsPromise = connection.getProgramAccounts(
+  //   programId,
+  //   { filters: profilesFilter }
+  // );
+  // console.log('2. profileAccounts AFTER gPA()+filters', profileAccountsPromise);
 
-  const profileAccountsByAuthorityPromise = connection.getProgramAccounts(
-    programId,
-    { filters: profilesByAuthorityFilter }
-  );
-  console.log('3. profileAccountsByAuthority AFTER gPA()+filters', profileAccountsByAuthorityPromise);
+  // const profileAccountsByAuthorityPromise = connection.getProgramAccounts(
+  //   programId,
+  //   { filters: profilesByAuthorityFilter }
+  // );
+  // console.log('3. profileAccountsByAuthority AFTER gPA()+filters', profileAccountsByAuthorityPromise);
 
-  const pollAccountsPromise = connection.getProgramAccounts(
-    programId,
-    { filters: pollsFilter }
-  );
-  console.log('4. pollAccounts AFTER gPA()+filters', pollAccountsPromise);
+  // const pollAccountsPromise = connection.getProgramAccounts(
+  //   programId,
+  //   { filters: pollsFilter }
+  // );
+  // console.log('4. pollAccounts AFTER gPA()+filters', pollAccountsPromise);
 
-  const pollAccountsByAuthorityPromise = connection.getProgramAccounts(
-    programId,
-    { filters: pollsByAuthorityFilter }
-  );
-  console.log('5. pollAccountsByAuthority AFTER gPA()+filters', pollAccountsByAuthorityPromise);
+  // const pollAccountsByAuthorityPromise = connection.getProgramAccounts(
+  //   programId,
+  //   { filters: pollsByAuthorityFilter }
+  // );
+  // console.log('5. pollAccountsByAuthority AFTER gPA()+filters', pollAccountsByAuthorityPromise);
 
-  const voteAccountsPromise = connection.getProgramAccounts(
-    programId,
-    { filters: votesFilter }
-  );
-  console.log('6. voteAccounts AFTER gPA()+filters', voteAccountsPromise);
+  // const voteAccountsPromise = connection.getProgramAccounts(
+  //   programId,
+  //   { filters: votesFilter }
+  // );
+  // console.log('6. voteAccounts AFTER gPA()+filters', voteAccountsPromise);
 
-  const voteAccountsByAuthorityPromise = connection.getProgramAccounts(
-    programId,
-    { filters: votesByAuthorityFilter }
-  );
-  console.log('7. voteAccountsByAuthority AFTER gPA()+filters', voteAccountsByAuthorityPromise);
-
-
-  // Q: Can I simplify and loop over filters to create array of Promises?
-  // Ideally I could match the account type ('Poll', 'Profile') with arrays...
-  const accountTypesWithFilters: Record<string, Array<GetProgramAccountsFilter[]>> = {
-    'CustomProgram': [customProgramFilter],
-    'Profile': [profilesFilter, profilesByAuthorityFilter],
-    'Poll': [pollsFilter, pollsByAuthorityFilter],
-    'Vote': [votesFilter, votesByAuthorityFilter],
-  };
-
-
-  
+  // const voteAccountsByAuthorityPromise = connection.getProgramAccounts(
+  //   programId,
+  //   { filters: votesByAuthorityFilter }
+  // );
+  // console.log('7. voteAccountsByAuthority AFTER gPA()+filters', voteAccountsByAuthorityPromise);
 
   // NOTE Trying to use Promise.all() instead of blocking with multiple 'await' calls
   // const accountsPromises = [
@@ -243,230 +231,308 @@ export async function getAllProgramAccounts(
   //   voteAccountsByAuthorityPromise
   // ];
 
+  // const filteredResults = await Promise.all(accountsPromises);
+  // console.log('filteredResults after Promise.all(): ', filteredResults); // Array of Arrays
+  // return filteredResults;
   // Q: How could I package the results in a way that are easy to 
   // access by account type? I need to decode the data, so I need
   // to loop through results and decode 'Poll', 'Profile', 'Vote', etc.
-  const filteredResults = await Promise.all(accountsPromises);
-  console.log('filteredResults after Promise.all(): ', filteredResults); // Array of Arrays
+  // U: Trying Maps + Promise.all() below.
 
 
-  return filteredResults;
+  // ==== UPDATE: Trying Maps + Promise.all() below =====
+  // Q: Can I simplify and loop over filters to create array of Promises?
+  // Ideally I could match the account type ('Poll', 'Profile') with arrays...
+  // Q: Should it be an Object or maybe a Map?
+  // const accountTypesWithFilters: Record<string, Array<GetProgramAccountsFilter[]>> = {
+  //   'CustomProgram': [customProgramFilter],
+  //   'Profile': [profilesFilter, profilesByAuthorityFilter],
+  //   'Poll': [pollsFilter, pollsByAuthorityFilter],
+  //   'Vote': [votesFilter, votesByAuthorityFilter],
+  // };
+
+
+  // U: Trying a Map instead.
+  // NOTE Maps preserve the order of insertions!
+  // NOTE I'm setting the value to a single GetProgramAccountsFilter[] to simplify.
+  // After decoding the data, I could find by authority, poll, vote, etc. later
+  const accountNames = ["CustomProgram", "Profile", "Poll", "Vote"];
+  const accountsFiltersMap = new Map<string, GetProgramAccountsFilter[]>();
+  accountsFiltersMap.set(accountNames[0], customProgramFilter);
+  accountsFiltersMap.set(accountNames[1], profilesFilter);
+  accountsFiltersMap.set(accountNames[2], pollsFilter);
+  accountsFiltersMap.set(accountNames[3], votesFilter);
+
+  // Confirm accountsFiltersMap has values
+  // console.log("accountsFilterMap have values?")
+  // for (let [key, value] of accountsFiltersMap.entries()) {
+  //   console.log(key);
+  //   console.log(value)
+  // };
+
+
+  // NOTE The returned Promise type is Promise<Record<string, any>>[]
+  const accountsPromisesMap = new Map<string, Promise<Record<string, any>[]>>();
+  // Loop over my Map using for...of loop to create another Map to hold Promises
+  for (let [key, value] of accountsFiltersMap.entries()) {
+    console.log(key);
+    console.log(value);
+    let promise = connection.getProgramAccounts(programId, { filters: value })
+    // Set new Map key: value pair
+    accountsPromisesMap.set(key, promise);
+  };
+  // Confirm accountsPromisesMap has values
+  // console.log("accountsPromisesMap have values?")
+  // for (let [key, value] of accountsPromisesMap.entries()) {
+  //   console.log(key);
+  //   console.log(value)
+  // };
+
+  // Need to await and resolve the Promises.
+  // At this point, should have a Map of key: value, where values are Array of Promises
+  // Loop through new Map and get Promises
+  const accountsEncodedResultsMap = new Map<string, Record<string, any>[]>();
+  // Q: Can I simply await Promise.all(Map.values())? And the set new Map values?
+  const encodedAccountsResults = await Promise.all(accountsPromisesMap.values());
+  // After this resolves and we have encoded results, set new Map
+  // NOTE If this works, may consider just returning this Map for this function
+  // and then create a separate function to decode the data
+  // NOTE There is a Map.size property that may help with looping...
+  encodedAccountsResults.forEach((value, index) => {
+    accountsEncodedResultsMap.set(
+      accountNames[index],
+      value
+    );
+  });
+
+  // NOTE At this point, should have a Map of encodedAccountsResults
+  // Next, need to decode. The Map will allow .get() => [{pubkey, account}...]
+  // U: Let's confirm this is working first. May split into another function to decode
+  console.log("accountsEncodedResultsMap have values?")
+  for (let [key, value] of accountsEncodedResultsMap.entries()) {
+    // console.log(`${key}: ${value}`);
+    console.log(key);
+    console.log(value);
+  }
+
+  return accountsEncodedResultsMap;
 };
 
 
-async function decodeAllProgramAccounts(
-  accounts: Record<string, any>[]
-) {
+// ==== UNCOMMENT EVERY LINE BELOW
+// async function decodeAllProgramAccounts(
+//   accounts: Record<string, any>[]
+// ) {
 
 
 
-}
-  // // === AWAIT
-  // const customProgramAccounts = await connection.getProgramAccounts(
-  //   programId,
-  //   { filters: customProgramFilter }
-  // );
-  // console.log('1. customProgramAccounts AFTER gPA()+filters', customProgramAccounts);
+// }
+//   // // === AWAIT
+//   // const customProgramAccounts = await connection.getProgramAccounts(
+//   //   programId,
+//   //   { filters: customProgramFilter }
+//   // );
+//   // console.log('1. customProgramAccounts AFTER gPA()+filters', customProgramAccounts);
 
-  // // Only filtering on dataSize to reduce requests
-  // const profileAccounts = await connection.getProgramAccounts(
-  //   programId,
-  //   { filters: profilesFilter }
-  // );
-  // console.log('2. profileAccounts AFTER gPA()+filters', profileAccounts);
+//   // // Only filtering on dataSize to reduce requests
+//   // const profileAccounts = await connection.getProgramAccounts(
+//   //   programId,
+//   //   { filters: profilesFilter }
+//   // );
+//   // console.log('2. profileAccounts AFTER gPA()+filters', profileAccounts);
 
-  // const profileAccountsByAuthority = await connection.getProgramAccounts(
-  //   programId,
-  //   { filters: profilesByAuthorityFilter }
-  // );
-  // console.log('3. profileAccountsByAuthority AFTER gPA()+filters', profileAccountsByAuthority);
+//   // const profileAccountsByAuthority = await connection.getProgramAccounts(
+//   //   programId,
+//   //   { filters: profilesByAuthorityFilter }
+//   // );
+//   // console.log('3. profileAccountsByAuthority AFTER gPA()+filters', profileAccountsByAuthority);
 
-  // const pollAccounts = await connection.getProgramAccounts(
-  //   programId,
-  //   { filters: pollsFilter }
-  // );
-  // console.log('4. pollAccounts AFTER gPA()+filters', pollAccounts);
+//   // const pollAccounts = await connection.getProgramAccounts(
+//   //   programId,
+//   //   { filters: pollsFilter }
+//   // );
+//   // console.log('4. pollAccounts AFTER gPA()+filters', pollAccounts);
 
-  // const pollAccountsByAuthority = await connection.getProgramAccounts(
-  //   programId,
-  //   { filters: pollsByAuthorityFilter }
-  // );
-  // console.log('5. pollAccountsByAuthority AFTER gPA()+filters', pollAccountsByAuthority);
+//   // const pollAccountsByAuthority = await connection.getProgramAccounts(
+//   //   programId,
+//   //   { filters: pollsByAuthorityFilter }
+//   // );
+//   // console.log('5. pollAccountsByAuthority AFTER gPA()+filters', pollAccountsByAuthority);
 
-  // const voteAccounts = await connection.getProgramAccounts(
-  //   programId,
-  //   { filters: votesFilter }
-  // );
-  // console.log('6. voteAccounts AFTER gPA()+filters', voteAccounts);
+//   // const voteAccounts = await connection.getProgramAccounts(
+//   //   programId,
+//   //   { filters: votesFilter }
+//   // );
+//   // console.log('6. voteAccounts AFTER gPA()+filters', voteAccounts);
 
-  // const voteAccountsByAuthority = await connection.getProgramAccounts(
-  //   programId,
-  //   { filters: votesByAuthorityFilter }
-  // );
-  // console.log('7. voteAccountsByAuthority AFTER gPA()+filters', voteAccountsByAuthority);
+//   // const voteAccountsByAuthority = await connection.getProgramAccounts(
+//   //   programId,
+//   //   { filters: votesByAuthorityFilter }
+//   // );
+//   // console.log('7. voteAccountsByAuthority AFTER gPA()+filters', voteAccountsByAuthority);
 
-  // // NOTE No filter - get all accounts and check size
-  // const programAccounts = await connection.getProgramAccounts(
-  //   programId
-  // );
-  // console.log('8. ALL programAccounts: ', programAccounts);
-
-
-
-  // Q: What does program.state return?
-  // U: Nothing??? Need to look into this more.
-  // const programState = await $workspaceStore.program?.state.fetch(); // null
-  // console.log(programState);
-
-  // 4. Do what we want... i.e., Update our Stores state
-  // Q: Why is the AccountInfo data returning a Buffer? How do I parse the data?
-  // U: Turns out you parse the account according to its struct. So, each program
-  // will package it up differently. However, if the account is a data account,
-  // then you may be able to read the data using the program.account.fetch() API.
-  // U: By using getProgramAccounts() and then fetch(), you're essentially fetching TWICE.
-  // Was suggested to gPA and then program.coder.accounts.decode(), but how?
-  // A: Need to manually decode using program.coder!
-  // console.log('=== CustomProgram ===');
-  // NOTE Each item in array is type: { account: AccountInfo<Buffer>, pubkey: PublicKey }
-  // NOTE Must use map() NOT forEach()!
-  customProgramStore.reset();
-  const decodedCustomProgramAccounts = customProgramAccounts.map((value) => {
-    // const parsedAccountInfo = value.account.data as anchor.web3.ParsedAccountData;
-    // console.log(parsedAccountInfo); // Uint8Array
-    // // console.log(parsedAccountInfo.parsed); // null
-
-    // Manually decode and update Store
-    const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
-      'CustomProgram',
-      value.account.data
-    ); // WORKS! It's CAPITAL 'P'!
-    console.log('decodedAccountInfo: ', decodedAccountInfo);
-
-    // Update Store state
-    console.log("UPDATING customProgramStore from inside gPA()")
-    customProgramStore.set({ customProgram: decodedAccountInfo, pda: value.pubkey }); // ?
-    // customProgramStore.update((current) => {
-    //      current.customProgram = decodedAccountInfo;
-    //      current.pda = value.pubkey;
-    //      return current;
-    //    }) // WORKS!
-  });
-
-  // console.log('=== Profiles ===');
-  // Q: What does program.coder look like?
-  // Q: Does my workspaceStore.program have the Idl of OnchainVotingMultiplePolls?
-  // Q: Is there a Typing issue i.e., should it say BorshCoder or just Coder?
-  // A: See below:
-  // console.log("program: ");
-  // console.log($workspaceStore.program!) // Program {coder, idl, programId, provider}
-  // console.log("program.coder: ");
-  // console.log($workspaceStore.program!.coder) // BorshCoder {instructions, accounts, events}
-  // console.log("program.coder.accounts: ");
-  // console.log($workspaceStore.program!.coder.accounts) // BorshAccountsCoder {accountLayouts, idl}
-
-  // Q: How to use program.coder?
-  // REF: program.coder.accounts.decode<anchor.IdlAccounts<DegenerateStar>["star"]>("star", data!);
-  // A: program.coder.accounts.decode("Profile", value.account.data); No need for types since we have IDL!
-  // Q: Should I reset my Stores before the fetch? I think so, 
-  // since my pollsStore, profilesStore arrays are duplicating.
-  // U: Gonna try only resetting my arrays
-  // A: Yep, seems to be working correctly now...
-  profilesStore.reset();
-  const decodedProfileAccounts = profileAccounts.map((value) => {
-    const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
-      'Profile',
-      value.account.data
-    ); // WORKS! It's CAPITAL 'P'!
-
-    // Update Store state
-    console.log("UPDATING profilesStore from inside gPA()")
-    profilesStore.addProfile(decodedAccountInfo, value.pubkey);
-    // profilesStore.update((profiles) => [...profiles, decodedAccountInfo]);
-  });
-
-  const decodedProfileAccountsByAuthority = profileAccountsByAuthority.map((value) => {
-    const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
-      'Profile',
-      value.account.data
-    );
-    // Update Store state
-    console.log("UPDATING profileStore from inside gPA()")
-    profileStore.set({ profile: decodedAccountInfo, pda: value.pubkey });
-
-    // === Debugging below ===
-    // $workspaceStore.program?.account.profile._coder.decode("Profile", account.account.data as Buffer); // E: _coder is private
-    // return $workspaceStore.program!.coder.accounts.decode("profile", account.account.data); // E: Unknown account: profile
-
-    // return $workspaceStore.program!.coder.accounts.decode("Profile", account.account.data); // WORKS! It's CAPITAL 'P'!
-    // return $workspaceStore.program?.coder.accounts.decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("profile", account.account.data as Buffer); // Error: Unknown account: profile
-    // return $workspaceStore.program?.coder.profile.decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("Profile", value.account.data); // E: 'profile' does not exist on type 'Coder'
-
-    // return $workspaceStore.program?.coder<anchor.IdlAccounts<OnchainVotingMultiplePolls>["profile"]>
-    //   .profile.decode("Profile", value.account.data); // E:
-
-    // return $workspaceStore.program?.coder.accounts
-    // .decode<anchor.IdlAccounts<OnchainVotingMultiplePolls>["profile"]>("profile", value.account.data as Buffer); // Error: Unknown account: profile
-    // .decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("profile", value.account.data as Buffer); // Error: Unknown account: profile
-
-    // return $workspaceStore.program?.coder.accounts.profile
-    //   .decode(anchor.IdlTypes<anchor.Idl>["Profile"], value.account.data as Buffer); // E: 'profile' does not exist on type AccountsCoder<string>
-
-    // console.log("profileAccount #: ", i);
-    // console.log(value);
-
-    // return $workspaceStore.program?.coder
-    // ==========================
-  });
-
-  // console.log('=== Polls ===');
-  // NOTE Each item in array is type: { account: AccountInfo<Buffer>, pubkey: PublicKey }
-  // Q: Should I reset my Stores before the fetch? I think so, 
-  // since my pollsStore, profilesStore arrays are duplicating.
-  // U: Gonna try only resetting my arrays
-  // A: Yep, seems to be working correctly now...
-  pollsStore.reset();
-  const decodedPollAccounts = pollAccounts.map((value) => {
-    // Manually decode the account data using coder
-    const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
-      'Poll',
-      value.account.data
-    );
-
-    // Update Store
-    pollsStore.addPoll(decodedAccountInfo, value.pubkey);
-  });
-
-  // NOTE I'm currently not updating the single pollStore from this
-  // call, since it depends on the route/pda, etc.
-
-  // console.log('=== Votes ===');
-  votesStore.reset();
-  const decodedVoteAccounts = voteAccounts.map((value) => {
-    // Manually decode the account data using coder
-    const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
-      'Vote',
-      value.account.data
-    );
-
-    // Update Store
-    // NOTE Not storing PDA for Votes as I don't see the point...
-    votesStore.addVote(decodedAccountInfo);
-  });
-}
-
-async function loadAllProgramAccounts() {
-  // TODO Refactor
-  // ===UPDATE===
-  // WAIT on this... let's get it working and then can refactor later
-
-  // 1. Get the accounts from 'await Promise.all()'
-  const accounts = await getAllProgramAccounts();
-
-  // 2. Decode the data
-  const decodedAccounts = await decodeAllProgramAccounts(accounts);
-
-  // 3. Update Stores
+//   // // NOTE No filter - get all accounts and check size
+//   // const programAccounts = await connection.getProgramAccounts(
+//   //   programId
+//   // );
+//   // console.log('8. ALL programAccounts: ', programAccounts);
 
 
-}
+
+//   // Q: What does program.state return?
+//   // U: Nothing??? Need to look into this more.
+//   // const programState = await $workspaceStore.program?.state.fetch(); // null
+//   // console.log(programState);
+
+//   // 4. Do what we want... i.e., Update our Stores state
+//   // Q: Why is the AccountInfo data returning a Buffer? How do I parse the data?
+//   // U: Turns out you parse the account according to its struct. So, each program
+//   // will package it up differently. However, if the account is a data account,
+//   // then you may be able to read the data using the program.account.fetch() API.
+//   // U: By using getProgramAccounts() and then fetch(), you're essentially fetching TWICE.
+//   // Was suggested to gPA and then program.coder.accounts.decode(), but how?
+//   // A: Need to manually decode using program.coder!
+//   // console.log('=== CustomProgram ===');
+//   // NOTE Each item in array is type: { account: AccountInfo<Buffer>, pubkey: PublicKey }
+//   // NOTE Must use map() NOT forEach()!
+//   customProgramStore.reset();
+//   const decodedCustomProgramAccounts = customProgramAccounts.map((value) => {
+//     // const parsedAccountInfo = value.account.data as anchor.web3.ParsedAccountData;
+//     // console.log(parsedAccountInfo); // Uint8Array
+//     // // console.log(parsedAccountInfo.parsed); // null
+
+//     // Manually decode and update Store
+//     const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
+//       'CustomProgram',
+//       value.account.data
+//     ); // WORKS! It's CAPITAL 'P'!
+//     console.log('decodedAccountInfo: ', decodedAccountInfo);
+
+//     // Update Store state
+//     console.log("UPDATING customProgramStore from inside gPA()")
+//     customProgramStore.set({ customProgram: decodedAccountInfo, pda: value.pubkey }); // ?
+//     // customProgramStore.update((current) => {
+//     //      current.customProgram = decodedAccountInfo;
+//     //      current.pda = value.pubkey;
+//     //      return current;
+//     //    }) // WORKS!
+//   });
+
+//   // console.log('=== Profiles ===');
+//   // Q: What does program.coder look like?
+//   // Q: Does my workspaceStore.program have the Idl of OnchainVotingMultiplePolls?
+//   // Q: Is there a Typing issue i.e., should it say BorshCoder or just Coder?
+//   // A: See below:
+//   // console.log("program: ");
+//   // console.log($workspaceStore.program!) // Program {coder, idl, programId, provider}
+//   // console.log("program.coder: ");
+//   // console.log($workspaceStore.program!.coder) // BorshCoder {instructions, accounts, events}
+//   // console.log("program.coder.accounts: ");
+//   // console.log($workspaceStore.program!.coder.accounts) // BorshAccountsCoder {accountLayouts, idl}
+
+//   // Q: How to use program.coder?
+//   // REF: program.coder.accounts.decode<anchor.IdlAccounts<DegenerateStar>["star"]>("star", data!);
+//   // A: program.coder.accounts.decode("Profile", value.account.data); No need for types since we have IDL!
+//   // Q: Should I reset my Stores before the fetch? I think so, 
+//   // since my pollsStore, profilesStore arrays are duplicating.
+//   // U: Gonna try only resetting my arrays
+//   // A: Yep, seems to be working correctly now...
+//   profilesStore.reset();
+//   const decodedProfileAccounts = profileAccounts.map((value) => {
+//     const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
+//       'Profile',
+//       value.account.data
+//     ); // WORKS! It's CAPITAL 'P'!
+
+//     // Update Store state
+//     console.log("UPDATING profilesStore from inside gPA()")
+//     profilesStore.addProfile(decodedAccountInfo, value.pubkey);
+//     // profilesStore.update((profiles) => [...profiles, decodedAccountInfo]);
+//   });
+
+//   const decodedProfileAccountsByAuthority = profileAccountsByAuthority.map((value) => {
+//     const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
+//       'Profile',
+//       value.account.data
+//     );
+//     // Update Store state
+//     console.log("UPDATING profileStore from inside gPA()")
+//     profileStore.set({ profile: decodedAccountInfo, pda: value.pubkey });
+
+//     // === Debugging below ===
+//     // $workspaceStore.program?.account.profile._coder.decode("Profile", account.account.data as Buffer); // E: _coder is private
+//     // return $workspaceStore.program!.coder.accounts.decode("profile", account.account.data); // E: Unknown account: profile
+
+//     // return $workspaceStore.program!.coder.accounts.decode("Profile", account.account.data); // WORKS! It's CAPITAL 'P'!
+//     // return $workspaceStore.program?.coder.accounts.decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("profile", account.account.data as Buffer); // Error: Unknown account: profile
+//     // return $workspaceStore.program?.coder.profile.decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("Profile", value.account.data); // E: 'profile' does not exist on type 'Coder'
+
+//     // return $workspaceStore.program?.coder<anchor.IdlAccounts<OnchainVotingMultiplePolls>["profile"]>
+//     //   .profile.decode("Profile", value.account.data); // E:
+
+//     // return $workspaceStore.program?.coder.accounts
+//     // .decode<anchor.IdlAccounts<OnchainVotingMultiplePolls>["profile"]>("profile", value.account.data as Buffer); // Error: Unknown account: profile
+//     // .decode<anchor.IdlTypes<anchor.Idl>["Profile"]>("profile", value.account.data as Buffer); // Error: Unknown account: profile
+
+//     // return $workspaceStore.program?.coder.accounts.profile
+//     //   .decode(anchor.IdlTypes<anchor.Idl>["Profile"], value.account.data as Buffer); // E: 'profile' does not exist on type AccountsCoder<string>
+
+//     // console.log("profileAccount #: ", i);
+//     // console.log(value);
+
+//     // return $workspaceStore.program?.coder
+//     // ==========================
+//   });
+
+//   // console.log('=== Polls ===');
+//   // NOTE Each item in array is type: { account: AccountInfo<Buffer>, pubkey: PublicKey }
+//   // Q: Should I reset my Stores before the fetch? I think so, 
+//   // since my pollsStore, profilesStore arrays are duplicating.
+//   // U: Gonna try only resetting my arrays
+//   // A: Yep, seems to be working correctly now...
+//   pollsStore.reset();
+//   const decodedPollAccounts = pollAccounts.map((value) => {
+//     // Manually decode the account data using coder
+//     const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
+//       'Poll',
+//       value.account.data
+//     );
+
+//     // Update Store
+//     pollsStore.addPoll(decodedAccountInfo, value.pubkey);
+//   });
+
+//   // NOTE I'm currently not updating the single pollStore from this
+//   // call, since it depends on the route/pda, etc.
+
+//   // console.log('=== Votes ===');
+//   votesStore.reset();
+//   const decodedVoteAccounts = voteAccounts.map((value) => {
+//     // Manually decode the account data using coder
+//     const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
+//       'Vote',
+//       value.account.data
+//     );
+
+//     // Update Store
+//     // NOTE Not storing PDA for Votes as I don't see the point...
+//     votesStore.addVote(decodedAccountInfo);
+//   });
+// }
+
+// async function loadAllProgramAccounts() {
+//   // TODO Refactor
+//   // ===UPDATE===
+//   // WAIT on this... let's get it working and then can refactor later
+
+//   // 1. Get the accounts from 'await Promise.all()'
+//   const accounts = await getAllProgramAccounts();
+
+//   // 2. Decode the data
+//   const decodedAccounts = await decodeAllProgramAccounts(accounts);
+
+//   // 3. Update Stores
+
+
+// }
 
