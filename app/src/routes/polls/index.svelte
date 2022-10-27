@@ -41,9 +41,11 @@
             customProgramStore.getCustomProgramAccount()
             profileStore.getProfileAccount()
             pollsStore.getPollsAccounts()
+      - Move the re-fetch logic to polls/__layout.svelte component
+        for consistency between polls and polls/[pda] routes
       - Add notifications for errors (2nd attempts, no SOL, no Profile, etc)
-      - Look into how to move getAllProgramAccounts() to separate file
-        - U: getAllProgramAccountsMapsPromises
+      - DONE Look into how to move getAllProgramAccounts() to separate file
+        - A: getAllProgramAccountsMapsPromises
       - DONE How to pass or set() the pollStore on route change? This would save
         having to refetch the data or filter through pollsStore in /[pda].svelte
         Could consider adding a Poll component that takes props? Look into goto()
@@ -94,15 +96,15 @@
 	let votePda: anchor.web3.PublicKey;
 
 	// Create some variables to react to Stores' state
-	$: hasWorkspaceProgramReady =
-		$workspaceStore &&
-		$workspaceStore.program &&
-		$workspaceStore.program.programId.toBase58() ===
-			constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID.toBase58();
-	$: hasWalletReadyForFetch =
-		$walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting;
-	$: hasPollsStoreValues = $pollsStore.length > 0;
-	$: hasPollStoreValues = $pollStore.pda !== null && $pollStore.poll !== null;
+	// $: hasWorkspaceProgramReady =
+	// 	$workspaceStore &&
+	// 	$workspaceStore.program &&
+	// 	$workspaceStore.program.programId.toBase58() ===
+	// 		constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID.toBase58();
+	// $: hasWalletReadyForFetch =
+	// 	$walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting;
+	// $: hasPollsStoreValues = $pollsStore.length > 0;
+	// $: hasPollStoreValues = $pollStore.pda !== null && $pollStore.poll !== null;
 
 	// REF: Check out SolAndy's YT video on deserializing account data
 	// Q: How to pre-fetch data? How to use getAllProgramAccounts()
@@ -163,13 +165,13 @@
 	//   // );
 	//   } // works on refresh! tick() may not be needed after all when adding conditions!
 
-	$: if (hasWalletReadyForFetch && hasWorkspaceProgramReady) {
-		getAllProgramAccountsMapsPromises(
-			constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
-			$workspaceStore.connection,
-			$walletStore.publicKey as anchor.web3.PublicKey
-		);
-	}
+	// $: if (hasWalletReadyForFetch && hasWorkspaceProgramReady) {
+	// 	getAllProgramAccountsMapsPromises(
+	// 		constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
+	// 		$workspaceStore.connection,
+	// 		$walletStore.publicKey as anchor.web3.PublicKey
+	// 	);
+	// }
 
 	// $: if(hasWalletReadyForFetch && !hasPollsStoreValues) {
 	//     getAllProgramAccounts();
@@ -185,26 +187,26 @@
 	//   pollStore.reset();
 	// }
 
-	$: {
-		// console.log('walletStore: ', $walletStore);
-		// console.log('walletStore.PUBLICKEY: ', $walletStore.publicKey?.toBase58());
-		// console.log('walletStore.CONNECTED: ', $walletStore.connected);
-		// console.log('walletStore.CONNECTING: ', $walletStore.connecting);
-		// console.log('walletStore.DISCONNECTING: ', $walletStore.disconnecting);
-		// console.log('customProgram: ', customProgram);
-		console.log('customProgramStore: ', $customProgramStore);
-		// console.log('profilePda: ', profilePda?.toBase58());
-		console.log('profileStore: ', $profileStore);
-		// console.log('pollPda: ', pollPda);
-		// console.log('pollStore: ', $pollStore);
-		console.log('pollsStore: ', $pollsStore);
-		console.log('votesStore: ', $votesStore);
-		console.log('workspaceStore: ', $workspaceStore);
-		console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
-		console.log('hasWorkspaceProgramReady: ', hasWalletReadyForFetch);
-		console.log('hasPollsStoreValues: ', hasPollsStoreValues);
-		console.log('hasPollStoreValues: ', hasPollStoreValues);
-	}
+	// $: {
+	// 	// console.log('walletStore: ', $walletStore);
+	// 	// console.log('walletStore.PUBLICKEY: ', $walletStore.publicKey?.toBase58());
+	// 	// console.log('walletStore.CONNECTED: ', $walletStore.connected);
+	// 	// console.log('walletStore.CONNECTING: ', $walletStore.connecting);
+	// 	// console.log('walletStore.DISCONNECTING: ', $walletStore.disconnecting);
+	// 	// console.log('customProgram: ', customProgram);
+	// 	console.log('customProgramStore: ', $customProgramStore);
+	// 	// console.log('profilePda: ', profilePda?.toBase58());
+	// 	console.log('profileStore: ', $profileStore);
+	// 	// console.log('pollPda: ', pollPda);
+	// 	// console.log('pollStore: ', $pollStore);
+	// 	console.log('pollsStore: ', $pollsStore);
+	// 	console.log('votesStore: ', $votesStore);
+	// 	console.log('workspaceStore: ', $workspaceStore);
+	// 	console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
+	// 	console.log('hasWorkspaceProgramReady: ', hasWalletReadyForFetch);
+	// 	console.log('hasPollsStoreValues: ', hasPollsStoreValues);
+	// 	console.log('hasPollStoreValues: ', hasPollStoreValues);
+	// }
 
 	/*
 	 * Create a dApp level PDA data account
@@ -868,7 +870,6 @@
 	}
 </script>
 
-<AnchorConnectionProvider {network} {idl} />
 <div class="md:hero mx-auto p-4">
 	<div class="md:hero-content flex flex-col">
 		<h1

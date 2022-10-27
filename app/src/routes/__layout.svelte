@@ -3,6 +3,11 @@
 
 	globalThis.Buffer = Buffer;
 	// Q: Where should I try to pre-fetch account data?
+	// A: Think __layout component is a good spot. I tried doing
+	// it inside /polls and /polls/[pda] routes, but had slightly
+	// different behavior between the routes and sometimes stores
+	// state would get stale.
+	// REF Check out polls/__layout.svelte for the multiple polls program
 </script>
 
 <script lang="ts">
