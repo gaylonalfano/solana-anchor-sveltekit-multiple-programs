@@ -7,13 +7,13 @@ import { PROFILE_SEED_PREFIX, POLL_ACCOUNT_SPACE, PROFILE_ACCOUNT_SPACE } from '
 import { PublicKey, type GetProgramAccountsFilter } from '@solana/web3.js';
 
 // =========== WITH CUSTOM TYPE TO STORE PDA ============
-export type ProfileStore = {
+export type ProfileStoreObject = {
   profile: ProfileObject | null,
   pda: anchor.web3.PublicKey | null,
 }
 
 function createProfileStore() {
-  const { subscribe, set, update } = writable<ProfileStore>({ profile: null, pda: null })
+  const { subscribe, set, update } = writable<ProfileStoreObject>({ profile: null, pda: null })
 
   return {
     subscribe,

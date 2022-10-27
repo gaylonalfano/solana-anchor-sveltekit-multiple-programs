@@ -9,20 +9,20 @@
 	import { onMount, beforeUpdate, afterUpdate, tick } from 'svelte';
 	import type { Writable } from 'svelte/store';
 	import { get } from 'svelte/store';
-  import { goto } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { notificationStore } from '$stores/notification';
-  import { 
-    customProgramStore,
-    profileStore,
-    profilesStore,
-    pollStore,
-    pollsStore,
-    votesStore
-  } from '$stores/polls/index'
+	import {
+		customProgramStore,
+		profileStore,
+		profilesStore,
+		pollStore,
+		pollsStore,
+		votesStore
+	} from '$stores/polls/index';
 	import { Button } from '$lib/index';
 	import Poll from '$lib/Poll.svelte';
 	import * as constants from '../../helpers/polls/constants';
-  import { getAllProgramAccountsMapsPromises } from '../../helpers/polls/getAllProgramAccounts';
+	import { getAllProgramAccountsMapsPromises } from '../../helpers/polls/getAllProgramAccounts';
 	import type {
 		CustomProgramObject,
 		ProfileObject,
@@ -60,7 +60,6 @@
       - Prevent Polls with lowercase or UPPERCASE being created
   */
 
-
 	const network = constants.NETWORK;
 
 	// U: onMount runs BEFORE workspace is connected!
@@ -94,13 +93,16 @@
 	let vote: VoteObject;
 	let votePda: anchor.web3.PublicKey;
 
-
-  // Create some variables to react to Stores' state
-  $: hasWorkspaceProgramReady = $workspaceStore && $workspaceStore.program && 
-    ($workspaceStore.program.programId.toBase58() === constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID.toBase58());
-  $: hasWalletReadyForFetch = $walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting
-  $: hasPollsStoreValues = $pollsStore.length > 0;
-  $: hasPollStoreValues = $pollStore.pda !== null && $pollStore.poll !== null;
+	// Create some variables to react to Stores' state
+	$: hasWorkspaceProgramReady =
+		$workspaceStore &&
+		$workspaceStore.program &&
+		$workspaceStore.program.programId.toBase58() ===
+			constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID.toBase58();
+	$: hasWalletReadyForFetch =
+		$walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting;
+	$: hasPollsStoreValues = $pollsStore.length > 0;
+	$: hasPollStoreValues = $pollStore.pda !== null && $pollStore.poll !== null;
 
 	// REF: Check out SolAndy's YT video on deserializing account data
 	// Q: How to pre-fetch data? How to use getAllProgramAccounts()
@@ -112,77 +114,77 @@
 	// REF: https://svelte-recipes.netlify.app/language/#variable-deconstruction
 	// $: ({ publicKey, sendTransaction } = $walletStore);
 	// REF: https://svelte-recipes.netlify.app/language/#defining-dependencies
-  // U: Think I may need to reset my Stores before the fetch...
-  // A: Yep, added a reset() just before updating my arrays Stores
-  // Q: Watch the entire walletStore or just walletStore.publicKey or walletStore.connected?
-  // U: publicKey or connected seem to invoke at the same time.
-  // U: Looks like connected == true && connecting == false is the best... need to test
-  // Otherwise, it gPA() gets invoked multiple times.
-  // U: Actually: connected=true && connecting=false && disconnecting=false
+	// U: Think I may need to reset my Stores before the fetch...
+	// A: Yep, added a reset() just before updating my arrays Stores
+	// Q: Watch the entire walletStore or just walletStore.publicKey or walletStore.connected?
+	// U: publicKey or connected seem to invoke at the same time.
+	// U: Looks like connected == true && connecting == false is the best... need to test
+	// Otherwise, it gPA() gets invoked multiple times.
+	// U: Actually: connected=true && connecting=false && disconnecting=false
 	// $: $walletStore && getAllProgramAccounts(); // Too many triggers
 	// $: $walletStore.publicKey && getAllProgramAccounts();
 	// $: $walletStore.connected && getAllProgramAccounts(); // Runs SEVERAL times
 	// $: $walletStore.connected && !$walletStore.connecting && getAllProgramAccounts(); // Runs TWICE (disconnect & connect)
-	// $: $walletStore.connected 
-  //    && !$walletStore.connecting 
-  //    && !$walletStore.disconnecting 
-  //    && getAllProgramAccounts(); // First call is EMTPY!
-	// $: $walletStore.connected 
-  //    && !$walletStore.connecting 
-  //    && !$walletStore.disconnecting 
-  //    && getAllProgramAccounts().then(response => console.log('gPA response:', response)); // First call is EMPTY!
-  // U: Trying $: tick().then(() => ....)
-  // REF: https://dev.to/isaachagoel/svelte-reactivity-gotchas-solutions-if-you-re-using-svelte-in-production-you-should-read-this-3oj3
-  // $: tick().then(async () => {
-  //   if($walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting) {
-  //     await getAllProgramAccounts();
-  //   }
-  // }) // WORKS on refresh! Q: Need async/await? A: No. See below
-  // $: tick().then(() => {
-  //   if($walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting) {
-  //     getAllProgramAccounts();
-  //   }
-  // }) // WORKS on refresh! async/await not needed it seems...
-  // Q: tick() needed?
-  // A: Don't think so as long as I add conditions!
-  // Q: Why does this fire when navigating 'back' from /polls/[pda]? Guess it could re-fetch
-  // and update but seems like a lot of fetches...
-  // A: This triggers even we have pollsStore data. Not always necessary I think...
-  // U: Actually, when navigating 'back', I do need to refresh this data since, if I don't,
-  // then pollsStore won't reflect latest state/votes, etc. The extra fetches may be needed...
-  // Q: If a new Vote occurs and updates the Poll, does this also update pollsStore? Or, is
-  // that too nested/removed so Svelte cannot subscribe?
-  $: if(hasWalletReadyForFetch) {
-      getAllProgramAccounts();
-    //   getAllProgramAccountsMapsPromises(
-    //   constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
-    //   $workspaceStore.connection,
-    //   $walletStore.publicKey as anchor.web3.PublicKey
-    // );
-    } // WORKS on refresh! tick() may not be needed after all when adding conditions!
+	// $: $walletStore.connected
+	//    && !$walletStore.connecting
+	//    && !$walletStore.disconnecting
+	//    && getAllProgramAccounts(); // First call is EMTPY!
+	// $: $walletStore.connected
+	//    && !$walletStore.connecting
+	//    && !$walletStore.disconnecting
+	//    && getAllProgramAccounts().then(response => console.log('gPA response:', response)); // First call is EMPTY!
+	// U: Trying $: tick().then(() => ....)
+	// REF: https://dev.to/isaachagoel/svelte-reactivity-gotchas-solutions-if-you-re-using-svelte-in-production-you-should-read-this-3oj3
+	// $: tick().then(async () => {
+	//   if($walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting) {
+	//     await getAllProgramAccounts();
+	//   }
+	// }) // WORKS on refresh! Q: Need async/await? A: No. See below
+	// $: tick().then(() => {
+	//   if($walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting) {
+	//     getAllProgramAccounts();
+	//   }
+	// }) // WORKS on refresh! async/await not needed it seems...
+	// Q: tick() needed?
+	// A: Don't think so as long as I add conditions!
+	// Q: Why does this fire when navigating 'back' from /polls/[pda]? Guess it could re-fetch
+	// and update but seems like a lot of fetches...
+	// A: This triggers even we have pollsStore data. Not always necessary I think...
+	// U: Actually, when navigating 'back', I do need to refresh this data since, if I don't,
+	// then pollsStore won't reflect latest state/votes, etc. The extra fetches may be needed...
+	// Q: If a new Vote occurs and updates the Poll, does this also update pollsStore? Or, is
+	// that too nested/removed so Svelte cannot subscribe?
+	// $: if(haswalletreadyforfetch) {
+	//     getallprogramaccounts();
+	//   //   getallprogramaccountsmapspromises(
+	//   //   constants.onchain_voting_multiple_polls_program_id,
+	//   //   $workspacestore.connection,
+	//   //   $walletstore.publickey as anchor.web3.publickey
+	//   // );
+	//   } // works on refresh! tick() may not be needed after all when adding conditions!
 
-  $: if(hasWalletReadyForFetch && hasWorkspaceProgramReady) {
-      console.log("Triggered!")
-      getAllProgramAccountsMapsPromises(
-        constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
-        $workspaceStore.connection,
-        $walletStore.publicKey as anchor.web3.PublicKey
-    )};
+	$: if (hasWalletReadyForFetch && hasWorkspaceProgramReady) {
+		getAllProgramAccountsMapsPromises(
+			constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
+			$workspaceStore.connection,
+			$walletStore.publicKey as anchor.web3.PublicKey
+		);
+	}
 
-  // $: if(hasWalletReadyForFetch && !hasPollsStoreValues) {
-  //     getAllProgramAccounts();
-  //   } // BETTER on refresh! tick() may not be needed after all when adding conditions!
-  // U: TODO May use stale pollsStore data though... need to test.
+	// $: if(hasWalletReadyForFetch && !hasPollsStoreValues) {
+	//     getAllProgramAccounts();
+	//   } // BETTER on refresh! tick() may not be needed after all when adding conditions!
+	// U: TODO May use stale pollsStore data though... need to test.
 
-  // Clear/reset single pollStore if user clicks 'back' from [pda] route
-  // Q: How to know when they hit 'back' button from [pda]? Sveltekit has before/afterNavigate()
-  // Also have beforeunload
-  // REF: https://stackoverflow.com/questions/63161871/svelte-how-to-trap-browser-back-button-or-unload
-  // REF: https://kit.svelte.dev/docs/modules#$app-navigation-afternavigate
-  // $: if(hasPollStoreValues && [otherConditionOrAlwaysResets]) {
-  //   pollStore.reset();
-  // }
-  
+	// Clear/reset single pollStore if user clicks 'back' from [pda] route
+	// Q: How to know when they hit 'back' button from [pda]? Sveltekit has before/afterNavigate()
+	// Also have beforeunload
+	// REF: https://stackoverflow.com/questions/63161871/svelte-how-to-trap-browser-back-button-or-unload
+	// REF: https://kit.svelte.dev/docs/modules#$app-navigation-afternavigate
+	// $: if(hasPollStoreValues && [otherConditionOrAlwaysResets]) {
+	//   pollStore.reset();
+	// }
+
 	$: {
 		// console.log('walletStore: ', $walletStore);
 		// console.log('walletStore.PUBLICKEY: ', $walletStore.publicKey?.toBase58());
@@ -198,10 +200,10 @@
 		console.log('pollsStore: ', $pollsStore);
 		console.log('votesStore: ', $votesStore);
 		console.log('workspaceStore: ', $workspaceStore);
-    console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
-    console.log('hasWorkspaceProgramReady: ', hasWalletReadyForFetch);
-    console.log('hasPollsStoreValues: ', hasPollsStoreValues);
-    console.log('hasPollStoreValues: ', hasPollStoreValues);
+		console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
+		console.log('hasWorkspaceProgramReady: ', hasWalletReadyForFetch);
+		console.log('hasPollsStoreValues: ', hasPollsStoreValues);
+		console.log('hasPollStoreValues: ', hasPollStoreValues);
 	}
 
 	/*
@@ -309,12 +311,10 @@
 		// A: I believe just set() since we overwrite the whole thing
 		customProgramStore.set({ customProgram: currentCustomProgram, pda: $customProgramStore.pda });
 
-    // Clear inputs
-    pollOptionADisplayName = '';
-    pollOptionBDisplayName = '';
-
+		// Clear inputs
+		pollOptionADisplayName = '';
+		pollOptionBDisplayName = '';
 	}
-
 
 	async function handleCreatePoll() {
 		// Q: If the same user goes between /polls or /polls/[pollNumber],
@@ -382,23 +382,21 @@
 		// Q: update() or set() Store?
 		customProgramStore.set({ customProgram: currentCustomProgram, pda: $customProgramStore.pda });
 
-    // Clear inputs
-    pollOptionADisplayName = '';
-    pollOptionBDisplayName = '';
-
+		// Clear inputs
+		pollOptionADisplayName = '';
+		pollOptionBDisplayName = '';
 	}
 
-
-  // Try to fetch program accounts using getProgramAccounts()
+	// Try to fetch program accounts using getProgramAccounts()
 	// REF: https://www.notion.so/Solana-Quick-Reference-c0704fee2afa4ee5827ded6937ef47df#680c6b9f0f074a37bfe02579309faad2
 	// REF: https://solanacookbook.com/guides/get-program-accounts.html#filters
 	export async function getAllProgramAccounts() {
 		if (!get(walletStore)) throw Error('Wallet not connected!');
 		if (!get(workspaceStore)) throw Error('Workspace not found!');
 
-    // NOTE After some testing, looks like the best condition to trigger this fn is:
-    // walletStore.connected=true, connecting=false, disconnecting=false
-    console.log("getAllProgramAccounts INVOKED!")
+		// NOTE After some testing, looks like the best condition to trigger this fn is:
+		// walletStore.connected=true, connecting=false, disconnecting=false
+		console.log('getAllProgramAccounts INVOKED!');
 
 		// 1. Establish a connection
 		const { connection } = $workspaceStore;
@@ -483,18 +481,17 @@
 				memcmp: {
 					offset: 8, // 32 when 'authority' was just before bump
 					// Q: Shouldn't the authority be a CONST instead of wallet-based?
-					// bytes: $walletStore.publicKey!.toBase58() 
-					bytes: "2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE"
+					// bytes: $walletStore.publicKey!.toBase58()
+					bytes: '2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE'
 				}
 			}
 		];
 
-    const votesFilter: GetProgramAccountsFilter[] = [
+		const votesFilter: GetProgramAccountsFilter[] = [
 			{
 				dataSize: 115
-			},
+			}
 		];
-
 
 		const votesByAuthorityFilter: GetProgramAccountsFilter[] = [
 			{
@@ -503,140 +500,134 @@
 			{
 				memcmp: {
 					offset: 8, // 32 when 'authority' was just before bump
-					bytes: $walletStore.publicKey!.toBase58(),
+					bytes: $walletStore.publicKey!.toBase58()
 				}
-			},
+			}
 		];
 
 		// 3. Get the accounts based on filters
-    // FIXME For some reason, whichever function runs next comes back empty!
-    // You can swap the order and still comes back empty while the rest work.
-    // Is my reactive able to be async to await these? Strange...
-    // My function is async, but the reactive cannot await, so I feel like
-    // the first function is getting skipped (not awaited).
-    // Q: Do I need to use .then() inside the reactive statement?
-    // U: Don't think so since this fn returns void...
-    // U: I think I'm BLOCKING by doing multiple awaits. 
-    // I believe I should maybe remove the 'await' and just get the Promises,
-    // and then using 'await Promise.all(promises)' at the very end.
-    // REF: https://www.learnwithjason.dev/blog/keep-async-await-from-blocking-execution
-    // REF: https://www.notion.so/JavaScript-Quick-Reference-fa8a9e4d328d4a40aec6399a45422c53#eeb2c037a55c4f0e845389b1965a888d
-    // === PROMISE.ALL()
+		// FIXME For some reason, whichever function runs next comes back empty!
+		// You can swap the order and still comes back empty while the rest work.
+		// Is my reactive able to be async to await these? Strange...
+		// My function is async, but the reactive cannot await, so I feel like
+		// the first function is getting skipped (not awaited).
+		// Q: Do I need to use .then() inside the reactive statement?
+		// U: Don't think so since this fn returns void...
+		// U: I think I'm BLOCKING by doing multiple awaits.
+		// I believe I should maybe remove the 'await' and just get the Promises,
+		// and then using 'await Promise.all(promises)' at the very end.
+		// REF: https://www.learnwithjason.dev/blog/keep-async-await-from-blocking-execution
+		// REF: https://www.notion.so/JavaScript-Quick-Reference-fa8a9e4d328d4a40aec6399a45422c53#eeb2c037a55c4f0e845389b1965a888d
+		// === PROMISE.ALL()
 		const customProgramAccountsPromise = connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: customProgramFilter }
 		);
-    // console.log('1. customProgramAccountsPromise AFTER gPA()+filters', customProgramAccountsPromise);
+		// console.log('1. customProgramAccountsPromise AFTER gPA()+filters', customProgramAccountsPromise);
 
 		// Only filtering on dataSize to reduce requests
 		const profileAccountsPromise = connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: profilesFilter }
 		);
-    // console.log('2. profileAccounts AFTER gPA()+filters', profileAccountsPromise);
+		// console.log('2. profileAccounts AFTER gPA()+filters', profileAccountsPromise);
 
 		const profileAccountsByAuthorityPromise = connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: profilesByAuthorityFilter }
 		);
-    // console.log('3. profileAccountsByAuthority AFTER gPA()+filters', profileAccountsByAuthorityPromise);
+		// console.log('3. profileAccountsByAuthority AFTER gPA()+filters', profileAccountsByAuthorityPromise);
 
 		const pollAccountsPromise = connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: pollsFilter }
 		);
-    // console.log('4. pollAccounts AFTER gPA()+filters', pollAccountsPromise);
+		// console.log('4. pollAccounts AFTER gPA()+filters', pollAccountsPromise);
 
 		const pollAccountsByAuthorityPromise = connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: pollsByAuthorityFilter }
 		);
-    // console.log('5. pollAccountsByAuthority AFTER gPA()+filters', pollAccountsByAuthorityPromise);
+		// console.log('5. pollAccountsByAuthority AFTER gPA()+filters', pollAccountsByAuthorityPromise);
 
-    const voteAccountsPromise = connection.getProgramAccounts(
-      $workspaceStore.program?.programId as PublicKey,
-      { filters: votesFilter }
-    );
-    // console.log('6. voteAccounts AFTER gPA()+filters', voteAccountsPromise);
+		const voteAccountsPromise = connection.getProgramAccounts(
+			$workspaceStore.program?.programId as PublicKey,
+			{ filters: votesFilter }
+		);
+		// console.log('6. voteAccounts AFTER gPA()+filters', voteAccountsPromise);
 
-    const voteAccountsByAuthorityPromise = connection.getProgramAccounts(
-      $workspaceStore.program?.programId as PublicKey,
-      { filters: votesByAuthorityFilter }
-    );
-    // console.log('7. voteAccountsByAuthority AFTER gPA()+filters', voteAccountsByAuthorityPromise);
+		const voteAccountsByAuthorityPromise = connection.getProgramAccounts(
+			$workspaceStore.program?.programId as PublicKey,
+			{ filters: votesByAuthorityFilter }
+		);
+		// console.log('7. voteAccountsByAuthority AFTER gPA()+filters', voteAccountsByAuthorityPromise);
 
-    // NOTE Trying to use Promise.all() instead of blocking with multiple 'await' calls
-    const accountsPromises = [
-      customProgramAccountsPromise,
-      profileAccountsPromise,
-      profileAccountsByAuthorityPromise,
-      pollAccountsPromise,
-      pollAccountsByAuthorityPromise,
-      voteAccountsPromise,
-      voteAccountsByAuthorityPromise
-    ];
-    const filteredResults = await Promise.all(accountsPromises);
-    console.log('filteredResults after Promise.all(): ', filteredResults);
+		// NOTE Trying to use Promise.all() instead of blocking with multiple 'await' calls
+		const accountsPromises = [
+			customProgramAccountsPromise,
+			profileAccountsPromise,
+			profileAccountsByAuthorityPromise,
+			pollAccountsPromise,
+			pollAccountsByAuthorityPromise,
+			voteAccountsPromise,
+			voteAccountsByAuthorityPromise
+		];
+		const filteredResults = await Promise.all(accountsPromises);
+		console.log('filteredResults after Promise.all(): ', filteredResults);
 
-
-    // === AWAIT
-    const customProgramAccounts = await connection.getProgramAccounts(
+		// === AWAIT
+		const customProgramAccounts = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: customProgramFilter }
 		);
-    // console.log('1. customProgramAccounts AFTER gPA()+filters', customProgramAccounts);
+		// console.log('1. customProgramAccounts AFTER gPA()+filters', customProgramAccounts);
 
 		// Only filtering on dataSize to reduce requests
 		const profileAccounts = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: profilesFilter }
 		);
-    // console.log('2. profileAccounts AFTER gPA()+filters', profileAccounts);
+		// console.log('2. profileAccounts AFTER gPA()+filters', profileAccounts);
 
 		const profileAccountsByAuthority = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: profilesByAuthorityFilter }
 		);
-    // console.log('3. profileAccountsByAuthority AFTER gPA()+filters', profileAccountsByAuthority);
+		// console.log('3. profileAccountsByAuthority AFTER gPA()+filters', profileAccountsByAuthority);
 
 		const pollAccounts = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: pollsFilter }
 		);
-    // console.log('4. pollAccounts AFTER gPA()+filters', pollAccounts);
+		// console.log('4. pollAccounts AFTER gPA()+filters', pollAccounts);
 
 		const pollAccountsByAuthority = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as PublicKey,
 			{ filters: pollsByAuthorityFilter }
 		);
-    // console.log('5. pollAccountsByAuthority AFTER gPA()+filters', pollAccountsByAuthority);
+		// console.log('5. pollAccountsByAuthority AFTER gPA()+filters', pollAccountsByAuthority);
 
-    const voteAccounts = await connection.getProgramAccounts(
-      $workspaceStore.program?.programId as PublicKey,
-      { filters: votesFilter }
-    );
-    // console.log('6. voteAccounts AFTER gPA()+filters', voteAccounts);
+		const voteAccounts = await connection.getProgramAccounts(
+			$workspaceStore.program?.programId as PublicKey,
+			{ filters: votesFilter }
+		);
+		// console.log('6. voteAccounts AFTER gPA()+filters', voteAccounts);
 
-    const voteAccountsByAuthority = await connection.getProgramAccounts(
-      $workspaceStore.program?.programId as PublicKey,
-      { filters: votesByAuthorityFilter }
-    );
-    // console.log('7. voteAccountsByAuthority AFTER gPA()+filters', voteAccountsByAuthority);
+		const voteAccountsByAuthority = await connection.getProgramAccounts(
+			$workspaceStore.program?.programId as PublicKey,
+			{ filters: votesByAuthorityFilter }
+		);
+		// console.log('7. voteAccountsByAuthority AFTER gPA()+filters', voteAccountsByAuthority);
 
 		// NOTE No filter - get all accounts and check size
 		const programAccounts = await connection.getProgramAccounts(
 			$workspaceStore.program?.programId as anchor.web3.PublicKey
 		);
-    console.log('8. ALL programAccounts: ', programAccounts);
-
-
-
-
+		console.log('8. ALL programAccounts: ', programAccounts);
 
 		// const parsedProgramAccounts = await connection.getParsedProgramAccounts(
 		// 	$workspaceStore.program?.programId as PublicKey
 		// );
-
 
 		// Q: What does program.state return?
 		// U: Nothing??? Need to look into this more.
@@ -653,8 +644,8 @@
 		// A: Need to manually decode using program.coder!
 		// console.log('=== CustomProgram ===');
 		// NOTE Each item in array is type: { account: AccountInfo<Buffer>, pubkey: PublicKey }
-    // NOTE Must use map() NOT forEach()!
-    customProgramStore.reset();
+		// NOTE Must use map() NOT forEach()!
+		customProgramStore.reset();
 		const decodedCustomProgramAccounts = customProgramAccounts.map((value) => {
 			// const parsedAccountInfo = value.account.data as anchor.web3.ParsedAccountData;
 			// console.log(parsedAccountInfo); // Uint8Array
@@ -668,13 +659,13 @@
 			console.log('decodedAccountInfo: ', decodedAccountInfo);
 
 			// Update Store state
-      console.log("UPDATING customProgramStore from inside gPA()")
+			console.log('UPDATING customProgramStore from inside gPA()');
 			customProgramStore.set({ customProgram: decodedAccountInfo, pda: value.pubkey }); // ?
 			// customProgramStore.update((current) => {
-   //      current.customProgram = decodedAccountInfo;
-   //      current.pda = value.pubkey;
-   //      return current;
-   //    }) // WORKS!
+			//      current.customProgram = decodedAccountInfo;
+			//      current.pda = value.pubkey;
+			//      return current;
+			//    }) // WORKS!
 		});
 
 		// console.log('=== Profiles ===');
@@ -692,11 +683,11 @@
 		// Q: How to use program.coder?
 		// REF: program.coder.accounts.decode<anchor.IdlAccounts<DegenerateStar>["star"]>("star", data!);
 		// A: program.coder.accounts.decode("Profile", value.account.data); No need for types since we have IDL!
-    // Q: Should I reset my Stores before the fetch? I think so, 
-    // since my pollsStore, profilesStore arrays are duplicating.
-    // U: Gonna try only resetting my arrays
-    // A: Yep, seems to be working correctly now...
-    profilesStore.reset();
+		// Q: Should I reset my Stores before the fetch? I think so,
+		// since my pollsStore, profilesStore arrays are duplicating.
+		// U: Gonna try only resetting my arrays
+		// A: Yep, seems to be working correctly now...
+		profilesStore.reset();
 		const decodedProfileAccounts = profileAccounts.map((value) => {
 			const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
 				'Profile',
@@ -704,7 +695,7 @@
 			); // WORKS! It's CAPITAL 'P'!
 
 			// Update Store state
-      console.log("UPDATING profilesStore from inside gPA()")
+			console.log('UPDATING profilesStore from inside gPA()');
 			profilesStore.addProfile(decodedAccountInfo, value.pubkey);
 			// profilesStore.update((profiles) => [...profiles, decodedAccountInfo]);
 		});
@@ -715,7 +706,7 @@
 				value.account.data
 			);
 			// Update Store state
-      console.log("UPDATING profileStore from inside gPA()")
+			console.log('UPDATING profileStore from inside gPA()');
 			profileStore.set({ profile: decodedAccountInfo, pda: value.pubkey });
 
 			// === Debugging below ===
@@ -745,11 +736,11 @@
 
 		// console.log('=== Polls ===');
 		// NOTE Each item in array is type: { account: AccountInfo<Buffer>, pubkey: PublicKey }
-    // Q: Should I reset my Stores before the fetch? I think so, 
-    // since my pollsStore, profilesStore arrays are duplicating.
-    // U: Gonna try only resetting my arrays
-    // A: Yep, seems to be working correctly now...
-    pollsStore.reset();
+		// Q: Should I reset my Stores before the fetch? I think so,
+		// since my pollsStore, profilesStore arrays are duplicating.
+		// U: Gonna try only resetting my arrays
+		// A: Yep, seems to be working correctly now...
+		pollsStore.reset();
 		const decodedPollAccounts = pollAccounts.map((value) => {
 			// Manually decode the account data using coder
 			const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
@@ -761,11 +752,11 @@
 			pollsStore.addPoll(decodedAccountInfo, value.pubkey);
 		});
 
-    // NOTE I'm currently not updating the single pollStore from this
-    // call, since it depends on the route/pda, etc.
+		// NOTE I'm currently not updating the single pollStore from this
+		// call, since it depends on the route/pda, etc.
 
-    // console.log('=== Votes ===');
-    votesStore.reset();
+		// console.log('=== Votes ===');
+		votesStore.reset();
 		const decodedVoteAccounts = voteAccounts.map((value) => {
 			// Manually decode the account data using coder
 			const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
@@ -774,10 +765,9 @@
 			);
 
 			// Update Store
-      // NOTE Not storing PDA for Votes as I don't see the point...
+			// NOTE Not storing PDA for Votes as I don't see the point...
 			votesStore.addVote(decodedAccountInfo);
 		});
-
 
 		// console.log('=== All PARSED ProgramAccounts ===');
 		// parsedProgramAccounts.forEach((value, i) => {
@@ -825,18 +815,17 @@
 		// });
 	}
 
-  async function loadAllProgramAccounts() {
-    // TODO Refactor
-    // ===UPDATE===
-    // WAIT on this... let's get it working and then can refactor later
+	async function loadAllProgramAccounts() {
+		// TODO Refactor
+		// ===UPDATE===
+		// WAIT on this... let's get it working and then can refactor later
 
-    // 1. Get the accounts from 'await Promise.all()'
-    const accounts = await getAllProgramAccounts();
+		// 1. Get the accounts from 'await Promise.all()'
+		const accounts = await getAllProgramAccounts();
 
-    // 2. Decode the data
-    // 3. Update Stores
-
-  }
+		// 2. Decode the data
+		// 3. Update Stores
+	}
 
 	// Q: Can I use this to update/fetch my Stores?
 	async function derivePda(seeds: Buffer[]) {
@@ -854,7 +843,6 @@
 		return pda;
 	}
 
-
 	// Testing out my customProgramStore.getCustomProgramAccount()
 	async function handleGetCustomProgram() {
 		// Q: Do I need to derive PDA here or inside Store?
@@ -865,22 +853,19 @@
 		await customProgramStore.getCustomProgramAccount(); // null
 	}
 
-  // Q: How to persist Store state/data across route changes?
-  // Without a Poll component, whenever I click a <a> link, pollStore
-  // isn't set. Or, whenever I hit 'back', my Stores reset.
-  // U: Look into Svelte's goto():
-  // REF: https://stackoverflow.com/questions/60424634/how-to-persist-svelte-store-state-across-route-change
-  async function navigateAndSaveStores(href: string) {
-    await goto(href);
-    // Save something, do something with db, etc.
-    // E.g., href=/polls/[pda]
-    // TODO
-    const matchingPoll = $pollsStore.find((p) => p.pda === href.slice())
-    pollStore.set
-
-
-
-  }
+	// Q: How to persist Store state/data across route changes?
+	// Without a Poll component, whenever I click a <a> link, pollStore
+	// isn't set. Or, whenever I hit 'back', my Stores reset.
+	// U: Look into Svelte's goto():
+	// REF: https://stackoverflow.com/questions/60424634/how-to-persist-svelte-store-state-across-route-change
+	async function navigateAndSaveStores(href: string) {
+		await goto(href);
+		// Save something, do something with db, etc.
+		// E.g., href=/polls/[pda]
+		// TODO
+		const matchingPoll = $pollsStore.find((p) => p.pda?.toBase58() === href.slice());
+		pollStore.set;
+	}
 </script>
 
 <AnchorConnectionProvider {network} {idl} />
@@ -926,19 +911,21 @@
 				disabled={!$walletStore.publicKey && (!pollOptionADisplayName || !pollOptionBDisplayName)}
 				on:click={handleCreatePoll}>Create Poll</Button
 			>
-      {#if $pollsStore}
-        {#each $pollsStore as {poll, pda} (pda)}
-            <Poll poll={poll} pda={pda.toBase58()} />
-        {/each}
-      {/if}
+			{#if $pollsStore}
+				{#each $pollsStore as { poll, pda } (pda)}
+					<Poll {poll} pda={pda.toBase58()} />
+				{/each}
+			{/if}
 			<Button disabled={!$walletStore.publicKey} on:click={getAllProgramAccounts}
 				>Get Program Accounts</Button
 			>
-			<Button disabled={!$walletStore.publicKey} on:click={() => pollsStore.getPollAccounts(
-        constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
-        $workspaceStore.connection,
-      )}
-				>Get Poll Accounts</Button
+			<Button
+				disabled={!$walletStore.publicKey}
+				on:click={() =>
+					pollsStore.getPollAccounts(
+						constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
+						$workspaceStore.connection
+					)}>Get Poll Accounts</Button
 			>
 		</div>
 	</div>

@@ -5,6 +5,7 @@ import { PublicKey, type GetProgramAccountsFilter } from '@solana/web3.js';
 import type { OnchainVotingMultiplePolls } from '../../idl/onchain_voting_multiple_polls';
 import idl from '../../../../target/idl/onchain_voting_multiple_polls.json';
 import { get } from 'svelte/store';
+import { page } from '$app/stores';
 import { notificationStore } from '$stores/notification';
 import { customProgramStore } from '$stores/polls/custom-program-store';
 import { profileStore } from '$stores/polls/profile-store';
@@ -15,9 +16,12 @@ import * as constants from './constants';
 import type {
   CustomProgramObject,
   ProfileObject,
+  ProfileStoreObject,
   PollObject,
+  PollStoreObject,
   VoteObject
 } from '../../models/polls-types';
+import { pollVotesStore, votesStore } from '$stores/polls';
 
 // ==== UPDATE ====
 // Not entirely sure how to use this and/or recreate the workspaceStore
@@ -152,15 +156,16 @@ export async function getAllProgramAccountsMapsPromises(
   ];
 
   // Q: Create an Object or something to hold all these filters
-  const filters: Array<GetProgramAccountsFilter[]> = [
-    customProgramFilter,
-    profilesFilter,
-    profilesByAuthorityFilter,
-    pollsFilter,
-    pollsByAuthorityFilter,
-    votesFilter,
-    votesByAuthorityFilter,
-  ];
+  // U: Decided to set() these to Map keys
+  // const filters: Array<GetProgramAccountsFilter[]> = [
+  //   customProgramFilter,
+  //   profilesFilter,
+  //   profilesByAuthorityFilter,
+  //   pollsFilter,
+  //   pollsByAuthorityFilter,
+  //   votesFilter,
+  //   votesByAuthorityFilter,
+  // ];
   // filters.forEach((f) => console.log("filter: ", f));
 
   // 3. Get the accounts based on filters
@@ -275,8 +280,8 @@ export async function getAllProgramAccountsMapsPromises(
   const accountsPromisesMap = new Map<string, Promise<Record<string, any>[]>>();
   // Loop over my Map using for...of loop to create another Map to hold Promises
   for (let [key, value] of accountsFiltersMap.entries()) {
-    console.log(key);
-    console.log(value);
+    // console.log(key);
+    // console.log(value);
     let promise = connection.getProgramAccounts(programId, { filters: value })
     // Set new Map key: value pair
     accountsPromisesMap.set(key, promise);
@@ -315,15 +320,124 @@ export async function getAllProgramAccountsMapsPromises(
     console.log(value);
   }
 
-  return accountsEncodedResultsMap;
+  // return accountsEncodedResultsMap;
+
+  // Try to decode with helper
+  await decodeAllProgramAccounts(accountsEncodedResultsMap);
+  console.log("Decoding complete. Confirm state has updated.");
 };
 
 
-// ==== UNCOMMENT EVERY LINE BELOW
-// async function decodeAllProgramAccounts(
-//   accounts: Record<string, any>[]
-// ) {
+async function decodeAllProgramAccounts(
+  encodedAccountsMap: Map<string, Record<string, any>[]>
+) {
+  console.log("decodeAllProgramAccounts INVOKED!");
+  // 1. Reset Stores
+  // Q: Do I need to even reset? Need to test...
+  // U: Could consider storing all Stores into an Array or Object,
+  // so that when we decode, we can set correct Store data
+  // A: Yes! Must reset when doing this full re-fetch
+  customProgramStore.reset();
+  profilesStore.reset();
+  profileStore.reset();
+  pollsStore.reset();
+  pollStore.reset();
+  votesStore.reset();
 
+
+  // 2. Loop through encoded Map and decode account data
+  for (let [key, value] of encodedAccountsMap.entries()) {
+    // Q: Can I use workspace.program.decode? 
+    // A: Yes!
+    // NOTE Without Anchor workspace using borsh schema:
+    // E.g. borsh.struct([borsh.bool('isActive'), borsh.str('name'), ...])
+    // Loop through array 'value' and decode
+    value.forEach((v) => {
+      const decodedAccountInfo = get(workspaceStore).program!.coder.accounts.decode(
+        key, // E.g., CustomProgram, Profile, etc.
+        v.account.data
+      );
+      // console.log(`${key}::decodedAccountInfo: `);
+      // console.log(decodedAccountInfo);
+
+      // Update Store (Arrays only) state.
+      // NOTE Need to later filter the arrays for single Stores (profileStore, etc.)
+      // Q: Create a helper object/array to save Stores? Or, just add
+      // some conditional logic if key === CustomProgram then customProgramStore.set()...
+      // A: Going with simple if/else logic for now
+      if (key === "CustomProgram") {
+        customProgramStore.set({ customProgram: decodedAccountInfo, pda: v.pubkey })
+      } else if (key === "Profile") {
+        profilesStore.addProfile(decodedAccountInfo, v.pubkey);
+      } else if (key === "Poll") {
+        pollsStore.addPoll(decodedAccountInfo, v.pubkey)
+      } else if (key === "Vote") {
+        votesStore.addVote(decodedAccountInfo)
+      }
+
+    });
+  }
+
+  // 3. Array Stores updated. Time to update single Stores (if available)
+  // NOTE Single stores may not be present (i.e., wallet doesn't have Profile, not on Poll page)
+  try {
+    let currentProfileStoreObject = get(profilesStore).find(
+      (value) => value.profile?.authority?.toBase58() === get(walletStore).publicKey?.toBase58()
+    ) as ProfileStoreObject;
+    // console.log('currentProfileStoreObject: ', currentProfileStoreObject);
+    if (currentProfileStoreObject) {
+      profileStore.set({
+        profile: currentProfileStoreObject.profile,
+        pda: currentProfileStoreObject.pda
+      })
+    }
+
+  } catch (e) {
+    console.log("Profile not found in profilesStore. Single profileStore not updated.")
+    console.warn(e);
+  }
+
+  try {
+    let currentPollStoreObject = get(pollsStore).find(
+      (value: PollStoreObject) => value.pda?.toBase58() === get(page).params.pda
+    ) as PollStoreObject;
+    // console.log('currentPollStoreObject: ', currentPollStoreObject);
+    if (currentPollStoreObject) {
+      pollStore.set({
+        poll: currentPollStoreObject.poll,
+        pda: currentPollStoreObject.pda
+      })
+    }
+
+    // TODO Confirm that derived pollVotesStore updates as well
+
+  } catch (e) {
+    console.log("Poll not found in pollsStore. Single pollStore not updated.")
+    console.warn(e);
+  }
+}
+
+//   const decodedCustomProgramAccounts = customProgramAccounts.map((value) => {
+//     // const parsedAccountInfo = value.account.data as anchor.web3.ParsedAccountData;
+//     // console.log(parsedAccountInfo); // Uint8Array
+//     // // console.log(parsedAccountInfo.parsed); // null
+
+//     // Manually decode and update Store
+//     const decodedAccountInfo = $workspaceStore.program!.coder.accounts.decode(
+//       'CustomProgram',
+//       value.account.data
+//     ); // WORKS! It's CAPITAL 'P'!
+//     console.log('decodedAccountInfo: ', decodedAccountInfo);
+
+//     // Update Store state
+//     console.log("UPDATING customProgramStore from inside gPA()")
+//     customProgramStore.set({ customProgram: decodedAccountInfo, pda: value.pubkey }); // ?
+//     // customProgramStore.update((current) => {
+//     //      current.customProgram = decodedAccountInfo;
+//     //      current.pda = value.pubkey;
+//     //      return current;
+//     //    }) // WORKS!
+//   });
 
 
 // }
@@ -518,21 +632,5 @@ export async function getAllProgramAccountsMapsPromises(
 //     // NOTE Not storing PDA for Votes as I don't see the point...
 //     votesStore.addVote(decodedAccountInfo);
 //   });
-// }
-
-// async function loadAllProgramAccounts() {
-//   // TODO Refactor
-//   // ===UPDATE===
-//   // WAIT on this... let's get it working and then can refactor later
-
-//   // 1. Get the accounts from 'await Promise.all()'
-//   const accounts = await getAllProgramAccounts();
-
-//   // 2. Decode the data
-//   const decodedAccounts = await decodeAllProgramAccounts(accounts);
-
-//   // 3. Update Stores
-
-
 // }
 
