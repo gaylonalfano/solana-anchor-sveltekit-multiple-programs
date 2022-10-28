@@ -37,8 +37,6 @@
 	import { each } from 'svelte/internal';
 	import { stringify } from 'postcss';
 
-	const network = constants.NETWORK;
-
 	// Q: How to match up types between pollNumber (BN) and pollNumberFromLoad?
 	// A: It's a Type mismatch! The IDL Poll.pollNumber.words[0] is 'number'!
 	// let poll = $pollsStore.find((p) => p.pollNumber.toBase58() === pollNumberFromLoad); // ERROR
@@ -69,23 +67,12 @@
 	// U: Done. Check out polls/__layout.svelte
 
 	// Create some variables to react to Stores state
-	// $: hasWorkspaceProgramReady =
-	// 	$workspaceStore &&
-	// 	$workspaceStore.program &&
-	// 	$workspaceStore.program.programId.toBase58() ===
-	// 		constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID.toBase58();
-	// $: hasWalletReadyForFetch =
-	// 	$walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting;
-	$: hasPollStoreValues = $pollStore.poll !== null && $pollStore.pda !== null;
 	$: hasPollsStoreValues = $pollsStore.length > 0;
+	$: hasPollStoreValues = $pollStore.poll !== null && $pollStore.pda !== null;
 	$: hasVotesStoreValues = $votesStore.length > 0;
 	$: hasProfileStoreValues = $profileStore.profile !== null && $profileStore.pda !== null;
 	$: hasCustomProgramStoreValues =
 		$customProgramStore.customProgram !== null && $customProgramStore.pda !== null;
-	// $: hasVoted = profileHasVoted($pollVotesStore);
-	$: profileHasVoted = $pollVotesStore.some(
-		(v) => v.profilePubkey.toBase58() === $profileStore.pda?.toBase58()
-	);
 
 	// Q: tick() needed if I add the conditional check?
 	// U: Seems needed as it doesn't error. However, tick() fires a lot
@@ -101,80 +88,11 @@
 	// U: I believe tick() is firing a couple times BEFORE the walletStore is ready for fetch
 	// Check out the hasWalletReadyForFetch in the logs.
 	// U: Yep! Using my reactive helpers results in only 2 invokes of pollStore.getPollAccount()!
-	// $: tick().then(() => {
-	//   if(hasWalletReadyForFetch) {
-	//     // Attempt to get stores (if exists)
-	//     console.log('Wallet reconnected. Getting stores if available...')
-	//     get(customProgramStore);
-	//     console.log('$customProgramStore from TICK: ', $customProgramStore);
-	//     get(pollStore);
-	//     console.log('$pollStore from TICK: ', $pollStore)
-	//     console.log($pollStore.pda === null); // true
-	//     console.log($pollStore.poll === null); // true
-	//     get(pollsStore);
-	//     console.log('$pollsStore from TICK: ', $pollsStore);
-	//     get(votesStore);
-	//     console.log('$votesStore from TICK: ', $votesStore);
-	//     get(pollVotesStore);
-	//     console.log('$pollVotesStore from TICK: ', $pollVotesStore);
-	//     get(profileStore);
-	//     console.log('$profileStore from TICK: ', $profileStore);
-	//   }
 
-	//   if(hasWalletReadyForFetch && !hasCustomProgramStoreValues) {
-	//     console.log('$customProgramStore values are null. Refetching...')
-	//     customProgramStore.getCustomProgramAccount()
-	//   }
-
-	//   if(hasWalletReadyForFetch && !hasPollsStoreValues) {
-	//     console.log('$pollsStore values are null. Refetching...')
-	//     // Refetch pollsStore (probably lost on disconnect, refresh, etc)
-	//     pollsStore.getPollAccounts(
-	//       $workspaceStore.program?.programId as anchor.web3.PublicKey,
-	//       $workspaceStore.connection
-	//     )
-	//   }
-
-	//   if(hasWalletReadyForFetch && !hasVotesStoreValues) {
-	//     // Check whether votesStore has values, otherwise need to refetch
-	//     // so that derived store pollVotesStore can update
-	//     // TODO Could consider adding a getVoteAccountsByPoll() helper
-	//     votesStore.getVoteAccounts(
-	//       $workspaceStore.program?.programId as anchor.web3.PublicKey,
-	//       $workspaceStore.connection
-	//     );
-	//   }
-
-	//   // console.log(typeof $pollStore); // object
-	//   // console.log($pollStore == undefined); // false
-	//   // console.log($pollStore === undefined); // false
-	//   if(hasWalletReadyForFetch && !hasPollStoreValues) {
-	//     console.log('$pollStore values are null. Refetching...')
-	//     // Refetch pollStore
-	//     pollStore.getPollAccount(
-	//       $workspaceStore.program?.programId as anchor.web3.PublicKey,
-	//       new PublicKey($page.params.pda),
-	//       $workspaceStore.connection
-	//     );
-	//   }
-
-	//   if(hasWalletReadyForFetch && !hasProfileStoreValues) {
-	//     console.log('$profileStore values are null. Refetching...')
-	//     profileStore.getProfileAccount(
-	//       $walletStore.publicKey as anchor.web3.PublicKey,
-	//       $workspaceStore.program?.programId as anchor.web3.PublicKey,
-	//       $workspaceStore.connection
-	//     );
-	//   }
-
-	//   // TODO Consider the case when pollsStore is available (but not pollStore)
-
-	// }) // WORKS on refresh! async/await not needed it seems...
-
-	// // Trying $: reactives WITHOUT tick().then() now that I've added some helper
-	// // reactives and Store helper methods (getPollAccount(), getProfileAccount()).
-	// // In many ways, this is achieving the same thing as my polls/index.svelte has
-	// // with the getAllProgramAccounts() function...
+	// U: Trying $: reactives WITHOUT tick().then() now that I've added some helper
+	// reactives and Store helper methods (getPollAccount(), getProfileAccount()).
+	// In many ways, this is achieving the same thing as my polls/index.svelte has
+	// with the getAllProgramAccounts() function...
 	// $: if (hasWorkspaceProgramReady && hasWalletReadyForFetch) {
 	// 	// Attempt to get stores (if exists)
 	// 	console.log('Wallet reconnected. Getting stores if available...');
@@ -231,6 +149,60 @@
 	// 		new PublicKey($page.params.pda),
 	// 		$workspaceStore.connection
 	// 	);
+	// }
+
+	// U: Set the single pollStore on page load.
+	// NOTE The polls/__layout is fetching all the program accounts
+	// and decoding, updating Stores, etc. However, cannot access the
+	// $page Store to compare page.params.pda, since page Store is
+	// unavailable from __layout. Therefore, setting pollStore here.
+	// U: However, need to remember that normally (without refresh),
+	// the pollStore is passed as a prop inside Poll.svelte component!
+	// So, this really needs to only update/set whenever a full refresh
+	// or wallet connect occurs...
+	// Q: How to wait until the __layout fetch is complete?
+	// A: Make a reactive that only attempts once pollsStore is updated.
+	// NOTE Don't use get(store) as it's not reactive! Use $store instead!
+	// get() will access the store at that time of execution ONLY. So, if
+	// the store later updates, it won't react!
+	$: if (hasPollsStoreValues && !hasPollStoreValues) {
+		console.log('No pollStore values found! Trying to set...');
+		try {
+			let currentPollStoreObject = $pollsStore.find(
+				(value: PollStoreObject) => value.pda?.toBase58() === $page.params.pda
+			) as PollStoreObject;
+			// console.log('currentPollStoreObject: ', currentPollStoreObject);
+			if (currentPollStoreObject) {
+				console.log('Current Poll found in pollsStore. Setting pollStore values.');
+				pollStore.set({
+					poll: currentPollStoreObject.poll,
+					pda: currentPollStoreObject.pda
+				});
+			}
+
+			// Q: Confirm that derived pollVotesStore updates as well?
+			// U: Seems to work as long as pollStore is found/has values
+		} catch (e) {
+			console.log('Poll not found in pollsStore. Single pollStore not updated.');
+			console.warn(e);
+		}
+	}
+
+	$: profileHasVoted = $pollVotesStore.some(
+		(v) => v.profilePubkey.toBase58() === $profileStore.pda?.toBase58()
+	);
+
+	// $: {
+	// 	//   console.log('$workspaceStore: ', $workspaceStore);
+	// 	console.log('$customProgramStore: ', $customProgramStore);
+	// 	console.log('$profileStore: ', $profileStore);
+	// 	console.log('$profileStore.pda: ', $profileStore.pda?.toBase58());
+	// 	console.log('$pollsStore: ', $pollsStore);
+	// 	// console.log('$pollsStore.length: ', $pollsStore.length);
+	// 	// console.log('$pollStore: ', $pollStore);
+	// 	console.log('pollVotesStore: ', $pollVotesStore);
+	// 	console.log('hasPollStoreValues: ', hasPollStoreValues);
+	// 	console.log('hasPollsStoreValues: ', hasPollsStoreValues);
 	// }
 
 	async function handleCreateVoteForOptionA() {
@@ -429,22 +401,6 @@
 			pda: $customProgramStore.pda as anchor.web3.PublicKey
 		});
 	}
-
-	// $: {
-	// 	//   console.log('$workspaceStore: ', $workspaceStore);
-	// 	console.log('$workspaceStore.program: ', $workspaceStore?.program);
-	// 	console.log('hasWorkspaceProgramReady: ', hasWorkspaceProgramReady);
-	// 	console.log('$customProgramStore: ', $customProgramStore);
-	// 	console.log('$profileStore: ', $profileStore);
-	// 	console.log('$profileStore.pda: ', $profileStore.pda?.toBase58());
-	// 	console.log('$pollsStore: ', $pollsStore);
-	// 	// console.log('$pollsStore.length: ', $pollsStore.length);
-	// 	// console.log('$pollStore: ', $pollStore);
-	// 	console.log('pollVotesStore: ', $pollVotesStore);
-	// 	console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
-	// 	console.log('hasPollStoreValues: ', hasPollStoreValues);
-	// 	console.log('hasPollsStoreValues: ', hasPollsStoreValues);
-	// }
 </script>
 
 <div class="md:hero mx-auto p-4">
@@ -478,7 +434,7 @@
 					<p>selection: {vote.voteOption}</p>
 				{/each}
 				<!-- <Button disabled={!$walletStore.publicKey} on:click={() => profileHasVoted($pollVotesStore)}>Profile voted?</Button> -->
-				<!-- <h4 class="bg-secondary text-accent">Profile has voted: {profileHasVoted}</h4> -->
+				<h4 class="bg-secondary text-accent">Profile has voted: {profileHasVoted}</h4>
 			{/if}
 		{/if}
 	</div>

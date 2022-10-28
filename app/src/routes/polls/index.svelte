@@ -62,8 +62,6 @@
       - Prevent Polls with lowercase or UPPERCASE being created
   */
 
-	const network = constants.NETWORK;
-
 	// U: onMount runs BEFORE workspace is connected!
 	// Q: How can I fire off a getAllPollsProgramAccounts()
 	onMount(async () => {

@@ -100,25 +100,10 @@ export function decodeAllProgramAccounts(
     console.warn(e);
   }
 
-  try {
-    let currentPollStoreObject = get(pollsStore).find(
-      // FIXME 'page' isn't available I think....
-      (value: PollStoreObject) => value.pda?.toBase58() === get(page).params.pda
-    ) as PollStoreObject;
-    // console.log('currentPollStoreObject: ', currentPollStoreObject);
-    if (currentPollStoreObject) {
-      pollStore.set({
-        poll: currentPollStoreObject.poll,
-        pda: currentPollStoreObject.pda
-      })
-    }
-
-    // TODO Confirm that derived pollVotesStore updates as well
-
-  } catch (e) {
-    console.log("Poll not found in pollsStore. Single pollStore not updated.")
-    console.warn(e);
-  }
+  // Q: Find and set the single pollStore?
+  // U: If I only call this from __layout, then page won't be available. 
+  // pollsStore is available, but can't find single Poll based on page.params.pda
+  // U: May need to address this inside [pda].svelte onMount() or something instead...
 
   console.log("Decoding complete. Stores update complete.");
 
