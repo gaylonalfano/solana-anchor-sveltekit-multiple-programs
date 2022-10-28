@@ -70,9 +70,9 @@ function createPollStore() {
       }
     },
     getPollAccount: async (
-      programId: anchor.web3.PublicKey, 
+      programId: anchor.web3.PublicKey,
       pollPda: anchor.web3.PublicKey,
-      connection: anchor.web3.Connection, 
+      connection: anchor.web3.Connection,
     ) => {
       // Create the filter
       // NOTE Can't filter on PDA, but could consider pollNumber perhaps

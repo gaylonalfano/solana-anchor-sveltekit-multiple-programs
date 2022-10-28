@@ -759,12 +759,12 @@ describe("onchain-voting-multiple-polls", () => {
     }
   });
 
-  // TODO Test that same wallet can only create one profile
   // Q: Should totalProfileCount be used as a SEED? I think this would allow
   // the same wallet to create multiple Profiles. Seems similar to Votes (?).
   // For Votes, the seeds are the PollPda and ProfilePda to ensure the same
   // wallet cannot vote more than once. You could still store profileCount
   // in the account data, but just don't use as a seed...
+  // A: Need to remove totalProfileCount as a seed! 
   it("Try to create a SECOND Profile with testUser1 wallet", async () => {
     try {
       const profileCount = (

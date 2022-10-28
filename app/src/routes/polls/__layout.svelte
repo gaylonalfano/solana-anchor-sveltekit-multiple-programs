@@ -14,7 +14,7 @@
 		votesStore
 	} from '$stores/polls/index';
 	import * as constants from '../../helpers/polls/constants';
-	import { getAllProgramAccountsMapsPromises } from '../../helpers/polls/getAllProgramAccounts';
+	import { getAllProgramAccounts } from '../../helpers/polls/getAllProgramAccounts';
 
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
 	const network = constants.NETWORK;
@@ -38,7 +38,7 @@
 	$: hasPollStoreValues = $pollStore.pda !== null && $pollStore.poll !== null;
 
 	$: if (hasWalletReadyForFetch && hasWorkspaceProgramReady) {
-		getAllProgramAccountsMapsPromises(
+		getAllProgramAccounts(
 			constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
 			$workspaceStore.connection,
 			$walletStore.publicKey as PublicKey

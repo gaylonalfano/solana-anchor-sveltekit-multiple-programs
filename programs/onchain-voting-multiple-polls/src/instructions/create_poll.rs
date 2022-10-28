@@ -19,6 +19,7 @@ pub fn create_poll(
     // program summary data (poll_count, profile_count, etc.)...
     let custom_program = &mut ctx.accounts.custom_program;
     let profile = &mut ctx.accounts.profile;
+    // TODO Consider making labels to_uppercase()
     let poll = Poll::new(
         custom_program.total_poll_count + 1, // poll_number
         option_a_display_label,

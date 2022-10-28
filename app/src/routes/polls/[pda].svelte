@@ -410,15 +410,17 @@
 				<div class="stat place-items-center">
 					<div class="stat-title">{$pollStore.poll?.optionADisplayLabel}</div>
 					<div class="stat-value">{$pollStore.poll?.optionACount}</div>
-					<Button disabled={!$walletStore.publicKey} on:click={handleCreateVoteForOptionA}
-						>{$pollStore.poll?.optionADisplayLabel}</Button
+					<Button
+						disabled={!$walletStore.publicKey || profileHasVoted}
+						on:click={handleCreateVoteForOptionA}>{$pollStore.poll?.optionADisplayLabel}</Button
 					>
 				</div>
 				<div class="stat place-items-center border-none">
 					<div class="stat-title">{$pollStore.poll?.optionBDisplayLabel}</div>
 					<div class="stat-value">{$pollStore.poll?.optionBCount}</div>
-					<Button disabled={!$walletStore.publicKey} on:click={handleCreateVoteForOptionB}
-						>{$pollStore.poll?.optionBDisplayLabel}</Button
+					<Button
+						disabled={!$walletStore.publicKey || profileHasVoted}
+						on:click={handleCreateVoteForOptionB}>{$pollStore.poll?.optionBDisplayLabel}</Button
 					>
 				</div>
 			</div>

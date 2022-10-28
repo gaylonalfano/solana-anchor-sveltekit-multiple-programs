@@ -114,7 +114,7 @@ export function decodeAllProgramAccounts(
 // Try to fetch program accounts using getProgramAccounts()
 // REF: https://www.notion.so/Solana-Quick-Reference-c0704fee2afa4ee5827ded6937ef47df#680c6b9f0f074a37bfe02579309faad2
 // REF: https://solanacookbook.com/guides/get-program-accounts.html#filters
-export async function getAllProgramAccountsMapsPromises(
+export async function getAllProgramAccounts(
   programId: anchor.web3.PublicKey,
   connection: anchor.web3.Connection,
   authority: anchor.web3.PublicKey,
@@ -404,5 +404,3 @@ export async function getAllProgramAccountsMapsPromises(
   // Try to decode with helper
   await decodeAllProgramAccounts(accountsEncodedResultsMap);
 };
-
-
