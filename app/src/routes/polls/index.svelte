@@ -58,8 +58,9 @@
       - Add UI that lists votes by profile + vote choice
       - Profile page?
       - Prevent Polls with same choices just reversed being created
+        - Q: Create BOTH variations inside create_poll()?
       - DONE Prevent Polls with lowercase or UPPERCASE being created
-      - Create a modal for create profile to allow custom handles
+      - DONE Create a modal for create profile to allow custom handles
       - Add notifications for errors (2nd attempts, no SOL, no Profile, etc)
   */
 
@@ -323,6 +324,8 @@
 	}
 
 	async function handleCreatePoll() {
+		// TODO Check whether there's an existing Poll
+
 		// Q: If the same user goes between /polls or /polls/[pollNumber],
 		// then all the local PDAs get cleared. Maybe consider storing the PDA
 		// in the actual account? Or, perhaps attempt to derive if not available?
@@ -434,6 +437,38 @@
 		const matchingPoll = $pollsStore.find((p) => p.pda?.toBase58() === href.slice());
 		pollStore.set;
 	}
+
+	// TODO Prevent duplicate Polls getting created (A v B, B v A)
+	function hasExistingPollOptions(): boolean {
+		const enteredOptionA = pollOptionADisplayName.trim().toUpperCase();
+		const enteredOptionB = pollOptionBDisplayName.trim().toUpperCase();
+
+		// Q: Should I try using a Set with its add(), has(), .size?
+		// REF: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set#implementing_basic_set_operations
+		function isSuperset(set, subset) {
+			for (const elem of subset) {
+				if (!set.has(elem)) {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		// U: Can also consider creating two Sets and then finding intersection
+		// const intersection = new Set([...mySet1].filter((x) => mySet2.has(x)));
+
+		const enteredOptionsSet = new Set([
+			pollOptionADisplayName.trim().toUpperCase(),
+			pollOptionBDisplayName.trim().toUpperCase()
+		]);
+
+		const existingPollOptionsSet = new Set();
+
+		const existingPollOptions = $pollsStore.filter((p: PollStoreObject) => {
+			let optionA = p.poll.optionADisplayLabel;
+			let optionB = p.poll.optionBDisplayLabel;
+		});
+	}
 </script>
 
 <div class="md:hero mx-auto p-4">
@@ -444,20 +479,17 @@
 			Polls
 		</h1>
 		<div class="card-body items-center text-center pt-0">
-			<Button disabled={!$walletStore.publicKey} on:click={handleCreateCustomProgram}
-				>Create Custom Program</Button
-			>
-			<pre>customProgramStore: {JSON.stringify($customProgramStore, null, 2)}</pre>
+			{#if !$customProgramStore}
+				<Button disabled={!$walletStore.publicKey} on:click={handleCreateCustomProgram}
+					>Create Custom Program</Button
+				>
+			{/if}
 			<br />
-			<!-- The button to open modal -->
-			<Button disabled={!$walletStore.publicKey} on:click={() => (showModal = true)}
-				>Create Profile</Button
-			>
-			<pre>profileStore: {JSON.stringify($profileStore, null, 2)}</pre>
-			<Button disabled={!$walletStore.publicKey} on:click={handleCreateProfile}
-				>Create Profile</Button
-			>
-			<br />
+			{#if !$profileStore}
+				<Button disabled={!$walletStore.publicKey} on:click={() => (showModal = true)}
+					>Create Profile</Button
+				>
+			{/if}
 			<div class="form-control">
 				<label class="input-group input-group-vertical pt-1">
 					<span>Option A Display</span>
@@ -487,14 +519,6 @@
 					<Poll {poll} pda={pda.toBase58()} />
 				{/each}
 			{/if}
-			<Button
-				disabled={!$walletStore.publicKey}
-				on:click={() =>
-					pollsStore.getPollAccounts(
-						constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID,
-						$workspaceStore.connection
-					)}>Get Poll Accounts</Button
-			>
 		</div>
 		<!-- Modal: Put this part before </body> tag -->
 		<!-- NOTE DaisyUI's 'modal-open' modifier class -->
@@ -510,7 +534,7 @@
 						<span>Handle</span>
 						<input
 							type="text"
-							placeholder="@yourhandle"
+							placeholder="E.g., @yourhandle"
 							class="input input-bordered"
 							bind:value={profileHandle}
 						/>
@@ -519,7 +543,7 @@
 						<span>Display Name</span>
 						<input
 							type="text"
-							placeholder="Your Display Name"
+							placeholder="E.g., TheVotooor"
 							class="input input-bordered"
 							bind:value={profileDisplayName}
 						/>
@@ -532,5 +556,7 @@
 				</div>
 			</div>
 		</div>
+		<pre>customProgramStore: {JSON.stringify($customProgramStore, null, 2)}</pre>
+		<pre>profileStore: {JSON.stringify($profileStore, null, 2)}</pre>
 	</div>
 </div>

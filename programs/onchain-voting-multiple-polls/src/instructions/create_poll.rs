@@ -19,7 +19,8 @@ pub fn create_poll(
     // program summary data (poll_count, profile_count, etc.)...
     let custom_program = &mut ctx.accounts.custom_program;
     let profile = &mut ctx.accounts.profile;
-    // TODO Consider making labels to_uppercase()
+    // Q: Consider making labels to_uppercase()
+    // U: Handling this in frontend for now
     let poll = Poll::new(
         custom_program.total_poll_count + 1, // poll_number
         option_a_display_label,
@@ -28,6 +29,9 @@ pub fn create_poll(
         // NOTE bumps.get("account_name"), NOT seed!
         *ctx.bumps.get("poll").expect("Bump not found."),
     );
+    // Q: Should I create another Poll right away that reverses
+    // the options in order to prevent duplicate Polls? (A v B, B v A)?
+    // Or, do I try to prevent from the frontend?
     // Update poll account data with new Poll
     ctx.accounts.poll.set_inner(poll.clone());
     // Increment custom_program.total_poll_count

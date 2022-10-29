@@ -66,6 +66,8 @@
 	// TODO Consider making a polls/__layout.svelte component to set workspaceStore
 	// U: Done. Check out polls/__layout.svelte
 
+	let profileVoteOptionDisplay = '';
+
 	// Create some variables to react to Stores state
 	$: hasPollsStoreValues = $pollsStore.length > 0;
 	$: hasPollStoreValues = $pollStore.poll !== null && $pollStore.pda !== null;
@@ -192,18 +194,18 @@
 		(v) => v.profilePubkey.toBase58() === $profileStore.pda?.toBase58()
 	);
 
-	// $: {
-	// 	//   console.log('$workspaceStore: ', $workspaceStore);
-	// 	console.log('$customProgramStore: ', $customProgramStore);
-	// 	console.log('$profileStore: ', $profileStore);
-	// 	console.log('$profileStore.pda: ', $profileStore.pda?.toBase58());
-	// 	console.log('$pollsStore: ', $pollsStore);
-	// 	// console.log('$pollsStore.length: ', $pollsStore.length);
-	// 	// console.log('$pollStore: ', $pollStore);
-	// 	console.log('pollVotesStore: ', $pollVotesStore);
-	// 	console.log('hasPollStoreValues: ', hasPollStoreValues);
-	// 	console.log('hasPollsStoreValues: ', hasPollsStoreValues);
-	// }
+	$: {
+		//   console.log('$workspaceStore: ', $workspaceStore);
+		// console.log('$customProgramStore: ', $customProgramStore);
+		// console.log('$profileStore: ', $profileStore);
+		// console.log('$profileStore.pda: ', $profileStore.pda?.toBase58());
+		// console.log('$pollsStore: ', $pollsStore);
+		// console.log('$pollsStore.length: ', $pollsStore.length);
+		// console.log('$pollStore: ', $pollStore);
+		console.log('pollVotesStore: ', $pollVotesStore);
+		// console.log('hasPollStoreValues: ', hasPollStoreValues);
+		// console.log('hasPollsStoreValues: ', hasPollsStoreValues);
+	}
 
 	async function handleCreateVoteForOptionA() {
 		// Q: Refactor with params?
@@ -410,30 +412,32 @@
 				<div class="stat place-items-center">
 					<div class="stat-title">{$pollStore.poll?.optionADisplayLabel}</div>
 					<div class="stat-value">{$pollStore.poll?.optionACount}</div>
-					<Button
-						disabled={!$walletStore.publicKey || profileHasVoted}
-						on:click={handleCreateVoteForOptionA}>{$pollStore.poll?.optionADisplayLabel}</Button
-					>
+					{#if !profileHasVoted}
+						<Button disabled={!$walletStore.publicKey} on:click={handleCreateVoteForOptionA}
+							>Vote</Button
+						>
+					{/if}
 				</div>
 				<div class="stat place-items-center border-none">
 					<div class="stat-title">{$pollStore.poll?.optionBDisplayLabel}</div>
 					<div class="stat-value">{$pollStore.poll?.optionBCount}</div>
-					<Button
-						disabled={!$walletStore.publicKey || profileHasVoted}
-						on:click={handleCreateVoteForOptionB}>{$pollStore.poll?.optionBDisplayLabel}</Button
-					>
+					{#if !profileHasVoted}
+						<Button disabled={!$walletStore.publicKey} on:click={handleCreateVoteForOptionB}
+							>Vote</Button
+						>
+					{/if}
 				</div>
 			</div>
 			<div class="flex items-center justify-center">
 				<a role="button" class="btn " href="/polls">Back</a>
 			</div>
-			<!-- <pre>{JSON.stringify($pollStore, null, 2)}</pre> -->
 			{#if $pollVotesStore}
 				{#each $pollVotesStore as vote (vote.voteNumber)}
-					<h5>wallet: {vote.authority}</h5>
-					<p>number: {vote.voteNumber}</p>
-					<p>profile: {vote.profilePubkey}</p>
-					<p>selection: {vote.voteOption}</p>
+					<p>
+						{vote.voteNumber} | {vote.authority} | {Object.keys(vote.voteOption)[0] === 'a'
+							? $pollStore.poll?.optionADisplayLabel
+							: $pollStore.poll?.optionBDisplayLabel}
+					</p>
 				{/each}
 				<!-- <Button disabled={!$walletStore.publicKey} on:click={() => profileHasVoted($pollVotesStore)}>Profile voted?</Button> -->
 				<h4 class="bg-secondary text-accent">Profile has voted: {profileHasVoted}</h4>
@@ -442,3 +446,4 @@
 	</div>
 </div>
 <pre>{JSON.stringify($profileStore, null, 2)}</pre>
+<pre>{JSON.stringify($pollStore, null, 2)}</pre>
