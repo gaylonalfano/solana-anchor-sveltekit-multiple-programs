@@ -4,15 +4,6 @@
 	import { AnchorConnectionProvider } from '@svelte-on-solana/wallet-adapter-anchor';
 	import type { PublicKey } from '@solana/web3.js';
 	import idl from '../../../../target/idl/onchain_voting_multiple_polls.json';
-	import { get } from 'svelte/store';
-	import {
-		customProgramStore,
-		profileStore,
-		profilesStore,
-		pollStore,
-		pollsStore,
-		votesStore
-	} from '$stores/polls/index';
 	import * as constants from '../../helpers/polls/constants';
 	import { getAllProgramAccounts } from '../../helpers/polls/getAllProgramAccounts';
 
@@ -34,8 +25,6 @@
 			constants.ONCHAIN_VOTING_MULTIPLE_POLLS_PROGRAM_ID.toBase58();
 	$: hasWalletReadyForFetch =
 		$walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting;
-	$: hasPollsStoreValues = $pollsStore.length > 0;
-	$: hasPollStoreValues = $pollStore.pda !== null && $pollStore.poll !== null;
 
 	$: if (hasWalletReadyForFetch && hasWorkspaceProgramReady) {
 		getAllProgramAccounts(

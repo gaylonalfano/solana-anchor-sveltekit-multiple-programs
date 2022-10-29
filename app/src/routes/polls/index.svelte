@@ -41,9 +41,8 @@
             customProgramStore.getCustomProgramAccount()
             profileStore.getProfileAccount()
             pollsStore.getPollsAccounts()
-      - Move the re-fetch logic to polls/__layout.svelte component
+      - DONE Move the re-fetch logic to polls/__layout.svelte component
         for consistency between polls and polls/[pda] routes
-      - Add notifications for errors (2nd attempts, no SOL, no Profile, etc)
       - DONE Look into how to move getAllProgramAccounts() to separate file
         - A: getAllProgramAccountsMapsPromises
       - DONE How to pass or set() the pollStore on route change? This would save
@@ -53,13 +52,15 @@
         - DONE Seems like I could simply pass the Store as a prop to Poll component.
       - DONE Clear input fields after entry
       - DONE Add 'Back' button navigation
+      - DONE Add stores/polls/index.ts file for easier imports
       - Add UI that shows Profile has already voted
       - Add UI that shows Profile created Poll
-      - DONE Add stores/polls/index.ts file for easier imports
       - Add UI that lists votes by profile + vote choice
       - Profile page?
       - Prevent Polls with same choices just reversed being created
-      - Prevent Polls with lowercase or UPPERCASE being created
+      - DONE Prevent Polls with lowercase or UPPERCASE being created
+      - Create a modal for create profile to allow custom handles
+      - Add notifications for errors (2nd attempts, no SOL, no Profile, etc)
   */
 
 	// U: onMount runs BEFORE workspace is connected!
@@ -83,8 +84,8 @@
 	let customProgram: CustomProgramObject;
 
 	let profile: ProfileObject;
-	let profileHandle: string = 'testHandle';
-	let profileDisplayName: string = 'testDisplayName';
+	let profileHandle = '';
+	let profileDisplayName = '';
 
 	let poll: PollObject;
 	let pollOptionADisplayName = '';
@@ -92,6 +93,8 @@
 
 	let vote: VoteObject;
 	let votePda: anchor.web3.PublicKey;
+
+	let showModal = false;
 
 	// Create some variables to react to Stores' state
 	// $: hasWorkspaceProgramReady =
@@ -284,7 +287,7 @@
 		);
 
 		const tx = await $workspaceStore.program?.methods
-			.createProfile(profileHandle, profileDisplayName)
+			.createProfile(`@${profileHandle.trim()}`, profileDisplayName.trim())
 			.accounts({
 				profile: pda,
 				customProgram: $customProgramStore.pda as anchor.web3.PublicKey,
@@ -312,8 +315,11 @@
 		customProgramStore.set({ customProgram: currentCustomProgram, pda: $customProgramStore.pda });
 
 		// Clear inputs
-		pollOptionADisplayName = '';
-		pollOptionBDisplayName = '';
+		profileHandle = '';
+		profileDisplayName = '';
+
+		// Close Modal
+		showModal = false;
 	}
 
 	async function handleCreatePoll() {
@@ -443,10 +449,14 @@
 			>
 			<pre>customProgramStore: {JSON.stringify($customProgramStore, null, 2)}</pre>
 			<br />
-			<Button disabled={!$walletStore.publicKey} on:click={handleCreateProfile}
+			<!-- The button to open modal -->
+			<Button disabled={!$walletStore.publicKey} on:click={() => (showModal = true)}
 				>Create Profile</Button
 			>
 			<pre>profileStore: {JSON.stringify($profileStore, null, 2)}</pre>
+			<Button disabled={!$walletStore.publicKey} on:click={handleCreateProfile}
+				>Create Profile</Button
+			>
 			<br />
 			<div class="form-control">
 				<label class="input-group input-group-vertical pt-1">
@@ -485,6 +495,42 @@
 						$workspaceStore.connection
 					)}>Get Poll Accounts</Button
 			>
+		</div>
+		<!-- Modal: Put this part before </body> tag -->
+		<!-- NOTE DaisyUI's 'modal-open' modifier class -->
+		<div class="modal bg-neutral" class:modal-open={showModal}>
+			<div class="modal-box relative">
+				<h3 class="font-bold text-lg mb-2">Create Profile</h3>
+				<button
+					class="btn btn-sm btn-circle absolute right-2 top-2 bg-error"
+					on:click={() => (showModal = false)}>x</button
+				>
+				<div class="form-control">
+					<label class="input-group input-group-vertical">
+						<span>Handle</span>
+						<input
+							type="text"
+							placeholder="@yourhandle"
+							class="input input-bordered"
+							bind:value={profileHandle}
+						/>
+					</label>
+					<label class="input-group input-group-vertical pt-2 pb-2">
+						<span>Display Name</span>
+						<input
+							type="text"
+							placeholder="Your Display Name"
+							class="input input-bordered"
+							bind:value={profileDisplayName}
+						/>
+					</label>
+				</div>
+				<div class="items-center text-center">
+					<Button disabled={!$walletStore.publicKey} on:click={handleCreateProfile}
+						>Create Profile</Button
+					>
+				</div>
+			</div>
 		</div>
 	</div>
 </div>
