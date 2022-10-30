@@ -189,26 +189,37 @@
 	//   pollStore.reset();
 	// }
 
-	// $: {
-	// 	// console.log('walletStore: ', $walletStore);
-	// 	// console.log('walletStore.PUBLICKEY: ', $walletStore.publicKey?.toBase58());
-	// 	// console.log('walletStore.CONNECTED: ', $walletStore.connected);
-	// 	// console.log('walletStore.CONNECTING: ', $walletStore.connecting);
-	// 	// console.log('walletStore.DISCONNECTING: ', $walletStore.disconnecting);
-	// 	// console.log('customProgram: ', customProgram);
-	// 	console.log('customProgramStore: ', $customProgramStore);
-	// 	// console.log('profilePda: ', profilePda?.toBase58());
-	// 	console.log('profileStore: ', $profileStore);
-	// 	// console.log('pollPda: ', pollPda);
-	// 	// console.log('pollStore: ', $pollStore);
-	// 	console.log('pollsStore: ', $pollsStore);
-	// 	console.log('votesStore: ', $votesStore);
-	// 	console.log('workspaceStore: ', $workspaceStore);
-	// 	console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
-	// 	console.log('hasWorkspaceProgramReady: ', hasWalletReadyForFetch);
-	// 	console.log('hasPollsStoreValues: ', hasPollsStoreValues);
-	// 	console.log('hasPollStoreValues: ', hasPollStoreValues);
-	// }
+	$: if (pollOptionADisplayName && pollOptionBDisplayName) {
+		console.log('Existing Poll?: ');
+		console.log(hasExistingPollOptions(pollOptionADisplayName, pollOptionBDisplayName));
+	}
+
+	$: hasDuplicatePollOptions = hasExistingPollOptions(
+		pollOptionADisplayName,
+		pollOptionBDisplayName
+	);
+
+	$: {
+		// console.log('walletStore: ', $walletStore);
+		// console.log('walletStore.PUBLICKEY: ', $walletStore.publicKey?.toBase58());
+		// console.log('walletStore.CONNECTED: ', $walletStore.connected);
+		// console.log('walletStore.CONNECTING: ', $walletStore.connecting);
+		// console.log('walletStore.DISCONNECTING: ', $walletStore.disconnecting);
+		// console.log('customProgram: ', customProgram);
+		// console.log('customProgramStore: ', $customProgramStore);
+		// console.log('profilePda: ', profilePda?.toBase58());
+		// console.log('profileStore: ', $profileStore);
+		// console.log('pollPda: ', pollPda);
+		// console.log('pollStore: ', $pollStore);
+		// console.log('pollsStore: ', $pollsStore);
+		// console.log('votesStore: ', $votesStore);
+		// console.log('workspaceStore: ', $workspaceStore);
+		// console.log('hasWalletReadyForFetch: ', hasWalletReadyForFetch);
+		// console.log('hasWorkspaceProgramReady: ', hasWalletReadyForFetch);
+		// console.log('hasPollsStoreValues: ', hasPollsStoreValues);
+		// console.log('hasPollStoreValues: ', hasPollStoreValues);
+		console.log('hasDuplicatePollOptions: ', hasDuplicatePollOptions);
+	}
 
 	/*
 	 * Create a dApp level PDA data account
@@ -325,6 +336,10 @@
 
 	async function handleCreatePoll() {
 		// TODO Check whether there's an existing Poll
+		if (hasExistingPollOptions(pollOptionADisplayName, pollOptionBDisplayName)) {
+			// notificationStore.add
+			console.log('DUPLICATE POLL FOUND!');
+		}
 
 		// Q: If the same user goes between /polls or /polls/[pollNumber],
 		// then all the local PDAs get cleared. Maybe consider storing the PDA
@@ -438,36 +453,57 @@
 		pollStore.set;
 	}
 
-	// TODO Prevent duplicate Polls getting created (A v B, B v A)
-	function hasExistingPollOptions(): boolean {
-		const enteredOptionA = pollOptionADisplayName.trim().toUpperCase();
-		const enteredOptionB = pollOptionBDisplayName.trim().toUpperCase();
-
+	// Prevent duplicate Polls getting created (A v B, B v A)
+	// U: Adding params so I can use inside reactive statement
+	function hasExistingPollOptions(optionA: string, optionB: string): boolean {
 		// Q: Should I try using a Set with its add(), has(), .size?
 		// REF: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set#implementing_basic_set_operations
-		function isSuperset(set, subset) {
-			for (const elem of subset) {
-				if (!set.has(elem)) {
-					return false;
-				}
-			}
-			return true;
-		}
-
+		// function isSuperset(set, subset) {
+		// 	for (const elem of subset) {
+		// 		if (!set.has(elem)) {
+		// 			return false;
+		// 		}
+		// 	}
+		// 	return true;
+		// }
 		// U: Can also consider creating two Sets and then finding intersection
 		// const intersection = new Set([...mySet1].filter((x) => mySet2.has(x)));
 
-		const enteredOptionsSet = new Set([
-			pollOptionADisplayName.trim().toUpperCase(),
-			pollOptionBDisplayName.trim().toUpperCase()
-		]);
+		// const enteredOptionsSet = new Set([optionA.trim().toUpperCase(), optionB.trim().toUpperCase()]);
+		const enteredOptionsSet = new Set();
+		enteredOptionsSet.add(optionA.trim().toUpperCase());
+		enteredOptionsSet.add(optionB.trim().toUpperCase());
 
-		const existingPollOptionsSet = new Set();
+		let uniqueOptions = 2;
+		for (const elem of $pollsStore) {
+			// U: Can't just decrement uniqueOptions since you can enter 'dog' 'dog' and matches still is 0.
+			// Need to consider deleting matched items from enteredOptionsSet instead.
+			// A: Actually, this isn't totally wrong. Don't want a 'dog' v 'dog' Poll anyway.
+			// Both approaches seem to work.
+			let pollOptionA = elem.poll?.optionADisplayLabel.trim().toUpperCase();
+			let pollOptionB = elem.poll?.optionBDisplayLabel.trim().toUpperCase();
 
-		const existingPollOptions = $pollsStore.filter((p: PollStoreObject) => {
-			let optionA = p.poll.optionADisplayLabel;
-			let optionB = p.poll.optionBDisplayLabel;
-		});
+			if (enteredOptionsSet.has(pollOptionA)) {
+				// enteredOptionsSet.delete(pollOptionA);
+				uniqueOptions--;
+			}
+			if (enteredOptionsSet.has(pollOptionB)) {
+				// enteredOptionsSet.delete(pollOptionB);
+				uniqueOptions--;
+			}
+			// console.log('uniqueOptions: ', uniqueOptions);
+
+			if (uniqueOptions === 0) {
+				// Both labels were found in a single Poll
+				return true;
+			}
+			// Reset uniqueOptions/Set back to 2
+			// enteredOptionsSet.add(optionA);
+			// enteredOptionsSet.add(optionB);
+			uniqueOptions = 2;
+		}
+		// No match was found after looping through all Poll accounts
+		return false;
 	}
 </script>
 
@@ -492,7 +528,7 @@
 			{/if}
 			<div class="form-control">
 				<label class="input-group input-group-vertical pt-1">
-					<span>Option A Display</span>
+					<span class:bg-error={hasDuplicatePollOptions}>Option A Display</span>
 					<input
 						type="text"
 						placeholder="E.g., Dog"
@@ -501,7 +537,7 @@
 					/>
 				</label>
 				<label class="input-group input-group-vertical pt-1">
-					<span>Option B Display</span>
+					<span class:bg-error={hasDuplicatePollOptions}>Option B Display</span>
 					<input
 						type="text"
 						placeholder="E.g., Cat"

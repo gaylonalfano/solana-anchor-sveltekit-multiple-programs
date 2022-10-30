@@ -39,9 +39,15 @@ describe("onchain-voting-multiple-polls", () => {
 
   // Test polls
   // Q: Do I need global poll account data variables?
+  // A: Yes, for testing duplicates etc.
   let testPoll1: anchor.IdlTypes<anchor.Idl>["Poll"];
-  let testPoll2: anchor.IdlTypes<anchor.Idl>["Poll"];
+  let testPoll1OptionA = "GMI";
+  let testPoll1OptionB = "NGMI";
   let testPoll1Pda: anchor.web3.PublicKey;
+
+  let testPoll2: anchor.IdlTypes<anchor.Idl>["Poll"];
+  let testPoll2OptionA = "Chocolate";
+  let testPoll2OptionB = "Vanilla";
   let testPoll2Pda: anchor.web3.PublicKey;
 
   // Use the before() hook for setup
@@ -200,7 +206,7 @@ describe("onchain-voting-multiple-polls", () => {
     // Following this example to call the methods:
     // https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
     const tx = await program.methods
-      .createPoll("GMI", "NGMI")
+      .createPoll(testPoll1OptionA, testPoll1OptionB)
       .accounts({
         poll: testPoll1Pda,
         profile: testUser1ProfilePda,
@@ -229,8 +235,8 @@ describe("onchain-voting-multiple-polls", () => {
       parseInt(pollCount)
     );
     expect(currentTestPoll1.isActive).to.equal(true);
-    expect(currentTestPoll1.optionADisplayLabel.toString()).to.equal("GMI");
-    expect(currentTestPoll1.optionBDisplayLabel.toString()).to.equal("NGMI");
+    expect(currentTestPoll1.optionADisplayLabel.toString()).to.equal(testPoll1OptionA);
+    expect(currentTestPoll1.optionBDisplayLabel.toString()).to.equal(testPoll1OptionB);
     expect(currentTestPoll1.optionACount.toNumber()).to.equal(0);
     expect(currentTestPoll1.optionBCount.toNumber()).to.equal(0);
     expect(currentTestPoll1.voteCount.toNumber()).to.equal(0);
@@ -278,7 +284,7 @@ describe("onchain-voting-multiple-polls", () => {
     // Following this example to call the methods:
     // https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
     const tx = await program.methods
-      .createPoll("Chocolate", "Vanilla")
+      .createPoll(testPoll2OptionA, testPoll2OptionB)
       .accounts({
         poll: testPoll2Pda,
         profile: testUser1ProfilePda,
@@ -308,9 +314,9 @@ describe("onchain-voting-multiple-polls", () => {
     );
     expect(currentTestPoll2.isActive).to.equal(true);
     expect(currentTestPoll2.optionADisplayLabel.toString()).to.equal(
-      "Chocolate"
+      testPoll2OptionA
     );
-    expect(currentTestPoll2.optionBDisplayLabel.toString()).to.equal("Vanilla");
+    expect(currentTestPoll2.optionBDisplayLabel.toString()).to.equal(testPoll2OptionB);
     expect(currentTestPoll2.optionACount.toNumber()).to.equal(0);
     expect(currentTestPoll2.optionBCount.toNumber()).to.equal(0);
     expect(currentTestPoll2.voteCount.toNumber()).to.equal(0);
@@ -821,88 +827,123 @@ describe("onchain-voting-multiple-polls", () => {
   });
 
 
-  // TODO Test Don't duplicate Polls with exact same Options?
   // Q: Should I create BOTH variations inside Rust create_poll(),
   // but don't increment custom_program twice?
   // Or, prevent in frontend by first searching/filtering Poll accounts?
-  xit("Try to create SECOND/DUPLICATE testPoll1 with testUser1", async () => {
-    // TODO Check whether there's an existing Poll
-    // Might as well check right away if the option labels are already
-    // used by existing Polls
-    const currentPolls = await program.account.poll.all();
-    console.log(currentPolls);
+  // A: Going with frontend prevention for now...
+  it("Try to create SECOND/DUPLICATE testPoll1 with testUser1", async () => {
+    // U: Check out my hasExistingPollOptions(a,b): boolean in polls/index.svelte
+    // U: Added this helper to this test (below). Need to fetch existing Poll accounts
+    // and then pass new Poll options to hasExistingPollOptions(a,b)
+    const currentPolls = await program.account.poll.all(); // [{pubkey, account}]
+    console.log('currentPolls: ', currentPolls);
 
-    // Need to access current customProgram.totalPollCount
-    const pollCount: string = (
-      customProgram.totalPollCount.toNumber() + 1
-    ).toString();
-    console.log("pollCount: ", pollCount);
+    function hasExistingPollOptions(optionA: string, optionB: string): boolean {
+      const enteredOptionsSet = new Set();
+      enteredOptionsSet.add(optionA.trim().toUpperCase());
+      enteredOptionsSet.add(optionB.trim().toUpperCase());
 
-    // NOTE From Anchor PDA example: https://book.anchor-lang.com/anchor_in_depth/PDAs.html#how-to-build-pda-hashmaps-in-anchor
-    // NOTE They find the PDA address INSIDE the it() test!
-    const [pda, bump] = await PublicKey.findProgramAddress(
-      [
-        anchor.utils.bytes.utf8.encode(POLL_SEED_PREFIX),
-        anchor.utils.bytes.utf8.encode(pollCount),
-      ],
-      program.programId
-    );
-    // Update global state
-    testPoll1Pda = pda;
+      let uniqueOptions = 2;
+      for (const poll of currentPolls) {
+        // U: Can't just decrement uniqueOptions since you can enter 'dog' 'dog' and matches still is 0.
+        // Need to consider deleting matched items from enteredOptionsSet instead.
+        // A: Actually, this isn't totally wrong. Don't want a 'dog' v 'dog' Poll anyway.
+        // Both approaches seem to work.
+        let pollOptionA = poll.account.optionADisplayLabel.trim().toUpperCase();
+        let pollOptionB = poll.account.optionBDisplayLabel.trim().toUpperCase();
 
-    console.log(
-      "PDA for program",
-      program.programId.toBase58(),
-      "is generated :",
-      testPoll1Pda.toBase58()
-    );
+        if (enteredOptionsSet.has(pollOptionA)) {
+          // enteredOptionsSet.delete(pollOptionA);
+          uniqueOptions--;
+        }
+        if (enteredOptionsSet.has(pollOptionB)) {
+          // enteredOptionsSet.delete(pollOptionB);
+          uniqueOptions--;
+        }
+        // console.log('uniqueOptions: ', uniqueOptions);
 
-    // Following this example to call the methods:
-    // https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
-    const tx = await program.methods
-      .createPoll("GMI", "NGMI")
-      .accounts({
-        poll: testPoll1Pda,
-        profile: testUser1ProfilePda,
-        customProgram: customProgramPda,
-        authority: testUser1.publicKey,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      })
-      .signers([testUser1])
-      .rpc();
-    console.log("TxHash ::", tx);
+        if (uniqueOptions === 0) {
+          // Both labels were found in a single Poll
+          return true;
+        }
+        // Reset uniqueOptions/Set back to 2
+        // enteredOptionsSet.add(optionA);
+        // enteredOptionsSet.add(optionB);
+        uniqueOptions = 2;
+      }
+      // No match was found after looping through all Poll accounts
+      return false;
+    }
 
-    // Fetch data after tx confirms & update global state
-    const currentTestPoll1 = await program.account.poll.fetch(testPoll1Pda);
-    testPoll1 = currentTestPoll1;
-    const currentProfile = await program.account.profile.fetch(
-      testUser1ProfilePda
-    );
-    testUser1Profile = currentProfile;
-    const currentCustomProgram = await program.account.customProgram.fetch(
-      customProgramPda
-    );
-    customProgram = currentCustomProgram;
 
-    // Verify the vote account has set up correctly
-    expect(currentTestPoll1.pollNumber.toNumber()).to.equal(
-      parseInt(pollCount)
-    );
-    expect(currentTestPoll1.isActive).to.equal(true);
-    expect(currentTestPoll1.optionADisplayLabel.toString()).to.equal("GMI");
-    expect(currentTestPoll1.optionBDisplayLabel.toString()).to.equal("NGMI");
-    expect(currentTestPoll1.optionACount.toNumber()).to.equal(0);
-    expect(currentTestPoll1.optionBCount.toNumber()).to.equal(0);
-    expect(currentTestPoll1.voteCount.toNumber()).to.equal(0);
-    expect(currentTestPoll1.authority.toString()).to.equal(
-      currentProfile.authority.toString()
-    );
+    try {
+      // Check whether entered Poll options are duplicates of existing Polls
+      const optionA = "nGmI   ";
+      const optionB = "   gMi ";
+      if (hasExistingPollOptions(optionA, optionB)) {
+        // Return and fail the test!
+        console.log("Duplicate Poll options found! Stopping execution.")
+        return;
+      }
 
-    expect(currentProfile.pollCount.toNumber()).to.equal(1);
+      // Need to access current customProgram.totalPollCount
+      const pollCount: string = (
+        customProgram.totalPollCount.toNumber() + 1
+      ).toString();
+      console.log("pollCount: ", pollCount);
 
-    expect(customProgram.totalPollCount.toNumber()).to.equal(
-      parseInt(pollCount)
-    );
+      // NOTE From Anchor PDA example: https://book.anchor-lang.com/anchor_in_depth/PDAs.html#how-to-build-pda-hashmaps-in-anchor
+      // NOTE They find the PDA address INSIDE the it() test!
+      const [pda, bump] = await PublicKey.findProgramAddress(
+        [
+          anchor.utils.bytes.utf8.encode(POLL_SEED_PREFIX),
+          anchor.utils.bytes.utf8.encode(pollCount),
+        ],
+        program.programId
+      );
+      // Update global state
+      testPoll1Pda = pda;
+
+      console.log(
+        "PDA for program",
+        program.programId.toBase58(),
+        "is generated :",
+        testPoll1Pda.toBase58()
+      );
+
+      // Following this example to call the methods:
+      // https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
+      const tx = await program.methods
+        .createPoll(optionA, optionB)
+        .accounts({
+          poll: testPoll1Pda,
+          profile: testUser1ProfilePda,
+          customProgram: customProgramPda,
+          authority: testUser1.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([testUser1])
+        .rpc();
+      console.log("TxHash ::", tx);
+
+      // Fetch data after tx confirms & update global state
+      const currentTestPoll1 = await program.account.poll.fetch(testPoll1Pda);
+      testPoll1 = currentTestPoll1;
+      const currentProfile = await program.account.profile.fetch(
+        testUser1ProfilePda
+      );
+      testUser1Profile = currentProfile;
+      const currentCustomProgram = await program.account.customProgram.fetch(
+        customProgramPda
+      );
+      customProgram = currentCustomProgram;
+
+      // Verify customProgram has NOT updated in any way
+      expect(customProgram.totalPollCount.toNumber()).to.equal(parseInt(pollCount) - 1);
+    } catch (error) {
+      console.log("Duplicate Poll options found!")
+      console.warn(error);
+    }
   });
 });
 
