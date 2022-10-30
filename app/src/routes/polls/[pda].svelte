@@ -258,7 +258,6 @@
 			pda.toBase58()
 		);
 
-		// TODO Consider adding try/catch around transaction to add notifications
 		// Following this example to call the methods:
 		// https://book.anchor-lang.com/anchor_in_depth/milestone_project_tic-tac-toe.html?highlight=test#testing-the-setup-instruction
 		const tx = await $workspaceStore.program?.methods
@@ -274,6 +273,11 @@
 			// .signers([testUser2]) // AnchorWallet
 			.rpc();
 		console.log('TxHash ::', tx);
+		notificationStore.add({
+			type: 'success',
+			message: 'Vote submitted!',
+			txid: tx
+		});
 
 		// Fetch data after tx confirms & update global state
 		const currentVote = (await $workspaceStore.program?.account.vote.fetch(pda)) as VoteObject;
@@ -357,6 +361,11 @@
 			// .signers([testUser2]) // AnchorWallet
 			.rpc();
 		console.log('TxHash ::', tx);
+		notificationStore.add({
+			type: 'success',
+			message: 'Vote submitted!',
+			txid: tx
+		});
 
 		// Fetch data after tx confirms & update global state
 		const currentVote = (await $workspaceStore.program?.account.vote.fetch(pda)) as VoteObject;

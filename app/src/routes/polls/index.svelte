@@ -27,6 +27,7 @@
 		CustomProgramObject,
 		ProfileObject,
 		PollObject,
+		PollStoreObject,
 		VoteObject
 	} from '../../models/polls-types';
 
@@ -57,11 +58,13 @@
       - Add UI that shows Profile created Poll
       - Add UI that lists votes by profile + vote choice
       - Profile page?
-      - Prevent Polls with same choices just reversed being created
+      - DONE Prevent Polls with same choices just reversed being created
         - Q: Create BOTH variations inside create_poll()?
+        - A: Just do check in frontend. See hasExistingPollOptions()
       - DONE Prevent Polls with lowercase or UPPERCASE being created
       - DONE Create a modal for create profile to allow custom handles
       - Add notifications for errors (2nd attempts, no SOL, no Profile, etc)
+      - Update Button.svelte to have custom disabled text label. Named slots help?
   */
 
 	// U: onMount runs BEFORE workspace is connected!
@@ -96,6 +99,8 @@
 	let votePda: anchor.web3.PublicKey;
 
 	let showModal = false;
+	let searchTerm = '';
+	let filteredPolls: PollStoreObject[];
 
 	// Create some variables to react to Stores' state
 	// $: hasWorkspaceProgramReady =
@@ -107,6 +112,9 @@
 	// 	$walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting;
 	// $: hasPollsStoreValues = $pollsStore.length > 0;
 	// $: hasPollStoreValues = $pollStore.pda !== null && $pollStore.poll !== null;
+	$: hasProfileStoreValues = $profileStore.profile !== null && $profileStore.pda !== null;
+	$: hasCustomProgramStoreValues =
+		$customProgramStore.customProgram !== null && $customProgramStore.pda !== null;
 
 	// REF: Check out SolAndy's YT video on deserializing account data
 	// Q: How to pre-fetch data? How to use getAllProgramAccounts()
@@ -200,15 +208,32 @@
 	);
 
 	$: {
+		console.log(searchTerm);
+		if (searchTerm) {
+			// search term
+			filteredPolls = $pollsStore.filter((p) => {
+				if (
+					p.poll?.optionADisplayLabel.toLowerCase().includes(searchTerm.toLowerCase()) ||
+					p.poll?.optionBDisplayLabel.toLowerCase().includes(searchTerm.toLowerCase())
+				)
+					return p;
+			});
+		} else {
+			// reset to full list
+			filteredPolls = [...$pollsStore];
+		}
+	}
+
+	$: {
 		// console.log('walletStore: ', $walletStore);
 		// console.log('walletStore.PUBLICKEY: ', $walletStore.publicKey?.toBase58());
 		// console.log('walletStore.CONNECTED: ', $walletStore.connected);
 		// console.log('walletStore.CONNECTING: ', $walletStore.connecting);
 		// console.log('walletStore.DISCONNECTING: ', $walletStore.disconnecting);
 		// console.log('customProgram: ', customProgram);
-		// console.log('customProgramStore: ', $customProgramStore);
+		console.log('customProgramStore: ', $customProgramStore);
 		// console.log('profilePda: ', profilePda?.toBase58());
-		// console.log('profileStore: ', $profileStore);
+		console.log('profileStore: ', $profileStore);
 		// console.log('pollPda: ', pollPda);
 		// console.log('pollStore: ', $pollStore);
 		// console.log('pollsStore: ', $pollsStore);
@@ -219,6 +244,7 @@
 		// console.log('hasPollsStoreValues: ', hasPollsStoreValues);
 		// console.log('hasPollStoreValues: ', hasPollStoreValues);
 		console.log('hasDuplicatePollOptions: ', hasDuplicatePollOptions);
+		console.log('filteredPolls: ', filteredPolls);
 	}
 
 	/*
@@ -309,6 +335,11 @@
 			// .signers([testUser1]) // Not needed with AnchorWallet
 			.rpc();
 		console.log('TxHash ::', tx);
+		notificationStore.add({
+			type: 'success',
+			message: 'Profile successfully created!',
+			txid: tx
+		});
 
 		// Fetch data after tx confirms & update global state
 		const currentProfile = (await $workspaceStore.program?.account.profile.fetch(
@@ -335,10 +366,14 @@
 	}
 
 	async function handleCreatePoll() {
-		// TODO Check whether there's an existing Poll
+		// Check whether there's an existing Poll
+		// NOTE I'm also doing an initial check in the UI, but this is backup.
 		if (hasExistingPollOptions(pollOptionADisplayName, pollOptionBDisplayName)) {
-			// notificationStore.add
-			console.log('DUPLICATE POLL FOUND!');
+			notificationStore.add({
+				type: 'error',
+				message: 'Duplicate Poll options found!'
+			});
+			return;
 		}
 
 		// Q: If the same user goes between /polls or /polls/[pollNumber],
@@ -392,6 +427,11 @@
 			// .signers([testUser1]) // AnchorWallet
 			.rpc();
 		console.log('TxHash ::', tx);
+		notificationStore.add({
+			type: 'success',
+			message: 'Poll successfully created!',
+			txid: tx
+		});
 
 		// Fetch data after tx confirms & update global state
 		const currentPoll = (await $workspaceStore.program?.account.poll.fetch(pda)) as PollObject;
@@ -507,6 +547,10 @@
 	}
 </script>
 
+<!-- <svelte:head> -->
+<!-- 	<title>Solana Votooor</title> -->
+<!-- </svelte:head> -->
+
 <div class="md:hero mx-auto p-4">
 	<div class="md:hero-content flex flex-col">
 		<h1
@@ -515,13 +559,13 @@
 			Polls
 		</h1>
 		<div class="card-body items-center text-center pt-0">
-			{#if !$customProgramStore}
+			{#if !hasCustomProgramStoreValues}
 				<Button disabled={!$walletStore.publicKey} on:click={handleCreateCustomProgram}
 					>Create Custom Program</Button
 				>
 			{/if}
 			<br />
-			{#if !$profileStore}
+			{#if !hasProfileStoreValues}
 				<Button disabled={!$walletStore.publicKey} on:click={() => (showModal = true)}
 					>Create Profile</Button
 				>
@@ -550,8 +594,16 @@
 				disabled={!$walletStore.publicKey && (!pollOptionADisplayName || !pollOptionBDisplayName)}
 				on:click={handleCreatePoll}>Create Poll</Button
 			>
+			<input
+				type="text"
+				id="search"
+				placeholder="Search"
+				bind:value={searchTerm}
+				class="input input-bordered w-full max-w-xs"
+				class:input-secondary={searchTerm !== ''}
+			/>
 			{#if $pollsStore}
-				{#each $pollsStore as { poll, pda } (pda)}
+				{#each filteredPolls as { poll, pda } (pda)}
 					<Poll {poll} pda={pda.toBase58()} />
 				{/each}
 			{/if}
