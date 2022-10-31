@@ -14,6 +14,8 @@ import { expect } from "chai";
 import NodeWallet from "@project-serum/anchor/dist/cjs/nodewallet";
 
 describe("non-custodial-escrow", () => {
+  const ESCROW_SEED_PREFIX = "escrow";
+
   // NOTE Anchor tests use provider.wallet as the payer, and thus automatically
   // use the provider.wallet as the signer.
   // Configure the client to use the devnet
@@ -89,7 +91,7 @@ describe("non-custodial-escrow", () => {
     // 2. Find a PDA for our escrow account to be located at
     const [escrowPDA, escrowBump] = await PublicKey.findProgramAddress(
       // [anchor.utils.bytes.utf8.encode("escrow"), seller.publicKey.toBuffer()],
-      [Buffer.from("escrow2"), seller.publicKey.toBuffer()],
+      [Buffer.from(ESCROW_SEED_PREFIX), seller.publicKey.toBuffer()],
       program.programId
     );
     escrow = escrowPDA;

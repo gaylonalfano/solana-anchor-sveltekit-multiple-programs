@@ -42,6 +42,7 @@
 	import type NodeWallet from '@project-serum/anchor/dist/cjs/nodewallet';
 	import P1 from './p1.svelte';
 
+	const ESCROW_SEED_PREFIX = 'escrow';
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
 	const network = 'http://localhost:8899';
 	const config = 'confirmed';
@@ -551,7 +552,10 @@
 		}
 
 		const [escrowPDA, escrowBump] = await anchor.web3.PublicKey.findProgramAddress(
-			[Buffer.from('escrow2'), ($walletStore.publicKey as anchor.web3.PublicKey).toBuffer()],
+			[
+				Buffer.from(ESCROW_SEED_PREFIX),
+				($walletStore.publicKey as anchor.web3.PublicKey).toBuffer()
+			],
 			$workspaceStore.program?.programId as anchor.web3.PublicKey
 		);
 		escrow = escrowPDA;

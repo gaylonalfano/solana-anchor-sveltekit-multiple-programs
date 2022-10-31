@@ -67,7 +67,7 @@ pub mod non_custodial_escrow {
                 // signer_seeds
                 // Q: Do we need our program Id as a seed?
                 // A: Nope! But we need the bump!
-                &[&["escrow2".as_bytes(), ctx.accounts.escrow.authority.as_ref(), &[ctx.accounts.escrow.bump]]]
+                &[&[Escrow::SEED_PREFIX.as_bytes(), ctx.accounts.escrow.authority.as_ref(), &[ctx.accounts.escrow.bump]]]
             ),
             ctx.accounts.escrowed_x_token.amount,
         )?;
@@ -110,7 +110,7 @@ pub mod non_custodial_escrow {
                     authority: ctx.accounts.escrow.to_account_info(),
                 }, 
                 // signer_seeds since escrow is authority and is PDA
-                &[&["escrow2".as_bytes(), ctx.accounts.escrow.authority.as_ref(), &[ctx.accounts.escrow.bump]]]
+                &[&[Escrow::SEED_PREFIX.as_bytes(), ctx.accounts.escrow.authority.as_ref(), &[ctx.accounts.escrow.bump]]]
             ),
             // amount of x token
             ctx.accounts.escrowed_x_token.amount,
@@ -133,7 +133,7 @@ pub mod non_custodial_escrow {
                 // NOTE signer_seeds is a bunch of &[u8] types, so use .as_bytes(), as_ref(), etc.
                 // NOTE escrow.authority = seller since the seller paid to create the PDA account
                 // Q: When do I use escrow.authority versus seller? Either okay?
-                &[&["escrow2".as_bytes(), ctx.accounts.escrow.authority.as_ref(), &[ctx.accounts.escrow.bump]]]
+                &[&[Escrow::SEED_PREFIX.as_bytes(), ctx.accounts.escrow.authority.as_ref(), &[ctx.accounts.escrow.bump]]]
                 // &[&["escrow".as_bytes(), ctx.accounts.seller.as_ref()], &[ctx.accounts.escrow.bump]]
             )
         )?;
@@ -170,7 +170,7 @@ pub struct Initialize<'info> {
         init, 
         payer = seller,  // authority (wallet that's paysing for PDA account creation)
         space = Escrow::LEN,
-        seeds = ["escrow2".as_bytes(), seller.key().as_ref()],
+        seeds = [Escrow::SEED_PREFIX.as_bytes(), seller.key().as_ref()],
         bump,
     )]
     pub escrow: Account<'info, Escrow>,
@@ -214,7 +214,7 @@ pub struct Accept<'info> {
     pub buyer: Signer<'info>,
 
     // NOTE 'seeds' are &[u8], so need to use as_bytes(), as_ref(), etc.
-    #[account(mut, seeds = ["escrow2".as_bytes(), escrow.authority.key().as_ref()], bump = escrow.bump)]
+    #[account(mut, seeds = [Escrow::SEED_PREFIX.as_bytes(), escrow.authority.key().as_ref()], bump = escrow.bump)]
     pub escrow: Account<'info, Escrow>,
     // Q: Do we need to create a escrowed_y_token account inside escrow?
     // A: NO! But we DO need buyer and seller's x and y token accounts data
@@ -257,7 +257,7 @@ pub struct Cancel<'info> {
         mut, 
         close = seller, 
         constraint = escrow.authority == seller.key(), 
-        seeds = ["escrow2".as_bytes(), escrow.authority.as_ref()], 
+        seeds = [Escrow::SEED_PREFIX.as_bytes(), escrow.authority.as_ref()], 
         bump = escrow.bump,
     )]
     pub escrow: Account<'info, Escrow>,
@@ -308,4 +308,5 @@ impl Escrow {
     // 1 Is Active
     // 1 Has Exchanged
     pub const LEN: usize = 8 + 1 + 32 + 32 + 32 + 8 + 1 + 1;
+    pub const SEED_PREFIX: &'static str = "escrow";
 }
