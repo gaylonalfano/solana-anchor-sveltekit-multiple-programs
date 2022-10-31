@@ -893,11 +893,11 @@ describe("onchain-voting-multiple-polls", () => {
       // Check whether entered Poll options are duplicates of existing Polls
       let optionA = "nGmI   ";
       let optionB = "   gMi ";
-      // if (pollOptionsExist(optionA, optionB)) {
-      //   // Return and fail the test!
-      //   console.log("Duplicate Poll options found! Stopping execution.")
-      //   return;
-      // }
+      if (pollOptionsExist(optionA, optionB)) {
+        // Return and fail the test!
+        console.log("Duplicate Poll options found! Stopping execution.")
+        return;
+      }
 
       optionA = "same";
       optionB = "same";

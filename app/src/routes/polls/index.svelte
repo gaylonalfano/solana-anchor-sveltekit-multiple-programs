@@ -54,10 +54,7 @@
       - DONE Clear input fields after entry
       - DONE Add 'Back' button navigation
       - DONE Add stores/polls/index.ts file for easier imports
-      - Add UI that shows Profile has already voted
-      - Add UI that shows Profile created Poll
-      - Add UI that lists votes by profile + vote choice
-      - Profile page?
+      - DONE Add UI that shows Profile has already voted
       - DONE Prevent Polls with same choices just reversed being created
         - Q: Create BOTH variations inside create_poll()?
         - A: Just do check in frontend. See hasExistingPollOptions()
@@ -65,6 +62,10 @@
       - DONE Create a modal for create profile to allow custom handles
       - Add notifications for errors (2nd attempts, no SOL, no Profile, etc)
       - Update Button.svelte to have custom disabled text label. Named slots help?
+      - Add UI that shows Profile created Poll
+      - Add UI that lists votes by profile + vote choice
+      - Profile page?
+      - Limit Poll option to max char limit (look at struct)
   */
 
 	// U: onMount runs BEFORE workspace is connected!

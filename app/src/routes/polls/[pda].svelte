@@ -440,14 +440,33 @@
 			<div class="flex items-center justify-center">
 				<a role="button" class="btn " href="/polls">Back</a>
 			</div>
-			{#if $pollVotesStore}
-				{#each $pollVotesStore as vote (vote.voteNumber)}
-					<p>
-						{vote.voteNumber} | {vote.authority} | {Object.keys(vote.voteOption)[0] === 'a'
-							? $pollStore.poll?.optionADisplayLabel
-							: $pollStore.poll?.optionBDisplayLabel}
-					</p>
-				{/each}
+			{#if $pollVotesStore.length > 0}
+				<div class="overflow-x-auto">
+					<table class="table">
+						<thead>
+							<tr>
+								<th />
+								<th>Wallet</th>
+								<th>Selection</th>
+							</tr>
+						</thead>
+						{#each $pollVotesStore as vote (vote.voteNumber)}
+							<!-- head -->
+							<tbody>
+								<!-- row 1 -->
+								<tr>
+									<th>{vote.voteNumber}</th>
+									<td>{vote.authority}</td>
+									<td
+										>{Object.keys(vote.voteOption)[0] === 'a'
+											? $pollStore.poll?.optionADisplayLabel
+											: $pollStore.poll?.optionBDisplayLabel}</td
+									>
+								</tr>
+							</tbody>
+						{/each}
+					</table>
+				</div>
 				<!-- <Button disabled={!$walletStore.publicKey} on:click={() => profileHasVoted($pollVotesStore)}>Profile voted?</Button> -->
 				<h4 class="bg-secondary text-accent">Profile has voted: {profileHasVoted}</h4>
 			{/if}
