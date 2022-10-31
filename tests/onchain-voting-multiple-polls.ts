@@ -832,13 +832,26 @@ describe("onchain-voting-multiple-polls", () => {
   // Or, prevent in frontend by first searching/filtering Poll accounts?
   // A: Going with frontend prevention for now...
   it("Try to create SECOND/DUPLICATE testPoll1 with testUser1", async () => {
-    // U: Check out my hasExistingPollOptions(a,b): boolean in polls/index.svelte
+    // U: Check out my pollOptionsExist(a,b): boolean in polls/index.svelte
     // U: Added this helper to this test (below). Need to fetch existing Poll accounts
-    // and then pass new Poll options to hasExistingPollOptions(a,b)
+    // and then pass new Poll options to pollOptionsExist(a,b)
     const currentPolls = await program.account.poll.all(); // [{pubkey, account}]
     console.log('currentPolls: ', currentPolls);
 
-    function hasExistingPollOptions(optionA: string, optionB: string): boolean {
+    // TODO Add a check if the entered are identical options
+    // TODO Re-run the test to make sure it works...
+    function pollOptionsIdentical(optionA: string, optionB: string): boolean {
+      if (optionA === '' && optionB === '') {
+        return false;
+      }
+      if (optionA.trim().toUpperCase() === optionB.trim().toUpperCase()) {
+        return true;
+      }
+      return false;
+    }
+
+
+    function pollOptionsExist(optionA: string, optionB: string): boolean {
       const enteredOptionsSet = new Set();
       enteredOptionsSet.add(optionA.trim().toUpperCase());
       enteredOptionsSet.add(optionB.trim().toUpperCase());
@@ -878,11 +891,19 @@ describe("onchain-voting-multiple-polls", () => {
 
     try {
       // Check whether entered Poll options are duplicates of existing Polls
-      const optionA = "nGmI   ";
-      const optionB = "   gMi ";
-      if (hasExistingPollOptions(optionA, optionB)) {
+      let optionA = "nGmI   ";
+      let optionB = "   gMi ";
+      // if (pollOptionsExist(optionA, optionB)) {
+      //   // Return and fail the test!
+      //   console.log("Duplicate Poll options found! Stopping execution.")
+      //   return;
+      // }
+
+      optionA = "same";
+      optionB = "same";
+      if (pollOptionsIdentical(optionA, optionB)) {
         // Return and fail the test!
-        console.log("Duplicate Poll options found! Stopping execution.")
+        console.log("Identical Poll options entered! Stopping execution.")
         return;
       }
 

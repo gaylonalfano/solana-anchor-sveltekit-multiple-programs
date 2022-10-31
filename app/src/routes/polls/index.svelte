@@ -199,13 +199,12 @@
 
 	$: if (pollOptionADisplayName && pollOptionBDisplayName) {
 		console.log('Existing Poll?: ');
-		console.log(hasExistingPollOptions(pollOptionADisplayName, pollOptionBDisplayName));
+		console.log(pollOptionsExist(pollOptionADisplayName, pollOptionBDisplayName));
 	}
 
-	$: hasDuplicatePollOptions = hasExistingPollOptions(
-		pollOptionADisplayName,
-		pollOptionBDisplayName
-	);
+	$: hasExistingPollOptions = pollOptionsExist(pollOptionADisplayName, pollOptionBDisplayName);
+
+	$: hasIdenticalPollOptions = pollOptionsIdentical(pollOptionADisplayName, pollOptionBDisplayName);
 
 	$: {
 		console.log(searchTerm);
@@ -243,7 +242,8 @@
 		// console.log('hasWorkspaceProgramReady: ', hasWalletReadyForFetch);
 		// console.log('hasPollsStoreValues: ', hasPollsStoreValues);
 		// console.log('hasPollStoreValues: ', hasPollStoreValues);
-		console.log('hasDuplicatePollOptions: ', hasDuplicatePollOptions);
+		console.log('hasExistingPollOptions: ', hasExistingPollOptions);
+		console.log('hasIdenticalPollOptions: ', hasIdenticalPollOptions);
 		console.log('filteredPolls: ', filteredPolls);
 	}
 
@@ -368,7 +368,7 @@
 	async function handleCreatePoll() {
 		// Check whether there's an existing Poll
 		// NOTE I'm also doing an initial check in the UI, but this is backup.
-		if (hasExistingPollOptions(pollOptionADisplayName, pollOptionBDisplayName)) {
+		if (pollOptionsExist(pollOptionADisplayName, pollOptionBDisplayName)) {
 			notificationStore.add({
 				type: 'error',
 				message: 'Duplicate Poll options found!'
@@ -493,9 +493,19 @@
 		pollStore.set;
 	}
 
+	function pollOptionsIdentical(optionA: string, optionB: string): boolean {
+		if (optionA === '' && optionB === '') {
+			return false;
+		}
+		if (optionA.trim().toUpperCase() === optionB.trim().toUpperCase()) {
+			return true;
+		}
+		return false;
+	}
+
 	// Prevent duplicate Polls getting created (A v B, B v A)
 	// U: Adding params so I can use inside reactive statement
-	function hasExistingPollOptions(optionA: string, optionB: string): boolean {
+	function pollOptionsExist(optionA: string, optionB: string): boolean {
 		// Q: Should I try using a Set with its add(), has(), .size?
 		// REF: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set#implementing_basic_set_operations
 		// function isSuperset(set, subset) {
@@ -572,7 +582,9 @@
 			{/if}
 			<div class="form-control">
 				<label class="input-group input-group-vertical pt-1">
-					<span class:bg-error={hasDuplicatePollOptions}>Option A Display</span>
+					<span class:bg-error={hasExistingPollOptions || hasIdenticalPollOptions}
+						>Option A Display</span
+					>
 					<input
 						type="text"
 						placeholder="E.g., Dog"
@@ -581,7 +593,9 @@
 					/>
 				</label>
 				<label class="input-group input-group-vertical pt-1">
-					<span class:bg-error={hasDuplicatePollOptions}>Option B Display</span>
+					<span class:bg-error={hasExistingPollOptions || hasIdenticalPollOptions}
+						>Option B Display</span
+					>
 					<input
 						type="text"
 						placeholder="E.g., Cat"
