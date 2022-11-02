@@ -149,6 +149,7 @@ pub mod non_custodial_escrow {
 }
 
 
+// === INSTRUCTIONS ===
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     // Q: Need 'pub' or no?
@@ -169,7 +170,7 @@ pub struct Initialize<'info> {
     #[account(
         init, 
         payer = seller,  // authority (wallet that's paysing for PDA account creation)
-        space = Escrow::LEN,
+        space = Escrow::ACCOUNT_SPACE,
         seeds = [Escrow::SEED_PREFIX.as_bytes(), seller.key().as_ref()],
         bump,
     )]
@@ -282,7 +283,7 @@ pub struct Cancel<'info> {
     token_program: Program<'info, Token>,
 }
 
-
+// === STATE ===
 // This is a PDA for our escrow data account
 // REF: Check out solana-escrow/state.rs to see how Escrow struct is defined
 #[derive(Debug)]
@@ -294,7 +295,7 @@ pub struct Escrow {
     y_mint: Pubkey, // Mint Address
     y_amount: u64, // Amount seller is wanting in exchange of x_amount of x_token
     is_active: bool,
-    has_exchanged: bool, // If is_active == false && has_exchanged == false => CANCELED
+    has_exchanged: bool, // If is_active == false && has_exchanged == false => CANCELLED
 }
 
 
@@ -307,6 +308,6 @@ impl Escrow {
     // 8 Y Amount
     // 1 Is Active
     // 1 Has Exchanged
-    pub const LEN: usize = 8 + 1 + 32 + 32 + 32 + 8 + 1 + 1;
+    pub const ACCOUNT_SPACE: usize = 8 + 1 + 32 + 32 + 32 + 8 + 1 + 1;
     pub const SEED_PREFIX: &'static str = "escrow";
 }

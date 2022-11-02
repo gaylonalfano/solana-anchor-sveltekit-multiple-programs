@@ -1,8 +1,6 @@
 <script lang="ts">
 	// REF: UI idea from: https://github.com/paul-schaaf/escrow-ui/blob/master/src/Alice.vue
 	// REF: Good example of web3/spl-token use: https://github.com/paul-schaaf/escrow-ui/blob/master/src/util/initEscrow.ts
-	// TODO Fetch all active Escrows involving wallet and display
-	// TODO Add a Token select menu rather than hardcoding X/Y
 	import {
 		clusterApiUrl,
 		Connection,
@@ -38,14 +36,22 @@
 
 	import { onMount } from 'svelte';
 	import { notificationStore } from '../stores/notification';
+	import { xTokenStore, xMintStore, yTokenStore, yMintStore } from '$stores/escrow/tokens-store';
 	import { Button } from '$lib/index';
 	import type NodeWallet from '@project-serum/anchor/dist/cjs/nodewallet';
 	import P1 from './p1.svelte';
+	import * as constants from '../helpers/escrow/constants';
 
-	const ESCROW_SEED_PREFIX = 'escrow';
-	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
-	const network = 'http://localhost:8899';
-	const config = 'confirmed';
+	// TODOS:
+	// - Fetch all active Escrows involving wallet and display
+	// - Add a Token select menu rather than hardcoding X/Y
+	// - DONE Create custom Store for escrow
+	// - Create custom Store for Buyer? Seller?
+	// - Declare return types for async functions (Promise<web3.Transaction>, etc.)
+	// - Add reactive statements for $walletStore.publicKey to fetch state
+
+	const network = constants.NETWORK;
+	const config = constants.PREFLIGHT_COMMITMENT;
 
 	// FIXME Losing reactivity in UI. Not sure why. Just seems like after I sendTransaction(),
 	// no other async/awaits really work unless I add to button onclick handler...
@@ -57,7 +63,7 @@
 	// const buyer = anchor.web3.Keypair.generate();
 	const buyer = new PublicKey('HzgMBJvpsKgTRe84q7BgdYbf3w4hBCWoy384rZBF9viy');
 	let xMint: anchor.web3.PublicKey;
-	// TODO Add IDL Types: anchor.IdlTypes<anchor.Idl>["xMint"] etc.
+	// TODO Is there an SPL 'Account' type to use for TS?
 	let xMintAccountData;
 	let yMint: anchor.web3.PublicKey;
 	let yMintAccountData;
@@ -85,7 +91,7 @@
 	// Q: How am I supposed to pass AnchorProvider with simple solana/spl-token methods?
 	// Getting issues with Signer vs. Wallet...
 	// A: You CAN'T because frontend never has access to Keypairs!
-	// MUST to compose ix and txs manually following Cookbook
+	// MUST compose ix and txs MANUALLY following Cookbook
 
 	let formState = {
 		escrow: '',
@@ -146,13 +152,17 @@
 
 	// $: hasCreatedTokens = if(yMint != null && xMint != null) return true;
 
-	$: if ($workspaceStore && $walletStore) {
-		// console.log('baseAccount: ', $workspaceStore.baseAccount?.publicKey.toBase58());
-		console.log('xMintAccountData: ', xMintAccountData);
-		// console.log('provider.connection: ', $workspaceStore.provider?.connection);
-		// console.log('connection: ', $workspaceStore.connection);
-		console.log('walletStore.publicKey: ', $walletStore.publicKey?.toBase58());
-		console.log('formState: ', formState);
+	// $: if ($workspaceStore && $walletStore) {
+	// 	// console.log('baseAccount: ', $workspaceStore.baseAccount?.publicKey.toBase58());
+	// 	console.log('xMintAccountData: ', xMintAccountData);
+	// 	// console.log('provider.connection: ', $workspaceStore.provider?.connection);
+	// 	// console.log('connection: ', $workspaceStore.connection);
+	// 	console.log('walletStore.publicKey: ', $walletStore.publicKey?.toBase58());
+	// 	console.log('formState: ', formState);
+	// }
+
+	$: {
+		console.log('xMintStore: ', $xMintStore);
 	}
 
 	$: if (escrowState) {
@@ -160,6 +170,9 @@
 	}
 
 	async function createTokenX() {
+		// Q 11/1: Explicitly return Promise<Transaction>?
+		// REF: https://youtu.be/zai8CX6OwTg?t=573
+
 		// IMPORTANT: Using built-in createMint() will fail bc Anchor Signer clashes. Have to build manually!
 		// Q: How do I pass an Anchor Signer to pay for tx?
 		// Q: How could I turn createMint() into a tx to then pass to AnchorProvider.sendAndConfirm()?
@@ -221,13 +234,17 @@
 		const confirmedTx = await $workspaceStore.connection.confirmTransaction(signature, 'confirmed');
 		console.log('confirmedTx: ', confirmedTx);
 
+		xMintAccountData = await getMint($workspaceStore.connection, xMint);
+		xMintStore.set(xMintAccountData);
+
 		// console.log(
 		// 	`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
 		// 		signers: [mint]
 		// 	})}`
 		// ); // WORKS! Need to use walletStore instead of workspaceStore!
 
-		// FIXME
+		// UPDATE 11/1: Works! I can await getMint() AFTER I first sendTransaction()
+		// and then save the state (Store).
 		// UPDATE 9/14: Still not sure. However, for TokenAccountNotFoundError,
 		// it may not be needed, or perhaps need to try and fetch after creating ATAs.
 		// REF: https://solana.stackexchange.com/questions/1202/spl-token-solana-create-token-account-with-wallet-adapter-react-js
@@ -314,11 +331,21 @@
 			)
 		);
 
-		console.log(
-			`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
-				signers: [mint]
-			})}`
-		); // WORKS! Need to use walletStore instead of workspaceStore!
+		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
+			signers: [mint]
+		});
+		console.log('signature:	', signature);
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction(signature, 'confirmed');
+		console.log('confirmedTx: ', confirmedTx);
+
+		yMintAccountData = await getMint($workspaceStore.connection, yMint);
+		yMintStore.set(yMintAccountData);
+
+		// console.log(
+		// 	`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
+		// 		signers: [mint]
+		// 	})}`
+		// ); // WORKS! Need to use walletStore instead of workspaceStore!
 	}
 
 	async function createTokenXAndTokenY() {
@@ -343,6 +370,8 @@
 		// NOTE Currently getMint() only works when I add to onclick event...
 		xMintAccountData = await getMint($workspaceStore.connection, xMint);
 		// xMintAccountData = await $workspaceStore.connection.getAccountInfo(xMint); // Promise
+		// U: Trying out my Writable<Mint> Store
+		xMintStore.set(xMintAccountData);
 	}
 
 	async function getYMintAccount() {
@@ -353,6 +382,7 @@
 		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
 			sellerXToken
 		);
+		console.log('sellerXToken Balance: ', tokenAmount);
 
 		sellerXBalance = tokenAmount?.value.uiAmount as number;
 	}
@@ -361,8 +391,16 @@
 		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
 			buyerYToken
 		);
+		console.log('buyerYToken Balance: ', tokenAmount);
 
 		buyerYBalance = tokenAmount?.value.uiAmount as number;
+	}
+
+	async function getBuyerYTokenAccountBalancePromise() {
+		// Testing purposes
+		const tokenAmountPromise =
+			$workspaceStore.provider?.connection.getTokenAccountBalance(buyerYToken);
+		return tokenAmountPromise;
 	}
 
 	async function createSellerTokenXAssociatedTokenAccount() {
@@ -459,10 +497,15 @@
 
 	async function createAllBuyerAndSellerAssociatedTokenAccounts() {
 		// Q: Not sure this will be needed when I implement actual wallets...
-		await createBuyerTokenXAssociatedTokenAccount();
-		await createBuyerTokenYAssociatedTokenAccount();
-		await createSellerTokenXAssociatedTokenAccount();
-		await createSellerTokenYAssociatedTokenAccount();
+		// Q: Is there a sendAllTransactions() method?
+		try {
+			await createBuyerTokenXAssociatedTokenAccount();
+			await createBuyerTokenYAssociatedTokenAccount();
+			await createSellerTokenXAssociatedTokenAccount();
+			await createSellerTokenYAssociatedTokenAccount();
+		} catch (error) {
+			console.log(error);
+		}
 	}
 
 	async function mintTokenXAndTransferToSellerTokenXAssociatedTokenAccount() {
@@ -485,7 +528,7 @@
 		// 	// [signer1, signer2...], // only multisig account will use
 		// );
 
-		console.log('provider BEFORE Mint: ', $workspaceStore.provider);
+		// console.log('provider BEFORE Mint: ', $workspaceStore.provider);
 		const tx = new Transaction().add(
 			createMintToCheckedInstruction(
 				xMint, // mint
@@ -496,28 +539,28 @@
 			)
 		);
 		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
-		console.log('provider AFTER Mint: ', $workspaceStore.provider);
+		// console.log('provider AFTER Mint: ', $workspaceStore.provider);
 
-		// FIXME
+		// FIXME Look into createMintToCheckedInstruction() more I guess...
 		// Q: Why don't any other async calls work after sending a transaction?
 		// Doesn't work for fetching token account data, balances, etc.
 		// Is it my workspaceStore connection? Only reason I consider that is because
 		// I can't use it to sendTransaction() for some reason...
-		console.log(
-			`sellerXToken.balance: ${await $workspaceStore.connection
-				.getTokenAccountBalance(sellerXToken)
-				.then((r) => r.value.amount)}`
-		);
+		// console.log(
+		// 	`sellerXToken.balance: ${await $workspaceStore.connection
+		// 		.getTokenAccountBalance(sellerXToken)
+		// 		.then((r) => r.value.amount)}`
+		// ); // U: Always returns 0!
 	}
 
 	async function mintTokenYAndTransferToBuyerTokenYAssociatedTokenAccount() {
 		const tx = new Transaction().add(
 			createMintToCheckedInstruction(
-				yMint,
-				buyerYToken,
-				$walletStore.publicKey as anchor.web3.PublicKey,
-				1e8,
-				8
+				yMint, // mint
+				buyerYToken, // destination ata
+				$walletStore.publicKey as anchor.web3.PublicKey, // mint authority
+				1e8, // amount
+				8 // decimals
 			)
 		);
 		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
@@ -527,18 +570,44 @@
 		// Doesn't work for fetching token account data, balances, etc.
 		// Is it my workspaceStore connection? Only reason I consider that is because
 		// I can't use it to sendTransaction() for some reason...
-		console.log(
-			`buyerYToken.balance: ${await $workspaceStore.connection
-				.getTokenAccountBalance(buyerYToken)
-				.then((r) => r.value.amount)}`
-		);
+		// console.log(
+		// 	`buyerYToken.balance: ${await $workspaceStore.connection
+		// 		.getTokenAccountBalance(buyerYToken)
+		// 		.then((r) => r.value.amount)}`
+		// );
 	}
 
 	async function mintAllTokensAndTransferToAssociatedTokenAccounts() {
-		await mintTokenXAndTransferToSellerTokenXAssociatedTokenAccount();
-		await mintTokenYAndTransferToBuyerTokenYAssociatedTokenAccount();
-		await getSellerXTokenAccountBalance();
-		await getBuyerYTokenAccountBalance();
+		try {
+			await mintTokenXAndTransferToSellerTokenXAssociatedTokenAccount();
+			await mintTokenYAndTransferToBuyerTokenYAssociatedTokenAccount();
+			await getSellerXTokenAccountBalance();
+			await getBuyerYTokenAccountBalance();
+		} catch (error) {
+			console.log(error);
+		}
+		// FIXME buyerYToken Balance ALWAYS 0! I have to separately
+		// click a getBuyerYTokenAccountBalance button.
+		// U: I can also get balance w/: spl-token balance --address <buyerYToken>
+		// Q: What about calling directly in here?
+		// A: Nope.
+		// Q: Would Promise.all() be more efficient in this case?
+		// U: Doesn't seem to make a difference.
+		// try {
+		// 	await mintTokenXAndTransferToSellerTokenXAssociatedTokenAccount();
+		// 	await mintTokenYAndTransferToBuyerTokenYAssociatedTokenAccount();
+		// 	const sellerXTokenBalancePromise =
+		// 		$workspaceStore.provider?.connection.getTokenAccountBalance(sellerXToken);
+		// 	const buyerYTokenBalancePromise =
+		// 		$workspaceStore.provider?.connection.getTokenAccountBalance(buyerYToken);
+		// 	const tokenBalances = await Promise.all([
+		// 		sellerXTokenBalancePromise,
+		// 		buyerYTokenBalancePromise
+		// 	]);
+		// 	console.log(tokenBalances);
+		// } catch (error) {
+		// 	console.log(error);
+		// }
 	}
 
 	async function handleInitializeEscrowAccount() {
@@ -553,7 +622,7 @@
 
 		const [escrowPDA, escrowBump] = await anchor.web3.PublicKey.findProgramAddress(
 			[
-				Buffer.from(ESCROW_SEED_PREFIX),
+				Buffer.from(constants.ESCROW_SEED_PREFIX),
 				($walletStore.publicKey as anchor.web3.PublicKey).toBuffer()
 			],
 			$workspaceStore.program?.programId as anchor.web3.PublicKey

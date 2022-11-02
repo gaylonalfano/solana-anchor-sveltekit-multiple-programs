@@ -13,31 +13,32 @@ if &shortmess =~ 'A'
 else
   set shortmess=aoO
 endif
-badd +1 ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/stores/polls/profile-store.ts
-badd +1965 term://~/Code/solana-anchor-sveltekit-multiple-programs/app//66387:/bin/zsh
-badd +354 term://~/Code/solana-anchor-sveltekit-multiple-programs/app//66850:/bin/zsh
-badd +149 term://~/Code/solana-anchor-sveltekit-multiple-programs/app//67365:/bin/zsh
-badd +1 src/routes/polls/index.svelte
-badd +141 ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/routes/polls/\[pda].svelte
-badd +5 src/stores/polls/polls-store.ts
-badd +43 src/stores/polls/poll-store.ts
-badd +32 src/routes/__layout.svelte
-badd +4 ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/models/polls-types.ts
-badd +28 src/stores/polls/custom-program-store.ts
-badd +2 src/routes/basics.svelte
-badd +14 ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/lib/SendTransaction.svelte
-badd +6 ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/lib/SignMessage.svelte
-badd +14 term://~/Code/solana-anchor-sveltekit-multiple-programs/app//96130:/bin/zsh
-badd +9 src/stores/polls/profiles-store.ts
+badd +148 ~/Code/solana-anchor-sveltekit-multiple-programs/tests/non-custodial-escrow.ts
+badd +557 src/routes/escrow.svelte
+badd +533 src/routes/polls/index.svelte
+badd +24 term://~/Code/solana-anchor-sveltekit-multiple-programs/app//59204:/bin/zsh
+badd +1911 term://~/Code/solana-anchor-sveltekit-multiple-programs/app//59684:/bin/zsh
+badd +5536 term://~/Code/solana-anchor-sveltekit-multiple-programs/app//60215:/bin/zsh
+badd +207 term://~/Code/solana-anchor-sveltekit-multiple-programs/app//60778:/bin/zsh
+badd +6 src/routes/__layout.svelte
+badd +401 src/helpers/polls/getAllProgramAccounts.ts
+badd +5 ~/Code/solana-anchor-sveltekit-multiple-programs/Anchor.toml
+badd +294 ~/Code/solana-anchor-sveltekit-multiple-programs/programs/non-custodial-escrow/src/lib.rs
+badd +46 ~/Code/solana-anchor-sveltekit-multiple-programs/programs/onchain-voting-multiple-polls/src/state/poll.rs
+badd +588 ~/Code/solana-anchor-sveltekit-multiple-programs/tests/onchain-voting-multiple-polls.ts
+badd +1 src/models/polls-types.ts
+badd +0 src/idl/non_custodial_escrow.ts
+badd +0 src/helpers/polls/constants.ts
+badd +20 src/helpers/escrow/constants.ts
+badd +3150 node_modules/@solana/web3.js/lib/index.d.ts
 argglobal
 %argdel
 $argadd .
 tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
 tabnew +setlocal\ bufhidden=wipe
-tabnew +setlocal\ bufhidden=wipe
 tabrewind
-edit src/stores/polls/poll-store.ts
+edit src/routes/escrow.svelte
 let s:save_splitbelow = &splitbelow
 let s:save_splitright = &splitright
 set splitbelow splitright
@@ -54,10 +55,10 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe 'vert 1resize ' . ((&columns * 103 + 103) / 207)
-exe 'vert 2resize ' . ((&columns * 103 + 103) / 207)
+exe 'vert 1resize ' . ((&columns * 75 + 75) / 150)
+exe 'vert 2resize ' . ((&columns * 74 + 75) / 150)
 argglobal
-balt ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/stores/polls/profile-store.ts
+balt node_modules/@solana/web3.js/lib/index.d.ts
 setlocal fdm=manual
 setlocal fde=
 setlocal fmr={{{,}}}
@@ -68,19 +69,19 @@ setlocal fdn=20
 setlocal fen
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 43 - ((39 * winheight(0) + 30) / 61)
+let s:l = 342 - ((15 * winheight(0) + 31) / 62)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 43
+keepjumps 342
 normal! 0
 wincmd w
 argglobal
-if bufexists(fnamemodify("src/stores/polls/polls-store.ts", ":p")) | buffer src/stores/polls/polls-store.ts | else | edit src/stores/polls/polls-store.ts | endif
+if bufexists(fnamemodify("~/Code/solana-anchor-sveltekit-multiple-programs/programs/non-custodial-escrow/src/lib.rs", ":p")) | buffer ~/Code/solana-anchor-sveltekit-multiple-programs/programs/non-custodial-escrow/src/lib.rs | else | edit ~/Code/solana-anchor-sveltekit-multiple-programs/programs/non-custodial-escrow/src/lib.rs | endif
 if &buftype ==# 'terminal'
-  silent file src/stores/polls/polls-store.ts
+  silent file ~/Code/solana-anchor-sveltekit-multiple-programs/programs/non-custodial-escrow/src/lib.rs
 endif
-balt ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/stores/polls/profile-store.ts
+balt ~/Code/solana-anchor-sveltekit-multiple-programs/tests/non-custodial-escrow.ts
 setlocal fdm=manual
 setlocal fde=
 setlocal fmr={{{,}}}
@@ -91,17 +92,17 @@ setlocal fdn=20
 setlocal fen
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 4 - ((3 * winheight(0) + 30) / 61)
+let s:l = 239 - ((49 * winheight(0) + 31) / 62)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 4
+keepjumps 239
 normal! 0
 wincmd w
-exe 'vert 1resize ' . ((&columns * 103 + 103) / 207)
-exe 'vert 2resize ' . ((&columns * 103 + 103) / 207)
+exe 'vert 1resize ' . ((&columns * 75 + 75) / 150)
+exe 'vert 2resize ' . ((&columns * 74 + 75) / 150)
 tabnext
-edit ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/stores/polls/profile-store.ts
+edit src/helpers/escrow/constants.ts
 let s:save_splitbelow = &splitbelow
 let s:save_splitright = &splitright
 set splitbelow splitright
@@ -118,10 +119,10 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe 'vert 1resize ' . ((&columns * 103 + 103) / 207)
-exe 'vert 2resize ' . ((&columns * 103 + 103) / 207)
+exe 'vert 1resize ' . ((&columns * 74 + 75) / 150)
+exe 'vert 2resize ' . ((&columns * 75 + 75) / 150)
 argglobal
-balt src/stores/polls/polls-store.ts
+balt ~/Code/solana-anchor-sveltekit-multiple-programs/programs/non-custodial-escrow/src/lib.rs
 setlocal fdm=manual
 setlocal fde=
 setlocal fmr={{{,}}}
@@ -132,19 +133,19 @@ setlocal fdn=20
 setlocal fen
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 13 - ((12 * winheight(0) + 30) / 61)
+let s:l = 22 - ((21 * winheight(0) + 31) / 62)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 13
+keepjumps 22
 normal! 0
 wincmd w
 argglobal
-if bufexists(fnamemodify("src/stores/polls/profiles-store.ts", ":p")) | buffer src/stores/polls/profiles-store.ts | else | edit src/stores/polls/profiles-store.ts | endif
+if bufexists(fnamemodify("~/Code/solana-anchor-sveltekit-multiple-programs/programs/non-custodial-escrow/src/lib.rs", ":p")) | buffer ~/Code/solana-anchor-sveltekit-multiple-programs/programs/non-custodial-escrow/src/lib.rs | else | edit ~/Code/solana-anchor-sveltekit-multiple-programs/programs/non-custodial-escrow/src/lib.rs | endif
 if &buftype ==# 'terminal'
-  silent file src/stores/polls/profiles-store.ts
+  silent file ~/Code/solana-anchor-sveltekit-multiple-programs/programs/non-custodial-escrow/src/lib.rs
 endif
-balt src/stores/polls/polls-store.ts
+balt src/helpers/escrow/constants.ts
 setlocal fdm=manual
 setlocal fde=
 setlocal fmr={{{,}}}
@@ -155,37 +156,17 @@ setlocal fdn=20
 setlocal fen
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 9 - ((8 * winheight(0) + 30) / 61)
+let s:l = 294 - ((42 * winheight(0) + 31) / 62)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 9
-normal! 02|
+keepjumps 294
+normal! 0
 wincmd w
-exe 'vert 1resize ' . ((&columns * 103 + 103) / 207)
-exe 'vert 2resize ' . ((&columns * 103 + 103) / 207)
+exe 'vert 1resize ' . ((&columns * 74 + 75) / 150)
+exe 'vert 2resize ' . ((&columns * 75 + 75) / 150)
 tabnext
-edit src/stores/polls/custom-program-store.ts
-argglobal
-balt src/stores/polls/polls-store.ts
-setlocal fdm=manual
-setlocal fde=
-setlocal fmr={{{,}}}
-setlocal fdi=#
-setlocal fdl=0
-setlocal fml=1
-setlocal fdn=20
-setlocal fen
-silent! normal! zE
-let &fdl = &fdl
-let s:l = 28 - ((18 * winheight(0) + 30) / 61)
-if s:l < 1 | let s:l = 1 | endif
-keepjumps exe s:l
-normal! zt
-keepjumps 28
-normal! 031|
-tabnext
-edit src/routes/polls/index.svelte
+edit src/helpers/polls/getAllProgramAccounts.ts
 let s:save_splitbelow = &splitbelow
 let s:save_splitright = &splitright
 set splitbelow splitright
@@ -202,8 +183,8 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe 'vert 1resize ' . ((&columns * 103 + 103) / 207)
-exe 'vert 2resize ' . ((&columns * 103 + 103) / 207)
+exe 'vert 1resize ' . ((&columns * 75 + 75) / 150)
+exe 'vert 2resize ' . ((&columns * 74 + 75) / 150)
 argglobal
 balt src/routes/__layout.svelte
 setlocal fdm=manual
@@ -213,22 +194,23 @@ setlocal fdi=#
 setlocal fdl=0
 setlocal fml=1
 setlocal fdn=20
-setlocal nofen
+setlocal fen
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 104 - ((11 * winheight(0) + 30) / 61)
+let s:l = 401 - ((54 * winheight(0) + 31) / 62)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 104
-normal! 038|
+keepjumps 401
+normal! 0
+lcd ~/Code/solana-anchor-sveltekit-multiple-programs/app
 wincmd w
 argglobal
-if bufexists(fnamemodify("~/Code/solana-anchor-sveltekit-multiple-programs/app/src/routes/polls/\[pda].svelte", ":p")) | buffer ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/routes/polls/\[pda].svelte | else | edit ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/routes/polls/\[pda].svelte | endif
+if bufexists(fnamemodify("~/Code/solana-anchor-sveltekit-multiple-programs/app/src/routes/polls/index.svelte", ":p")) | buffer ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/routes/polls/index.svelte | else | edit ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/routes/polls/index.svelte | endif
 if &buftype ==# 'terminal'
-  silent file ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/routes/polls/\[pda].svelte
+  silent file ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/routes/polls/index.svelte
 endif
-balt ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/lib/SignMessage.svelte
+balt ~/Code/solana-anchor-sveltekit-multiple-programs/tests/onchain-voting-multiple-polls.ts
 setlocal fdm=manual
 setlocal fde=
 setlocal fmr={{{,}}}
@@ -239,20 +221,15 @@ setlocal fdn=20
 setlocal fen
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 141 - ((33 * winheight(0) + 30) / 61)
+let s:l = 71 - ((30 * winheight(0) + 31) / 62)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 141
-let s:c = 40 - ((8 * winwidth(0) + 51) / 103)
-if s:c > 0
-  exe 'normal! ' . s:c . '|zs' . 40 . '|'
-else
-  normal! 040|
-endif
+keepjumps 71
+normal! 017|
 wincmd w
-exe 'vert 1resize ' . ((&columns * 103 + 103) / 207)
-exe 'vert 2resize ' . ((&columns * 103 + 103) / 207)
+exe 'vert 1resize ' . ((&columns * 75 + 75) / 150)
+exe 'vert 2resize ' . ((&columns * 74 + 75) / 150)
 tabnext
 let s:save_splitbelow = &splitbelow
 let s:save_splitright = &splitright
@@ -278,20 +255,20 @@ set winminheight=0
 set winheight=1
 set winminwidth=0
 set winwidth=1
-exe '1resize ' . ((&lines * 30 + 33) / 66)
-exe 'vert 1resize ' . ((&columns * 103 + 103) / 207)
+exe '1resize ' . ((&lines * 31 + 33) / 66)
+exe 'vert 1resize ' . ((&columns * 74 + 75) / 150)
 exe '2resize ' . ((&lines * 31 + 33) / 66)
-exe 'vert 2resize ' . ((&columns * 103 + 103) / 207)
+exe 'vert 2resize ' . ((&columns * 74 + 75) / 150)
 exe '3resize ' . ((&lines * 31 + 33) / 66)
-exe 'vert 3resize ' . ((&columns * 103 + 103) / 207)
-exe '4resize ' . ((&lines * 30 + 33) / 66)
-exe 'vert 4resize ' . ((&columns * 103 + 103) / 207)
+exe 'vert 3resize ' . ((&columns * 75 + 75) / 150)
+exe '4resize ' . ((&lines * 31 + 33) / 66)
+exe 'vert 4resize ' . ((&columns * 75 + 75) / 150)
 argglobal
-if bufexists(fnamemodify("term://~/Code/solana-anchor-sveltekit-multiple-programs/app//66387:/bin/zsh", ":p")) | buffer term://~/Code/solana-anchor-sveltekit-multiple-programs/app//66387:/bin/zsh | else | edit term://~/Code/solana-anchor-sveltekit-multiple-programs/app//66387:/bin/zsh | endif
+if bufexists(fnamemodify("term://~/Code/solana-anchor-sveltekit-multiple-programs/app//59204:/bin/zsh", ":p")) | buffer term://~/Code/solana-anchor-sveltekit-multiple-programs/app//59204:/bin/zsh | else | edit term://~/Code/solana-anchor-sveltekit-multiple-programs/app//59204:/bin/zsh | endif
 if &buftype ==# 'terminal'
-  silent file term://~/Code/solana-anchor-sveltekit-multiple-programs/app//66387:/bin/zsh
+  silent file term://~/Code/solana-anchor-sveltekit-multiple-programs/app//59204:/bin/zsh
 endif
-balt ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/stores/polls/profile-store.ts
+balt ~/Code/solana-anchor-sveltekit-multiple-programs/app/src/routes/escrow.svelte
 setlocal fdm=manual
 setlocal fde=
 setlocal fmr={{{,}}}
@@ -300,19 +277,19 @@ setlocal fdl=0
 setlocal fml=1
 setlocal fdn=20
 setlocal fen
-let s:l = 2567 - ((29 * winheight(0) + 15) / 30)
+let s:l = 26 - ((15 * winheight(0) + 15) / 31)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 2567
+keepjumps 26
 normal! 0
 wincmd w
 argglobal
-if bufexists(fnamemodify("term://~/Code/solana-anchor-sveltekit-multiple-programs/app//96130:/bin/zsh", ":p")) | buffer term://~/Code/solana-anchor-sveltekit-multiple-programs/app//96130:/bin/zsh | else | edit term://~/Code/solana-anchor-sveltekit-multiple-programs/app//96130:/bin/zsh | endif
+if bufexists(fnamemodify("term://~/Code/solana-anchor-sveltekit-multiple-programs/app//60215:/bin/zsh", ":p")) | buffer term://~/Code/solana-anchor-sveltekit-multiple-programs/app//60215:/bin/zsh | else | edit term://~/Code/solana-anchor-sveltekit-multiple-programs/app//60215:/bin/zsh | endif
 if &buftype ==# 'terminal'
-  silent file term://~/Code/solana-anchor-sveltekit-multiple-programs/app//96130:/bin/zsh
+  silent file term://~/Code/solana-anchor-sveltekit-multiple-programs/app//60215:/bin/zsh
 endif
-balt term://~/Code/solana-anchor-sveltekit-multiple-programs/app//66387:/bin/zsh
+balt term://~/Code/solana-anchor-sveltekit-multiple-programs/app//59204:/bin/zsh
 setlocal fdm=manual
 setlocal fde=
 setlocal fmr={{{,}}}
@@ -321,40 +298,19 @@ setlocal fdl=0
 setlocal fml=1
 setlocal fdn=20
 setlocal fen
-let s:l = 14 - ((13 * winheight(0) + 15) / 31)
+let s:l = 5567 - ((30 * winheight(0) + 15) / 31)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 14
-normal! 017|
-wincmd w
-argglobal
-if bufexists(fnamemodify("term://~/Code/solana-anchor-sveltekit-multiple-programs/app//66850:/bin/zsh", ":p")) | buffer term://~/Code/solana-anchor-sveltekit-multiple-programs/app//66850:/bin/zsh | else | edit term://~/Code/solana-anchor-sveltekit-multiple-programs/app//66850:/bin/zsh | endif
-if &buftype ==# 'terminal'
-  silent file term://~/Code/solana-anchor-sveltekit-multiple-programs/app//66850:/bin/zsh
-endif
-balt term://~/Code/solana-anchor-sveltekit-multiple-programs/app//66387:/bin/zsh
-setlocal fdm=manual
-setlocal fde=
-setlocal fmr={{{,}}}
-setlocal fdi=#
-setlocal fdl=0
-setlocal fml=1
-setlocal fdn=20
-setlocal fen
-let s:l = 438 - ((30 * winheight(0) + 15) / 31)
-if s:l < 1 | let s:l = 1 | endif
-keepjumps exe s:l
-normal! zt
-keepjumps 438
+keepjumps 5567
 normal! 0
 wincmd w
 argglobal
-if bufexists(fnamemodify("term://~/Code/solana-anchor-sveltekit-multiple-programs/app//67365:/bin/zsh", ":p")) | buffer term://~/Code/solana-anchor-sveltekit-multiple-programs/app//67365:/bin/zsh | else | edit term://~/Code/solana-anchor-sveltekit-multiple-programs/app//67365:/bin/zsh | endif
+if bufexists(fnamemodify("term://~/Code/solana-anchor-sveltekit-multiple-programs/app//59684:/bin/zsh", ":p")) | buffer term://~/Code/solana-anchor-sveltekit-multiple-programs/app//59684:/bin/zsh | else | edit term://~/Code/solana-anchor-sveltekit-multiple-programs/app//59684:/bin/zsh | endif
 if &buftype ==# 'terminal'
-  silent file term://~/Code/solana-anchor-sveltekit-multiple-programs/app//67365:/bin/zsh
+  silent file term://~/Code/solana-anchor-sveltekit-multiple-programs/app//59684:/bin/zsh
 endif
-balt term://~/Code/solana-anchor-sveltekit-multiple-programs/app//66850:/bin/zsh
+balt term://~/Code/solana-anchor-sveltekit-multiple-programs/app//59204:/bin/zsh
 setlocal fdm=manual
 setlocal fde=
 setlocal fmr={{{,}}}
@@ -363,21 +319,42 @@ setlocal fdl=0
 setlocal fml=1
 setlocal fdn=20
 setlocal fen
-let s:l = 149 - ((29 * winheight(0) + 15) / 30)
+let s:l = 3209 - ((30 * winheight(0) + 15) / 31)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 149
+keepjumps 3209
 normal! 0
 wincmd w
-exe '1resize ' . ((&lines * 30 + 33) / 66)
-exe 'vert 1resize ' . ((&columns * 103 + 103) / 207)
+argglobal
+if bufexists(fnamemodify("term://~/Code/solana-anchor-sveltekit-multiple-programs/app//60778:/bin/zsh", ":p")) | buffer term://~/Code/solana-anchor-sveltekit-multiple-programs/app//60778:/bin/zsh | else | edit term://~/Code/solana-anchor-sveltekit-multiple-programs/app//60778:/bin/zsh | endif
+if &buftype ==# 'terminal'
+  silent file term://~/Code/solana-anchor-sveltekit-multiple-programs/app//60778:/bin/zsh
+endif
+balt term://~/Code/solana-anchor-sveltekit-multiple-programs/app//59684:/bin/zsh
+setlocal fdm=manual
+setlocal fde=
+setlocal fmr={{{,}}}
+setlocal fdi=#
+setlocal fdl=0
+setlocal fml=1
+setlocal fdn=20
+setlocal fen
+let s:l = 207 - ((30 * winheight(0) + 15) / 31)
+if s:l < 1 | let s:l = 1 | endif
+keepjumps exe s:l
+normal! zt
+keepjumps 207
+normal! 054|
+wincmd w
+exe '1resize ' . ((&lines * 31 + 33) / 66)
+exe 'vert 1resize ' . ((&columns * 74 + 75) / 150)
 exe '2resize ' . ((&lines * 31 + 33) / 66)
-exe 'vert 2resize ' . ((&columns * 103 + 103) / 207)
+exe 'vert 2resize ' . ((&columns * 74 + 75) / 150)
 exe '3resize ' . ((&lines * 31 + 33) / 66)
-exe 'vert 3resize ' . ((&columns * 103 + 103) / 207)
-exe '4resize ' . ((&lines * 30 + 33) / 66)
-exe 'vert 4resize ' . ((&columns * 103 + 103) / 207)
+exe 'vert 3resize ' . ((&columns * 75 + 75) / 150)
+exe '4resize ' . ((&lines * 31 + 33) / 66)
+exe 'vert 4resize ' . ((&columns * 75 + 75) / 150)
 tabnext 1
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0 && getbufvar(s:wipebuf, '&buftype') isnot# 'terminal'
   silent exe 'bwipe ' . s:wipebuf

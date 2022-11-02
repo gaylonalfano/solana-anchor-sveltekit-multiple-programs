@@ -27,7 +27,7 @@ import type {
 } from '../../models/polls-types';
 
 
-export function decodeAllProgramAccounts(
+function decodeAllProgramAccounts(
   encodedAccountsMap: Map<string, Record<string, any>[]>
 ) {
   console.log("decodeAllProgramAccounts INVOKED!");
@@ -402,5 +402,5 @@ export async function getAllProgramAccounts(
   // return accountsEncodedResultsMap;
 
   // Try to decode with helper
-  await decodeAllProgramAccounts(accountsEncodedResultsMap);
+  decodeAllProgramAccounts(accountsEncodedResultsMap);
 };
