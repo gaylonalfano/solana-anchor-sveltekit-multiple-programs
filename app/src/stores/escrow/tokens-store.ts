@@ -4,12 +4,7 @@ import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 import { escrowStore } from '../escrow/escrow-store';
 import type { EscrowStoreObject, EscrowObject } from '../../models/escrow-types';
-import type { PublicKey } from '@solana/web3.js';
-import {
-  TOKEN_PROGRAM_ID,
-  MINT_SIZE,
-  type Mint
-} from '@solana/spl-token';
+import type { Mint } from '@solana/spl-token';
 
 
 // TODO Create a Store for each Token Mint involved with the Escrow
@@ -40,22 +35,25 @@ import {
 // U: Going with a basic Writable Store for now
 // U: My custom Type that captures:
 type TokenMintStoreObject = {
-  tokenName: string | null,
-  mintAddress: PublicKey | null,
-  space: number | null,
-  decimals: number | null,
-  mintAuthority: PublicKey | null,
-  freezeAuthority: PublicKey | null,
-  sellerATA: PublicKey | null,
-  buyerATA: PublicKey | null,
+  address: anchor.web3.PublicKey | null,
+  mint: Mint | null,
+
 }
 // U: Or, use the SPL Token's 'Mint' type
 // REF Check out the spl-token library for details
-export const xTokenStore = writable<TokenMintStoreObject>();
-export const xMintStore = writable<Mint>();
-
-export const yTokenStore = writable<TokenMintStoreObject>();
-export const yMintStore = writable<Mint>();
+// A: Using BOTH to store address separately and the mint info
+export const xMintStore = writable<TokenMintStoreObject>(
+  {
+    address: null,
+    mint: null
+  }
+);
+export const yMintStore = writable<TokenMintStoreObject>(
+  {
+    address: null,
+    mint: null,
+  }
+);
 
 // Q: Should this be DERIVED from single escrowStore?
 // Or, do I need to derive from some other store?
