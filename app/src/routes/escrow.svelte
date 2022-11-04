@@ -39,16 +39,22 @@
 	import { get } from 'svelte/store';
 	import { notificationStore } from '../stores/notification';
 	import { xMintStore, yMintStore } from '$stores/escrow/tokens-store';
+	import { sellerStore } from '$stores/escrow/seller-store';
+	import { buyerStore } from '$stores/escrow/buyer-store';
+	import { escrowStore } from '$stores/escrow/escrow-store';
 	import { Button } from '$lib/index';
 	import type NodeWallet from '@project-serum/anchor/dist/cjs/nodewallet';
 	import P1 from './p1.svelte';
 	import * as constants from '../helpers/escrow/constants';
+	import type { EscrowObject } from 'src/models/escrow-types';
 
 	// TODOS:
 	// - Fetch all active Escrows involving wallet and display
 	// - Add a Token select menu rather than hardcoding X/Y
-	// - DONE Create custom Store for escrow
-	// - Create custom Store for Buyer? Seller?
+	// - WIP Create custom Store for escrow
+	//    - Implement the store into the code to replace local vars
+	// - DONE Create custom Store for Buyer? Seller?
+	// - DONE Create custom Store X and Y Mints
 	// - Declare return types for async functions (Promise<web3.Transaction>, etc.)
 	// - Add reactive statements for $walletStore.publicKey to fetch state
 
@@ -63,7 +69,7 @@
 	// NOTE Need to type anchor.Wallet to get 'payer' property or errors
 	// const seller = ($workspaceStore.provider as anchor.AnchorProvider).wallet as anchor.Wallet;
 	// const buyer = anchor.web3.Keypair.generate();
-	const buyer = new PublicKey('HzgMBJvpsKgTRe84q7BgdYbf3w4hBCWoy384rZBF9viy');
+	const buyer = constants.BUYER_WALLET_ADDRESS;
 	// U: Going to store token Keypairs OUTSIDE of createToken() methods.
 	// The idea is to stop recreating tokens on refreshes, etc.
 	const xMintKeypair = Keypair.generate();
@@ -75,14 +81,7 @@
 	// A: Yes, it's 'Mint'
 	let xAmountFromSeller = 0;
 	let yAmountFromBuyer = 0;
-	let sellerXToken: anchor.web3.PublicKey; // Associated Token Accounts
-	let sellerXBalance: number;
-	let sellerYToken: anchor.web3.PublicKey;
-	let sellerYBalance: number;
-	let buyerXToken: anchor.web3.PublicKey;
-	let buyerXBalance: number;
-	let buyerYToken: anchor.web3.PublicKey;
-	let buyerYBalance: number;
+	// U: Replacing local vars with buyer/sellerStores
 	// NOTE This is just saving the Pubkey, since program creates actual account
 	let escrowedXToken: anchor.web3.Keypair;
 	let escrowedXTokenBalance = 0;
@@ -137,6 +136,7 @@
 	//	...
 
 	// };
+	// Q: Or, would implementing escrowStore be enough?
 
 	function updateEscrowState() {
 		// Escrow has been initialized
@@ -145,10 +145,10 @@
 			programId: $workspaceStore.program?.programId.toBase58(),
 			isActive: escrowIsActive,
 			hasExchanged: escrowHasExchanged,
-			seller: new PublicKey('2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE').toBase58(),
+			seller: constants.SELLER_WALLET_ADDRESS.toBase58(),
 			buyer: buyer.toBase58(),
-			sellerXToken: sellerXToken.toBase58(),
-			buyerYToken: buyerYToken.toBase58(),
+			sellerXToken: $sellerStore.xTokenATA?.toBase58(),
+			buyerYToken: $buyerStore.yTokenATA?.toBase58(),
 			xAmountFromSeller: xAmountFromSeller,
 			yAmountFromBuyer: yAmountFromBuyer,
 			escrowedXToken: escrowedXToken.publicKey.toBase58(),
@@ -176,53 +176,57 @@
 	$: hasWalletReadyForFetch =
 		$walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting;
 
-	$: if (hasWalletReadyForFetch && hasWorkspaceProgramReady) {
-		console.log('REFETCH!');
-		// NOTE Can't use getAllProgramAccounts() just yet until I generalize it
-		// U: Going to modify my xMintStore to use a custom type in order to
-		// save the mint address, so I can pass it to getMint(xMintStore.pubkey)
-		// to refetch if the UI state gets wiped.
-		// FIXME Trying to prevent creating multiple mint tokens on refresh...
+	// TODO Uncomment and continuing. Debugging something else atm
+	// $: if (hasWalletReadyForFetch && hasWorkspaceProgramReady) {
+	// 	console.log('REFETCH!');
+	// 	// NOTE Can't use getAllProgramAccounts() just yet until I generalize it
+	// 	// U: Going to modify my xMintStore to use a custom type in order to
+	// 	// save the mint address, so I can pass it to getMint(xMintStore.pubkey)
+	// 	// to refetch if the UI state gets wiped.
+	// 	// FIXME Trying to prevent creating multiple mint tokens on refresh...
 
-		try {
-			// Attempt to grab xMintStore, yMintStore values
-			// Attempt to getMint() using Store address
-			// Finally recreate the tokens!
-			// ======= do next =====
-			// TODO -  think I just need getMint(connection, address)
-			// Q: Do I need a CONST to store the addresses or just
-			// save in the xMintStore is enough?
-			// U: I'm thinking I need to create CONSTANTS to represent
-			// each token Keypair and then just use them inside the createToken()
-			// functions. Otherwise, it will generate again and again...
-			get(xMintStore);
-			get(yMintStore);
+	// 	try {
+	// 		// Attempt to grab xMintStore, yMintStore values
+	// 		// Attempt to getMint() using Store address
+	// 		// Finally recreate the tokens!
+	// 		// ======= do next =====
+	// 		// TODO -  think I just need getMint(connection, address)
+	// 		// Q: Do I need a CONST to store the addresses or just
+	// 		// save in the xMintStore is enough?
+	// 		// U: I'm thinking I need to create CONSTANTS to represent
+	// 		// each token Keypair and then just use them inside the createToken()
+	// 		// functions. Otherwise, it will generate again and again...
+	// 		get(xMintStore);
+	// 		get(yMintStore);
 
-			// TODO Don't forget about yMintStore!
-			if ($xMintStore.address !== null && $xMintStore.mint === null) {
-				// Store maintains mint address but need to get mint account info
-				// Q: Do I need to await or resolve Promise? How? tick()?
-				let xMintInfo: Mint;
-				getMint($workspaceStore.connection, $xMintStore.address).then((response) => {
-					xMintInfo = response;
-					console.log('xMintInfo: ', xMintInfo);
-					// $xMintStore.mint = xMintInfo;
-					xMintStore.set({ address: $xMintStore.address, mint: xMintInfo });
-				});
-				// console.log('Fetched xMintInfo: ', xMintInfo);
-				// $xMintStore.mint = xMintInfo;
-			} else if ($xMintStore.address === null && $xMintStore.mint === null) {
-				// Need to recreate the mint
-				console.log('X Mint not found. Need to create token.');
-			}
-		} catch (e) {
-			console.log('Mint Stores unavailable! Need to create token!');
-			console.log(e);
-		}
-	}
+	// 		// TODO Don't forget about yMintStore!
+	// 		if ($xMintStore.address !== null && $xMintStore.mint === null) {
+	// 			// Store maintains mint address but need to get mint account info
+	// 			// Q: Do I need to await or resolve Promise? How? tick()?
+	// 			let xMintInfo: Mint;
+	// 			getMint($workspaceStore.connection, $xMintStore.address).then((response) => {
+	// 				xMintInfo = response;
+	// 				console.log('xMintInfo: ', xMintInfo);
+	// 				// $xMintStore.mint = xMintInfo;
+	// 				xMintStore.set({ address: $xMintStore.address, mint: xMintInfo });
+	// 			});
+	// 			// console.log('Fetched xMintInfo: ', xMintInfo);
+	// 			// $xMintStore.mint = xMintInfo;
+	// 		} else if ($xMintStore.address === null && $xMintStore.mint === null) {
+	// 			// Need to recreate the mint
+	// 			console.log('X Mint not found. Need to create token.');
+	// 		}
+	// 	} catch (e) {
+	// 		console.log('Mint Stores unavailable! Need to create token!');
+	// 		console.log(e);
+	// 	}
+	// }
 
 	$: {
 		console.log('xMintStore: ', $xMintStore);
+		console.log('yMintStore: ', $yMintStore);
+		console.log('sellerStore: ', $sellerStore);
+		console.log('buyerStore: ', $buyerStore);
 	}
 
 	$: if (escrowState) {
@@ -434,7 +438,10 @@
 	// TODO Refactor
 	async function getXMintAccount() {
 		// NOTE Currently getMint() only works when I add to onclick event...
-		const xMintAccountData = await getMint($workspaceStore.connection, xMintPubkey);
+		const xMintAccountData = await getMint(
+			$workspaceStore.connection,
+			$xMintStore.address as anchor.web3.PublicKey
+		);
 		// xMintAccountData = await $workspaceStore.connection.getAccountInfo(xMint); // Promise
 		// U: Trying out my Writable<Mint> Store
 		// U: Changed it to Writable<TokenMintStoreObject> to store address separately
@@ -442,33 +449,27 @@
 	}
 
 	async function getYMintAccount() {
-		const yMintAccountData = await getMint($workspaceStore.connection, yMintPubkey);
+		const yMintAccountData = await getMint(
+			$workspaceStore.connection,
+			$yMintStore.address as anchor.web3.PublicKey
+		);
 		yMintStore.set({ address: yMintAccountData.address, mint: yMintAccountData });
 	}
 
 	async function getSellerXTokenAccountBalance() {
 		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
-			sellerXToken
+			$sellerStore.xTokenATA as anchor.web3.PublicKey
 		);
-		console.log('sellerXToken Balance: ', tokenAmount);
 
-		sellerXBalance = tokenAmount?.value.uiAmount as number;
+		$sellerStore.xTokenBalance = tokenAmount?.value.uiAmount as number;
 	}
 
 	async function getBuyerYTokenAccountBalance() {
 		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
-			buyerYToken
+			$buyerStore.yTokenATA as anchor.web3.PublicKey
 		);
-		console.log('buyerYToken Balance: ', tokenAmount);
 
-		buyerYBalance = tokenAmount?.value.uiAmount as number;
-	}
-
-	async function getBuyerYTokenAccountBalancePromise() {
-		// Testing purposes
-		const tokenAmountPromise =
-			$workspaceStore.provider?.connection.getTokenAccountBalance(buyerYToken);
-		return tokenAmountPromise;
+		$buyerStore.yTokenBalance = tokenAmount?.value.uiAmount as number;
 	}
 
 	async function createSellerTokenXAssociatedTokenAccount() {
@@ -482,40 +483,43 @@
 		// );
 		// console.log(`sellerXToken: ${sellerXToken}`);
 
-		sellerXToken = await getAssociatedTokenAddress(
-			xMintPubkey, // mint
+		const sellerXToken = await getAssociatedTokenAddress(
+			$xMintStore.address as anchor.web3.PublicKey, // mint
 			$walletStore.publicKey as anchor.web3.PublicKey // seller.publicKey // owner
 		);
 		console.log(`sellerXToken: ${sellerXToken.toBase58()}`);
+		$sellerStore.xTokenATA = sellerXToken;
 
 		const tx = new Transaction().add(
 			createAssociatedTokenAccountInstruction(
 				$walletStore.publicKey as anchor.web3.PublicKey, // payer
-				sellerXToken, // ata
-				$walletStore.publicKey as anchor.web3.PublicKey, // seller.publicKey, // owner
-				xMintPubkey // mint
+				$sellerStore.xTokenATA, // ata
+				$sellerStore.walletAddress as anchor.web3.PublicKey, // seller.publicKey, // owner
+				$xMintStore.address as anchor.web3.PublicKey // mint
 			)
 		);
 
+		// TODO Save sendTransaction() to signature var
 		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
 
 		// Update UI
-		formState.sellerXToken = sellerXToken.toBase58();
+		formState.sellerXToken = $sellerStore.xTokenATA.toBase58();
 	}
 
 	async function createSellerTokenYAssociatedTokenAccount() {
-		sellerYToken = await getAssociatedTokenAddress(
-			yMintPubkey, // mint
+		const sellerYToken = await getAssociatedTokenAddress(
+			$yMintStore.address as anchor.web3.PublicKey, // mint
 			$walletStore.publicKey as anchor.web3.PublicKey // seller.publicKey // owner
 		);
 		console.log(`sellerYToken: ${sellerYToken.toBase58()}`);
+		$sellerStore.yTokenATA = sellerYToken;
 
 		const tx = new Transaction().add(
 			createAssociatedTokenAccountInstruction(
 				$walletStore.publicKey as anchor.web3.PublicKey, // payer
-				sellerYToken, // ata
-				$walletStore.publicKey as anchor.web3.PublicKey, // seller.publicKey, // owner
-				yMintPubkey // mint
+				$sellerStore.yTokenATA, // ata
+				$sellerStore.walletAddress as anchor.web3.PublicKey, // seller.publicKey, // owner
+				$yMintStore.address as anchor.web3.PublicKey // mint
 			)
 		);
 
@@ -523,18 +527,21 @@
 	}
 
 	async function createBuyerTokenXAssociatedTokenAccount() {
-		buyerXToken = await getAssociatedTokenAddress(
-			xMintPubkey, // mint
-			buyer //buyer.publicKey // owner
+		const buyerXToken = await getAssociatedTokenAddress(
+			$xMintStore.address as anchor.web3.PublicKey, // mint
+			// Q: Use global or buyerStore.walletAddress?
+			// A: NOTE I have default walletAddress set to BUYER_WALLET_ADDRESS in Store!
+			$buyerStore.walletAddress as anchor.web3.PublicKey //buyer.publicKey // owner
 		);
 		console.log(`buyerXToken: ${buyerXToken.toBase58()}`);
+		$buyerStore.xTokenATA = buyerXToken;
 
 		const tx = new Transaction().add(
 			createAssociatedTokenAccountInstruction(
 				$walletStore.publicKey as anchor.web3.PublicKey, // payer
-				buyerXToken, // ata
-				buyer, //  buyer.publicKey, // owner
-				xMintPubkey // mint
+				$buyerStore.xTokenATA, // ata
+				$buyerStore.walletAddress as anchor.web3.PublicKey, //  buyer.publicKey, // owner
+				$xMintStore.address as anchor.web3.PublicKey // mint
 			)
 		);
 
@@ -542,25 +549,28 @@
 	}
 
 	async function createBuyerTokenYAssociatedTokenAccount() {
-		buyerYToken = await getAssociatedTokenAddress(
-			yMintPubkey, // mint
-			buyer // buyer.publicKey // owner
+		const buyerYToken = await getAssociatedTokenAddress(
+			$yMintStore.address as anchor.web3.PublicKey, // mint
+			// Q: Use global or buyerStore.walletAddress?
+			// A: NOTE I have default walletAddress set to BUYER_WALLET_ADDRESS in Store!
+			$buyerStore.walletAddress as anchor.web3.PublicKey // buyer.publicKey // owner
 		);
 		console.log(`buyerYToken: ${buyerYToken.toBase58()}`);
+		$buyerStore.yTokenATA = buyerYToken;
 
 		const tx = new Transaction().add(
 			createAssociatedTokenAccountInstruction(
 				$walletStore.publicKey as anchor.web3.PublicKey, // payer
-				buyerYToken, // ata
-				buyer, // buyer.publicKey, // owner
-				yMintPubkey // mint
+				$buyerStore.yTokenATA, // ata
+				$buyerStore.walletAddress as anchor.web3.PublicKey, // buyer.publicKey, // owner
+				$yMintStore.address as anchor.web3.PublicKey // mint
 			)
 		);
 
 		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
 
 		// Update UI
-		formState.buyerYToken = buyerYToken.toBase58();
+		formState.buyerYToken = $buyerStore.yTokenATA.toBase58();
 	}
 
 	async function createAllBuyerAndSellerAssociatedTokenAccounts() {
@@ -596,18 +606,16 @@
 		// 	// [signer1, signer2...], // only multisig account will use
 		// );
 
-		// console.log('provider BEFORE Mint: ', $workspaceStore.provider);
 		const tx = new Transaction().add(
 			createMintToCheckedInstruction(
-				xMintPubkey, // mint
-				sellerXToken, // destination ata
+				$xMintStore.address as anchor.web3.PublicKey, // mint
+				$sellerStore.xTokenATA as anchor.web3.PublicKey, // destination ata
 				$walletStore.publicKey as anchor.web3.PublicKey, // mint authority
-				1e8, // amount
-				8 // decimals
+				1e8, // amount // U: Could add this as arg if needed
+				$xMintStore.mint?.decimals as number // decimals 8 // U: Could maybe reference $xMintStore.mint.decimals
 			)
 		);
-		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
-		// console.log('provider AFTER Mint: ', $workspaceStore.provider);
+		// console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
 
 		// FIXME Look into createMintToCheckedInstruction() more I guess...
 		// Q: Why don't any other async calls work after sending a transaction?
@@ -619,21 +627,30 @@
 		// 		.getTokenAccountBalance(sellerXToken)
 		// 		.then((r) => r.value.amount)}`
 		// ); // U: Always returns 0!
+
+		// U: Gonna see if saving the signature etc. helps...
+		// SOLVED! By awaiting the sendTransaction() and storing in a variable,
+		// this seems to have fixed the issue!
+		// Q: Do I need to getBalance() or something and update sellerStore?
+		// A: NOPE! Just saving the signature (above) seems to resolve!
+		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection);
+		console.log('signature: ', signature);
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction(signature, 'confirmed');
+		console.log('confirmedTx: ', confirmedTx);
 	}
 
 	async function mintTokenYAndTransferToBuyerTokenYAssociatedTokenAccount() {
 		const tx = new Transaction().add(
 			createMintToCheckedInstruction(
-				yMintPubkey, // mint
-				buyerYToken, // destination ata
+				$yMintStore.address as anchor.web3.PublicKey, // mint
+				$buyerStore.yTokenATA as anchor.web3.PublicKey, // destination ata
 				$walletStore.publicKey as anchor.web3.PublicKey, // mint authority
 				1e8, // amount
-				8 // decimals
+				8 // decimals 8
 			)
 		);
-		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
+		// console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
 
-		// FIXME
 		// Q: Why don't any other async calls work after sending a transaction?
 		// Doesn't work for fetching token account data, balances, etc.
 		// Is it my workspaceStore connection? Only reason I consider that is because
@@ -643,6 +660,15 @@
 		// 		.getTokenAccountBalance(buyerYToken)
 		// 		.then((r) => r.value.amount)}`
 		// );
+		// U: Gonna see if saving the signature etc. helps...
+		// SOLVED! By awaiting the sendTransaction() and storing in a variable,
+		// this seems to have fixed the issue!
+		// Q: Do I need to getBalance() or something and update sellerStore?
+		// A: NOPE! Just saving the signature (above) seems to resolve!
+		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection);
+		console.log('signature: ', signature);
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction(signature, 'confirmed');
+		console.log('confirmedTx: ', confirmedTx);
 	}
 
 	async function mintAllTokensAndTransferToAssociatedTokenAccounts() {
@@ -661,6 +687,7 @@
 		// A: Nope.
 		// Q: Would Promise.all() be more efficient in this case?
 		// U: Doesn't seem to make a difference.
+		// SOLVED! By awaiting the sendTransaction() and storing in a signature variable,
 		// try {
 		// 	await mintTokenXAndTransferToSellerTokenXAssociatedTokenAccount();
 		// 	await mintTokenYAndTransferToBuyerTokenYAssociatedTokenAccount();
@@ -679,12 +706,12 @@
 	}
 
 	async function handleInitializeEscrowAccount() {
-		if (escrow) {
+		if ($escrowStore.pda !== null) {
 			notificationStore.add({
 				type: 'error',
-				message: 'Data account already exists!'
+				message: 'Escrow account already exists!'
 			});
-			console.log('error', 'Data account already exists!');
+			console.log('error', 'Escrow account already exists!');
 			return;
 		}
 
@@ -695,16 +722,15 @@
 			],
 			$workspaceStore.program?.programId as anchor.web3.PublicKey
 		);
-		escrow = escrowPDA;
-		formState.escrow = escrow.toString();
-		console.log(`escrow: ${escrow}`);
+		$escrowStore.pda = escrowPDA;
+		console.log(`escrow PDA: ${$escrowStore.pda}`);
 
-		console.log(
-			'PDA for program',
-			$workspaceStore.program?.programId.toBase58(),
-			'is generated :',
-			escrowPDA.toBase58()
-		);
+		// console.log(
+		// 	'PDA for program',
+		// 	$workspaceStore.program?.programId.toBase58(),
+		// 	'is generated :',
+		// 	escrowPDA.toBase58()
+		// );
 
 		const xAmount = new anchor.BN(formState.xAmountFromSeller);
 		const yAmount = new anchor.BN(formState.yAmountFromBuyer); // number of token seller wants in exchange for xAmount
@@ -714,15 +740,18 @@
 		let data;
 
 		// 2. Try to retreive PDA account data if it exists
-		console.log(`Checking if escrow account ${escrow} exists...`);
+		console.log(`Checking if escrow account ${$escrowStore.pda} exists...`);
 		try {
 			// Check whether our PDA address has an escrow account
 			data = await $workspaceStore.program?.account.escrow.fetch(escrow);
+			// Update Store data to latest
+			$escrowStore.escrow = data as EscrowObject;
 			console.log('Account already exists!');
 		} catch (e) {
 			console.log(`Account ${escrow} does NOT exist!`);
 			console.log('Creating account...');
 
+			// NOTE We just need an address to store the escrowed X tokens
 			escrowedXToken = anchor.web3.Keypair.generate();
 
 			const tx = await $workspaceStore.program?.methods
@@ -734,12 +763,13 @@
 				// NOTE We also don't have to pass the System Program, Token Program, and
 				// Associated Token Program, since Anchor resolves these automatically.
 				// NOTE Values in accounts([]) are PublicKeys!
+				// U: Replacing local vars with Stores
 				.accounts({
 					seller: ($workspaceStore.provider as anchor.AnchorProvider).wallet.publicKey,
-					xMint: xMintPubkey,
-					yMint: yMintPubkey,
-					sellerXToken: sellerXToken,
-					escrow: escrow, // created in program
+					xMint: $xMintStore.address as anchor.web3.PublicKey,
+					yMint: $yMintStore.address as anchor.web3.PublicKey,
+					sellerXToken: $sellerStore.xTokenATA as anchor.web3.PublicKey, // ATA
+					escrow: $escrowStore.pda, // created in program
 					escrowedXToken: escrowedXToken.publicKey, // created in program
 					// tokenProgram: TOKEN_PROGRAM_ID, // Q: Use 2022 version? A: TOKEN_PROGRAM_ID!
 					// rent: SYSVAR_RENT_PUBKEY,
@@ -754,12 +784,13 @@
 			console.log('TxHash ::', tx);
 
 			data = await $workspaceStore.program?.account.escrow.fetch(escrow);
+			$escrowStore.escrow = data as EscrowObject;
 
-			escrowIsActive = data?.isActive as boolean;
-			escrowHasExchanged = data?.hasExchanged as boolean;
-
-			// Disable input xAmount and yAmount input fields
-			isDisabled = true;
+			// U: Replacing these local vars with escrowStore values
+			// escrowIsActive = data?.isActive as boolean;
+			// escrowHasExchanged = data?.hasExchanged as boolean;
+			// // Disable input xAmount and yAmount input fields
+			// isDisabled = true;
 		}
 
 		const escrowedXTokenAccountBalance =
@@ -791,9 +822,9 @@
 				buyer: $walletStore.publicKey as PublicKey,
 				escrow: escrow,
 				escrowedXToken: escrowedXToken.publicKey,
-				sellerYToken: sellerYToken,
-				buyerXToken: buyerXToken,
-				buyerYToken: buyerYToken,
+				sellerYToken: $sellerStore.yTokenATA as anchor.web3.PublicKey,
+				buyerXToken: $buyerStore.xTokenATA as anchor.web3.PublicKey,
+				buyerYToken: $buyerStore.yTokenATA as anchor.web3.PublicKey,
 				tokenProgram: TOKEN_PROGRAM_ID
 			})
 			.signers([]) // NOTE buyer is wallet, so don't need!
@@ -832,7 +863,7 @@
 				seller: $walletStore.publicKey as PublicKey,
 				escrow: escrow,
 				escrowedXToken: escrowedXToken.publicKey,
-				sellerXToken: sellerXToken,
+				sellerXToken: $sellerStore.xTokenATA as anchor.web3.PublicKey,
 				tokenProgram: TOKEN_PROGRAM_ID
 			})
 			.signers([]) // NOTE seller is wallet, so don't need!
@@ -868,11 +899,16 @@
 			</li>
 			<li
 				class="step"
-				class:step-accent={buyerXToken && buyerYToken && sellerXToken && sellerYToken}
+				class:step-accent={$buyerStore.xTokenATA &&
+					$buyerStore.yTokenATA &&
+					$sellerStore.xTokenATA &&
+					$sellerStore.yTokenATA}
 			>
 				Create ATAs
 			</li>
-			<li class="step" class:step-accent={sellerXBalance && buyerYBalance}>Mint Tokens</li>
+			<li class="step" class:step-accent={$sellerStore.xTokenBalance && $buyerStore.yTokenBalance}>
+				Mint Tokens
+			</li>
 			<li class="step">Create Escrow</li>
 		</ul>
 		<div class="grid grid-cols-4 gap-6 pt-2">
@@ -1006,7 +1042,7 @@
 			</div>
 			<div class="form-control">
 				<button class="btn  mt-1" on:click={getSellerXTokenAccountBalance}>Get Seller X</button>
-				{#if sellerXBalance}
+				{#if $sellerStore.xTokenBalance}
 					<label class="input-group input-group-vertical pt-1">
 						<span>Balance</span>
 						<input
@@ -1014,14 +1050,14 @@
 							placeholder=""
 							class="input input-bordered"
 							disabled
-							bind:value={sellerXBalance}
+							bind:value={$sellerStore.xTokenBalance}
 						/>
 					</label>
 				{/if}
 			</div>
 			<div class="form-control">
 				<button class="btn mt-1" on:click={getBuyerYTokenAccountBalance}>Get Buyer Y</button>
-				{#if buyerYBalance}
+				{#if $buyerStore.yTokenBalance}
 					<label class="input-group input-group-vertical pt-1">
 						<span>Balance</span>
 						<input
@@ -1029,7 +1065,7 @@
 							placeholder=""
 							class="input input-bordered"
 							disabled
-							bind:value={buyerYBalance}
+							bind:value={$buyerStore.yTokenBalance}
 						/>
 					</label>
 				{/if}
@@ -1048,7 +1084,7 @@
 							type="text"
 							placeholder=""
 							class="input input-bordered"
-							bind:value={formState.sellerXToken}
+							bind:value={$sellerStore.xTokenATA}
 							disabled
 						/>
 					</label>
@@ -1058,7 +1094,7 @@
 							type="text"
 							placeholder=""
 							class="input input-bordered"
-							bind:value={formState.buyerYToken}
+							bind:value={$buyerStore.yTokenATA}
 							disabled
 						/>
 					</label>
@@ -1174,24 +1210,6 @@
 				</div>
 			</div>
 			<div class="horizontal-divider" />
-		</div>
-		<div class="stats bg-primary text-primary-content">
-			<div class="stat">
-				<div class="stat-title">Account balance</div>
-				<div class="stat-value">$89,400</div>
-				<div class="stat-actions">
-					<button class="btn btn-sm btn-success">Add funds</button>
-				</div>
-			</div>
-
-			<div class="stat">
-				<div class="stat-title">Current balance</div>
-				<div class="stat-value">$89,400</div>
-				<div class="stat-actions">
-					<button class="btn btn-sm">Withdrawal</button>
-					<button class="btn btn-sm">deposit</button>
-				</div>
-			</div>
 		</div>
 	</div>
 </div>

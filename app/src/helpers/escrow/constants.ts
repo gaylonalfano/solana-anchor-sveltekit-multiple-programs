@@ -19,4 +19,12 @@ export const ESCROW_SEED_PREFIX = "escrow";
 // Data Buffer sizes/Account space
 export const ESCROW_ACCOUNT_SPACE = 115;
 
+// NOTE Development Only
+
+export const SELLER_WALLET_ADDRESS = new anchor.web3.PublicKey(
+  "2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE"
+) // Phantom Dev
+export const BUYER_WALLET_ADDRESS = new anchor.web3.PublicKey(
+  "HzgMBJvpsKgTRe84q7BgdYbf3w4hBCWoy384rZBF9viy"
+) // Solflare Dev
 
