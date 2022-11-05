@@ -146,12 +146,24 @@ export type NonCustodialEscrow = {
             "type": "publicKey"
           },
           {
+            "name": "buyer",
+            "type": "publicKey"
+          },
+          {
             "name": "bump",
             "type": "u8"
           },
           {
             "name": "escrowedXToken",
             "type": "publicKey"
+          },
+          {
+            "name": "xMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "xAmount",
+            "type": "u64"
           },
           {
             "name": "yMint",
@@ -323,12 +335,24 @@ export const IDL: NonCustodialEscrow = {
             "type": "publicKey"
           },
           {
+            "name": "buyer",
+            "type": "publicKey"
+          },
+          {
             "name": "bump",
             "type": "u8"
           },
           {
             "name": "escrowedXToken",
             "type": "publicKey"
+          },
+          {
+            "name": "xMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "xAmount",
+            "type": "u64"
           },
           {
             "name": "yMint",

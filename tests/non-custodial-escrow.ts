@@ -13,6 +13,9 @@ import { NonCustodialEscrow } from "../target/types/non_custodial_escrow";
 import { expect } from "chai";
 import NodeWallet from "@project-serum/anchor/dist/cjs/nodewallet";
 
+// U: 11/5 - Added a few more fields to Escrow account struct to better track more
+// details about the exchange. Trying to allow creating multiple escrows and later
+// querying details about buyer, seller, x, y, amounts, etc.
 describe("non-custodial-escrow", () => {
   const ESCROW_SEED_PREFIX = "escrow";
 
@@ -208,6 +211,7 @@ describe("non-custodial-escrow", () => {
     );
   });
 
+
   it("Initialize escrow", async () => {
     // Create some associated token accounts for x and y tokens for buyer and seller
     // Call our on-chain program's initialize() method and set escrow properties values
@@ -236,6 +240,9 @@ describe("non-custodial-escrow", () => {
         // NOTE We also don't have to pass the System Program, Token Program, and
         // Associated Token Program, since Anchor resolves these automatically.
         // NOTE Values in accounts([]) are PublicKeys!
+        // U: Can I initialize with an empty escrow.buyer field? Think so...
+        // A: Yes! It seems I don't have to assign an actual value to the field
+        // and the placeholder is: buyer: PublicKey { _bn: <BN: 0> },
         .accounts({
           seller: seller.publicKey,
           xMint: x_mint,
@@ -308,6 +315,7 @@ describe("non-custodial-escrow", () => {
     // A: YEP! test-validator issue! Need to hard restart the validator
     // before running the tests.
 
+    console.log('escrow account: ', data);
     console.log("Our Escrow PDA has account with data:\n");
     console.log(`{
       data: ${data}
@@ -347,6 +355,7 @@ describe("non-custodial-escrow", () => {
     //     yAmount: 40,
     //   }
 
+    expect(data.authority.toString()).to.equal(seller.publicKey.toString());
     expect(data.isActive).to.equal(true);
     expect(data.hasExchanged).to.equal(false);
   });
@@ -376,6 +385,7 @@ describe("non-custodial-escrow", () => {
 
     // Get account data to verify is_active and has_exchanged values
     const data = await program.account.escrow.fetch(escrow);
+    console.log('escrow account: ', data);
 
     const escrowedXTokenAccountBalance =
       await provider.connection.getTokenAccountBalance(
@@ -408,6 +418,7 @@ describe("non-custodial-escrow", () => {
     //   rentEpoch: 0
     // }
 
+    expect(data.buyer.toString()).to.equal(buyer.publicKey.toString());
     expect(data.isActive).to.equal(false);
     expect(data.hasExchanged).to.equal(true);
   });

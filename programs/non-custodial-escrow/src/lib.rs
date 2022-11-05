@@ -13,12 +13,21 @@ pub mod non_custodial_escrow {
 
     pub fn initialize(ctx: Context<Initialize>, x_amount: u64, y_amount: u64) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
+        escrow.authority = ctx.accounts.seller.key();
+        // Q: How to add a placeholder Pubkey until accept() ix? Can it be left empty?
+        // U: Pubkey::new_unique() that may work
+        // U: I don't think this will work at this point since 'buyer' account
+        // isn't part of Context until accept() ix. 
+        // U: Can I initialize with an empty escrow.buyer field? Think so...
+        // A: Yes! It seems I don't have to assign an actual value to the field
+        // and the placeholder is: buyer: PublicKey { _bn: <BN: 0> },
         // NOTE bumps.get("account_name"), NOT seed!
         escrow.bump = *ctx.bumps.get("escrow").unwrap();
-        escrow.authority = ctx.accounts.seller.key();
         escrow.escrowed_x_token = ctx.accounts.escrowed_x_token.key();
+        escrow.x_mint = ctx.accounts.x_mint.key(); // token seller HAS
+        escrow.x_amount = x_amount; 
         escrow.y_amount = y_amount; // number of token sellers wants in exchange
-        escrow.y_mint = ctx.accounts.y_mint.key(); // token seller wants in exchange
+        escrow.y_mint = ctx.accounts.y_mint.key(); // token seller WANTS
         escrow.is_active = true;
         escrow.has_exchanged = false;
         msg!("escrow BEFORE transfer: {:?}", ctx.accounts.escrow);
@@ -92,7 +101,13 @@ pub mod non_custodial_escrow {
         ctx.accounts.escrow.is_active = false;
         ctx.accounts.escrow.has_exchanged = true;
         // Q: Should I also close the account?
-        // NOTE We close the escrowed_x_token account with cancel()
+        // A: No! We close the escrowed_x_token account with cancel()
+        // U: Trying to add buyer, x_mint, x_amount to Escrow...
+        // Q: Is this where I would update escrow.buyer field?
+        // U: First test that I can initialize() with EMPTY escrow.buyer field...
+        // U: I CAN init with empty Pubkey field: buyer: PublicKey { _bn: <BN: 0> },
+        // so now it's time to try setting/updating the buyer field...
+        ctx.accounts.escrow.buyer = ctx.accounts.buyer.key();
         
         Ok(())
     }
@@ -301,8 +316,11 @@ pub struct Cancel<'info> {
 #[account]
 pub struct Escrow {
     authority: Pubkey, // The seller (initiator of exchange)
+    buyer: Pubkey, // Q: How can I init with a placeholder until accept()?
     bump: u8,
     escrowed_x_token: Pubkey, // Token Account Address
+    x_mint: Pubkey, // new
+    x_amount: u64, // new
     y_mint: Pubkey, // Mint Address
     y_amount: u64, // Amount seller is wanting in exchange of x_amount of x_token
     is_active: bool,
@@ -312,13 +330,16 @@ pub struct Escrow {
 
 impl Escrow {
     // 8 Discrimator
-    // 1 Bump
     // 32 Authority
+    // 32 Buyer // new
+    // 1 Bump
     // 32 X Token Account Address
+    // 32 X Mint Address // new
+    // 8 X Amount // new
     // 32 Y Mint Address
     // 8 Y Amount
     // 1 Is Active
     // 1 Has Exchanged
-    pub const ACCOUNT_SPACE: usize = 8 + 1 + 32 + 32 + 32 + 8 + 1 + 1;
+    pub const ACCOUNT_SPACE: usize = 8 + 32 + 32 + 1 + 32 + 32 + 8 + 32 + 8 + 1 + 1;
     pub const SEED_PREFIX: &'static str = "escrow";
 }
