@@ -155,6 +155,10 @@ export const escrowStore = createEscrowStore();
 // Q: Would it be worth creating an Exchange account struct that stores all of the final
 // details of the swap? It would have a escrow: Pubkey field that points to the Escrow
 // account PDA...
+// Q: OR, what if I added some new fields to Escrow account and create a new Instruction
+// that allows the Escrow to be updated/modified some way?
+// NOTE The cancel() instruction closes the escrowed_x_token account, which also
+// closes the escrow as well.
 export const escrowStateDerivedStore = derived<
   [
     Writable<TokenMintStoreObject>, // X

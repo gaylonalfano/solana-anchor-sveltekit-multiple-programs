@@ -286,6 +286,17 @@ pub struct Cancel<'info> {
 // === STATE ===
 // This is a PDA for our escrow data account
 // REF: Check out solana-escrow/state.rs to see how Escrow struct is defined
+// U: Adding a few new fields to help: x_mint, x_amount, buyer_wallet
+// NOTE I'd like to be able to create MULTIPLE escrows with their own PDA route (similar to /polls/[pda])
+// So, I could later query the exchange details such as xAmount, buyer, seller, yAmount, etc.
+// Most of this is in Escrow account, but may need to add x_amount field.
+// Q: Would it be worth creating an Exchange account struct that stores all of the final
+// details of the swap? It would have a escrow: Pubkey field that points to the Escrow
+// account PDA...
+// Q: OR, what if I added some new fields to Escrow account and create a new Instruction
+// that allows the Escrow to be updated/modified some way?
+// NOTE The cancel() instruction closes the escrowed_x_token account, which also
+// closes the escrow as well.
 #[derive(Debug)]
 #[account]
 pub struct Escrow {
