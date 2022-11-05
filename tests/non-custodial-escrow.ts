@@ -219,52 +219,42 @@ describe("non-custodial-escrow", () => {
     // NOTE Results in 0.0000004 in escrowed_x_token balance
     const x_amount = new anchor.BN(40);
     const y_amount = new anchor.BN(40); // number of token seller wants in exchange for x_amount
-    // Check whether escrow account already has data
-    let data;
+    let data: anchor.IdlTypes<anchor.Idl>["Escrow"];
 
-    // 2. Try to retreive PDA account data if it exists
-    console.log(`Checking if escrow account ${escrow} exists...`);
-    try {
-      // Check whether our PDA address has an escrow account
-      data = await program.account.escrow.fetch(escrow);
-      console.log("Account already exists!");
-    } catch (e) {
-      console.log(`Account ${escrow} does NOT exist!`);
-      console.log("Creating account...");
-      const tx = await program.methods
-        .initialize(x_amount, y_amount)
-        // NOTE We only provide the PublicKeys for all the accounts.
-        // We do NOT have to deal with isSigner, isWritable, etc. like in RAW
-        // since we already declared that in the program Context struct.
-        // This means Anchor will look for all that info in our struct on ENTRY!
-        // NOTE We also don't have to pass the System Program, Token Program, and
-        // Associated Token Program, since Anchor resolves these automatically.
-        // NOTE Values in accounts([]) are PublicKeys!
-        // U: Can I initialize with an empty escrow.buyer field? Think so...
-        // A: Yes! It seems I don't have to assign an actual value to the field
-        // and the placeholder is: buyer: PublicKey { _bn: <BN: 0> },
-        .accounts({
-          seller: seller.publicKey,
-          xMint: x_mint,
-          yMint: y_mint,
-          sellerXToken: seller_x_token,
-          escrow: escrow, // created in program
-          escrowedXToken: escrowed_x_token.publicKey, // created in program
-          tokenProgram: TOKEN_PROGRAM_ID, // Q: Use 2022 version? A: TOKEN_PROGRAM_ID!
-          rent: SYSVAR_RENT_PUBKEY,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        // Q: Which accounts are Signers?
-        // A: Check IDL! Wallet and escrowed_x_token!
-        // Q: Why is escrowed_x_token a Signer? It's just a type TokenAccount...
-        // I believe it's because it gets created and we set its props?
-        .signers([escrowed_x_token])
-        .rpc({ skipPreflight: true });
+    const tx = await program.methods
+      .initialize(x_amount, y_amount)
+      // NOTE We only provide the PublicKeys for all the accounts.
+      // We do NOT have to deal with isSigner, isWritable, etc. like in RAW
+      // since we already declared that in the program Context struct.
+      // This means Anchor will look for all that info in our struct on ENTRY!
+      // NOTE We also don't have to pass the System Program, Token Program, and
+      // Associated Token Program, since Anchor resolves these automatically.
+      // NOTE Values in accounts([]) are PublicKeys!
+      // U: Can I initialize with an empty escrow.buyer field? Think so...
+      // A: Yes! It seems I don't have to assign an actual value to the field
+      // and the placeholder is: buyer: PublicKey { _bn: <BN: 0> },
+      .accounts({
+        seller: seller.publicKey,
+        xMint: x_mint,
+        yMint: y_mint,
+        sellerXToken: seller_x_token,
+        escrow: escrow, // created in program
+        escrowedXToken: escrowed_x_token.publicKey, // created in program
+        tokenProgram: TOKEN_PROGRAM_ID, // Q: Use 2022 version? A: TOKEN_PROGRAM_ID!
+        rent: SYSVAR_RENT_PUBKEY,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      // Q: Which accounts are Signers?
+      // A: Check IDL! Wallet and escrowed_x_token!
+      // Q: Why is escrowed_x_token a Signer? It's just a type TokenAccount...
+      // I believe it's because it gets created and we set its props?
+      .signers([escrowed_x_token])
+      .rpc({ skipPreflight: true });
 
-      console.log("TxHash ::", tx);
+    console.log("TxHash ::", tx);
 
-      data = await program.account.escrow.fetch(escrow);
-    }
+    data = await program.account.escrow.fetch(escrow);
+
 
     const escrowedXTokenAccountBalance =
       await provider.connection.getTokenAccountBalance(

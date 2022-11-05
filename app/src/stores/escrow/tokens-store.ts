@@ -3,7 +3,6 @@ import type anchor from '@project-serum/anchor';
 import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
 import { escrowStore } from '../escrow/escrow-store';
-import type { EscrowStoreObject, EscrowObject } from '../../models/escrow-types';
 import type { Mint } from '@solana/spl-token';
 
 

@@ -316,7 +316,9 @@ pub struct Cancel<'info> {
 #[account]
 pub struct Escrow {
     authority: Pubkey, // The seller (initiator of exchange)
-    buyer: Pubkey, // Q: How can I init with a placeholder until accept()?
+    // Q: How can I init buyer field with a placeholder until accept()?
+    // A: Don't have to! I can be empty until accept() ix updates the field!
+    buyer: Pubkey, 
     bump: u8,
     escrowed_x_token: Pubkey, // Token Account Address
     x_mint: Pubkey, // new
