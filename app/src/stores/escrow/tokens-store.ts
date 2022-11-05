@@ -34,7 +34,7 @@ import type { Mint } from '@solana/spl-token';
 
 // U: Going with a basic Writable Store for now
 // U: My custom Type that captures:
-type TokenMintStoreObject = {
+export type TokenMintStoreObject = {
   address: anchor.web3.PublicKey | null,
   mint: Mint | null,
 

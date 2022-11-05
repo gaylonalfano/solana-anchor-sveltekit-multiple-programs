@@ -41,21 +41,30 @@
 	import { xMintStore, yMintStore } from '$stores/escrow/tokens-store';
 	import { sellerStore } from '$stores/escrow/seller-store';
 	import { buyerStore } from '$stores/escrow/buyer-store';
-	import { escrowStore } from '$stores/escrow/escrow-store';
+	import {
+		escrowStore,
+		type EscrowObject,
+		type EscrowStoreObject,
+		type EscrowStateDerivedStoreObject
+	} from '$stores/escrow/escrow-store';
 	import { Button } from '$lib/index';
 	import type NodeWallet from '@project-serum/anchor/dist/cjs/nodewallet';
 	import P1 from './p1.svelte';
 	import * as constants from '../helpers/escrow/constants';
-	import type { EscrowObject } from 'src/models/escrow-types';
+	// import type { EscrowObject, EscrowStoreObject } from 'src/models/escrow-types';
 
 	// TODOS:
 	// - Fetch all active Escrows involving wallet and display
 	// - Add a Token select menu rather than hardcoding X/Y
 	// - WIP Create custom Store for escrow
 	//    - Implement the store into the code to replace local vars
+	//    - U: May need expand custom EscrowStoreObject to include
+	//      fields NOT saved on-chain ie:
+	//      programId, xAmountFromSeller, yAmountFromBuyer,escrowedXBalance
 	// - DONE Create custom Store for Buyer? Seller?
 	// - DONE Create custom Store X and Y Mints
 	// - Declare return types for async functions (Promise<web3.Transaction>, etc.)
+	//    - U: Not needed! Just need to save await sendTransaction() to local var
 	// - Add reactive statements for $walletStore.publicKey to fetch state
 
 	const network = constants.NETWORK;
@@ -98,6 +107,35 @@
 	// A: You CAN'T because frontend never has access to Keypairs!
 	// MUST compose ix and txs MANUALLY following Cookbook
 
+	// Q: How should I create reactive state?
+	// $: escrowState = {
+	// 	escrow: escrow.toBase58(),
+	// 	programId: $workspaceStore.program?.programId.toBase58(),
+	// 	seller: new PublicKey("2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE").toBase58(),
+	//	...
+
+	// };
+	// U: Going with some local variables and an updateEscrowState() helper
+	// Q: Now that I have created escrowStore, ould implementing it be enough?
+	// Would I even need the global escrowState, updateEscrowState(), etc.?
+	// Perhaps may need some derived Store that combines all? Need to test...
+	// REF Here's my escrow account struct:
+	// #[account]
+	// pub struct Escrow {
+	//     authority: Pubkey, // The seller (initiator of exchange)
+	//     bump: u8,
+	//     escrowed_x_token: Pubkey, // Token Account Address
+	//     y_mint: Pubkey, // Mint Address
+	//     y_amount: u64, // Amount seller is wanting in exchange of x_amount of x_token
+	//     is_active: bool,
+	//     has_exchanged: bool, // If is_active == false && has_exchanged == false => CANCELLED
+	// }
+
+	// impl Escrow {
+	//     pub const ACCOUNT_SPACE: usize = 8 + 1 + 32 + 32 + 32 + 8 + 1 + 1;
+	//     pub const SEED_PREFIX: &'static str = "escrow";
+	// }
+
 	let formState = {
 		escrow: '',
 		programId: '',
@@ -128,21 +166,11 @@
 
 	let escrowState: EscrowState;
 
-	// Q: How should I create reactive state?
-	// $: escrowState = {
-	// 	escrow: escrow.toBase58(),
-	// 	programId: $workspaceStore.program?.programId.toBase58(),
-	// 	seller: new PublicKey("2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE").toBase58(),
-	//	...
-
-	// };
-	// Q: Or, would implementing escrowStore be enough?
-
 	function updateEscrowState() {
 		// Escrow has been initialized
 		escrowState = {
 			escrow: escrow.toBase58(),
-			programId: $workspaceStore.program?.programId.toBase58(),
+			programId: constants.NON_CUSTODIAL_ESCROW_PROGRAM_ID.toBase58(),
 			isActive: escrowIsActive,
 			hasExchanged: escrowHasExchanged,
 			seller: constants.SELLER_WALLET_ADDRESS.toBase58(),
@@ -227,6 +255,7 @@
 		console.log('yMintStore: ', $yMintStore);
 		console.log('sellerStore: ', $sellerStore);
 		console.log('buyerStore: ', $buyerStore);
+		console.log('escrowStore: ', $escrowStore);
 	}
 
 	$: if (escrowState) {
@@ -725,33 +754,29 @@
 		$escrowStore.pda = escrowPDA;
 		console.log(`escrow PDA: ${$escrowStore.pda}`);
 
-		// console.log(
-		// 	'PDA for program',
-		// 	$workspaceStore.program?.programId.toBase58(),
-		// 	'is generated :',
-		// 	escrowPDA.toBase58()
-		// );
-
 		const xAmount = new anchor.BN(formState.xAmountFromSeller);
 		const yAmount = new anchor.BN(formState.yAmountFromBuyer); // number of token seller wants in exchange for xAmount
 		xAmountFromSeller = xAmount.toNumber();
 		yAmountFromBuyer = yAmount.toNumber();
-		// Check whether escrow account already has data
-		let data;
 
 		// 2. Try to retreive PDA account data if it exists
+		// Check whether escrow account already has data
+		let data;
 		console.log(`Checking if escrow account ${$escrowStore.pda} exists...`);
 		try {
-			// Check whether our PDA address has an escrow account
+			// Check whether our PDA address has escrow account data
 			data = await $workspaceStore.program?.account.escrow.fetch(escrow);
 			// Update Store data to latest
-			$escrowStore.escrow = data as EscrowObject;
+			// $escrowStore.escrow = data as EscrowObject;
+			$escrowStore = { ...data } as EscrowStoreObject;
 			console.log('Account already exists!');
 		} catch (e) {
 			console.log(`Account ${escrow} does NOT exist!`);
 			console.log('Creating account...');
 
 			// NOTE We just need an address to store the escrowed X tokens
+			// NOTE This also allows me to later create MULTIPLE escrow accounts
+			// with different token pairs, etc.
 			escrowedXToken = anchor.web3.Keypair.generate();
 
 			const tx = await $workspaceStore.program?.methods
@@ -769,7 +794,7 @@
 					xMint: $xMintStore.address as anchor.web3.PublicKey,
 					yMint: $yMintStore.address as anchor.web3.PublicKey,
 					sellerXToken: $sellerStore.xTokenATA as anchor.web3.PublicKey, // ATA
-					escrow: $escrowStore.pda, // created in program
+					escrow: $escrowStore.pda as anchor.web3.PublicKey, // created in program
 					escrowedXToken: escrowedXToken.publicKey, // created in program
 					// tokenProgram: TOKEN_PROGRAM_ID, // Q: Use 2022 version? A: TOKEN_PROGRAM_ID!
 					// rent: SYSVAR_RENT_PUBKEY,
@@ -784,6 +809,8 @@
 			console.log('TxHash ::', tx);
 
 			data = await $workspaceStore.program?.account.escrow.fetch(escrow);
+			// Q: Can I ...spread data of IDL 'Escrow' into ANOTHER custom type
+			// that has additional fields? Like partially fill whatever fields match
 			$escrowStore.escrow = data as EscrowObject;
 
 			// U: Replacing these local vars with escrowStore values
@@ -1105,7 +1132,6 @@
 							placeholder=""
 							class="input input-bordered"
 							bind:value={formState.xAmountFromSeller}
-							disabled={isDisabled}
 						/>
 					</label>
 					<label class="input-group input-group-vertical pt-1">
@@ -1115,7 +1141,6 @@
 							placeholder=""
 							class="input input-bordered"
 							bind:value={formState.yAmountFromBuyer}
-							disabled={isDisabled}
 						/>
 					</label>
 					<button class="btn btn-accent mt-1" on:click={handleInitializeEscrowAccount}
@@ -1126,7 +1151,7 @@
 			<div class="divider divider-horizontal" />
 			<div class="grid flex-grow card bg-base-300 rounded-box place-items-center">
 				<div class="form-control">
-					{#if !escrowState}
+					{#if !$escrowStore.escrow}
 						<div class="stat place-items-center">
 							<div class="stat-title">Please initialize...</div>
 						</div>
@@ -1140,7 +1165,7 @@
 								type="text"
 								placeholder=""
 								class="input input-bordered"
-								bind:value={escrowState.escrow}
+								bind:value={$escrowStore.pda}
 								disabled
 							/>
 						</label>

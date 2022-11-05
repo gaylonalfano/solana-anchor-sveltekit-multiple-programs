@@ -3,7 +3,7 @@ import type anchor from '@project-serum/anchor';
 import * as constants from '../../helpers/escrow/constants';
 
 
-type SellerStoreObject = {
+export type SellerStoreObject = {
   walletAddress: anchor.web3.PublicKey | null,
   xTokenATA: anchor.web3.PublicKey | null,
   xTokenBalance: number | null,

@@ -5,7 +5,7 @@ import * as constants from '../../helpers/escrow/constants';
 
 // Q: Do I need to also save the mint address?
 // I already have x/yMintStores...
-type BuyerStoreObject = {
+export type BuyerStoreObject = {
   walletAddress: anchor.web3.PublicKey | null,
   xTokenATA: anchor.web3.PublicKey | null,
   xTokenBalance: number | null,
