@@ -2,8 +2,6 @@
 	// REF: UI idea from: https://github.com/paul-schaaf/escrow-ui/blob/master/src/Alice.vue
 	// REF: Good example of web3/spl-token use: https://github.com/paul-schaaf/escrow-ui/blob/master/src/util/initEscrow.ts
 	import {
-		clusterApiUrl,
-		Connection,
 		Keypair,
 		LAMPORTS_PER_SOL,
 		PublicKey,
@@ -14,14 +12,9 @@
 	import {
 		TOKEN_PROGRAM_ID,
 		MINT_SIZE,
-		createMint,
-		createAssociatedTokenAccount,
 		createInitializeMintInstruction,
 		getMinimumBalanceForRentExemptMint,
-		mintToChecked,
-		getAccount,
 		getMint,
-		type Mint,
 		getAssociatedTokenAddress,
 		createAssociatedTokenAccountInstruction,
 		createMintToCheckedInstruction
@@ -35,8 +28,6 @@
 	// import { IDL as idl } from '../idl/non_custodial_escrow';
 	import idl from '../../../target/idl/non_custodial_escrow.json';
 
-	import { onMount } from 'svelte';
-	import { get } from 'svelte/store';
 	import { notificationStore } from '../stores/notification';
 	import { xMintStore, yMintStore } from '$stores/escrow/tokens-store';
 	import { sellerStore } from '$stores/escrow/seller-store';
@@ -46,9 +37,6 @@
 		type EscrowObject,
 		type EscrowStoreObject
 	} from '$stores/escrow/escrow-store';
-	import { Button } from '$lib/index';
-	import type NodeWallet from '@project-serum/anchor/dist/cjs/nodewallet';
-	import P1 from './p1.svelte';
 	import * as constants from '../helpers/escrow/constants';
 	// import type { EscrowObject, EscrowStoreObject } from 'src/models/escrow-types';
 
@@ -68,38 +56,27 @@
 	// - Add reactive statements for $walletStore.publicKey to fetch state
 
 	const network = constants.NETWORK;
-	const config = constants.PREFLIGHT_COMMITMENT;
 
-	// FIXME Losing reactivity in UI. Not sure why. Just seems like after I sendTransaction(),
+	// Q: Losing reactivity in UI. Not sure why. Just seems like after I sendTransaction(),
 	// no other async/awaits really work unless I add to button onclick handler...
-	// Q: Is it my connection's commitment level? Default is 'processed' I think,
+	// U: Is it my connection's commitment level? Default is 'processed' I think,
 	// but maybe I need to set to 'confirmed'?
-	// A: NOPE. Commitment level didn't have any impact.
+	// U: NOPE. Commitment level didn't have any impact.
+	// A: Need to use Stores to maintain reactivity!
 	// NOTE Need to type anchor.Wallet to get 'payer' property or errors
 	// const seller = ($workspaceStore.provider as anchor.AnchorProvider).wallet as anchor.Wallet;
 	// const buyer = anchor.web3.Keypair.generate();
 	const buyer = constants.BUYER_WALLET_ADDRESS;
 	// U: Going to store token Keypairs OUTSIDE of createToken() methods.
 	// The idea is to stop recreating tokens on refreshes, etc.
-	const xMintKeypair = Keypair.generate();
-	const xMintPubkey = xMintKeypair.publicKey;
+	let xMintKeypair = Keypair.generate();
+	let xMintPubkey = xMintKeypair.publicKey;
 
-	const yMintKeypair = Keypair.generate();
-	const yMintPubkey = yMintKeypair.publicKey;
+	let yMintKeypair = Keypair.generate();
+	let yMintPubkey = yMintKeypair.publicKey;
 	// Q: Is there an SPL 'Account' type to use for TS?
 	// A: Yes, it's 'Mint'
-	let xAmountFromSeller = 0;
-	let yAmountFromBuyer = 0;
 	// U: Replacing local vars with buyer/sellerStores
-	// NOTE This is just saving the Pubkey, since program creates actual account
-	let escrowedXToken: anchor.web3.Keypair;
-	let escrowedXTokenBalance = 0;
-	// NOTE This is a PDA that we'll get below
-	let escrow: anchor.web3.PublicKey;
-	let escrowIsActive: boolean;
-	let escrowHasExchanged: boolean;
-
-	let isDisabled = false;
 
 	// Q: What is workspaceStore.baseAccount? It changes on each refresh...
 	// Q: How am I supposed to pass AnchorProvider with simple solana/spl-token methods?
@@ -108,34 +85,12 @@
 	// MUST compose ix and txs MANUALLY following Cookbook
 
 	// Q: How should I create reactive state?
-	// $: escrowState = {
-	// 	escrow: escrow.toBase58(),
-	// 	programId: $workspaceStore.program?.programId.toBase58(),
-	// 	seller: new PublicKey("2BScwdytqa6BnjW6SUqKt8uaKYn6M4gLbWBdn3JuJWjE").toBase58(),
-	//	...
-
-	// };
+	// A: Create Stores!
 	// U: Going with some local variables and an updateEscrowState() helper
 	// Q: Now that I have created escrowStore, could implementing it be enough?
 	// Would I even need the global escrowState, updateEscrowState(), etc.?
 	// Perhaps may need some derived Store that combines all? Need to test...
-	// REF Here's my escrow account struct:
-	// #[account]
-	// pub struct Escrow {
-	//     authority: Pubkey, // The seller (initiator of exchange)
-	//     bump: u8,
-	//     escrowed_x_token: Pubkey, // Token Account Address
-	//     y_mint: Pubkey, // Mint Address
-	//     y_amount: u64, // Amount seller is wanting in exchange of x_amount of x_token
-	//     is_active: bool,
-	//     has_exchanged: bool, // If is_active == false && has_exchanged == false => CANCELLED
-	// }
-
-	// impl Escrow {
-	//     pub const ACCOUNT_SPACE: usize = 8 + 1 + 32 + 32 + 32 + 8 + 1 + 1;
-	//     pub const SEED_PREFIX: &'static str = "escrow";
-	// }
-
+	// A: Implementing escrowStore is enough! Can purge/remove lots of original vars
 	let formState = {
 		escrow: '',
 		programId: '',
@@ -216,6 +171,8 @@
 	// }
 
 	$: {
+		console.log('workspaceStore: ', $workspaceStore);
+		console.log('walletStore: ', $walletStore);
 		console.log('xMintStore: ', $xMintStore);
 		console.log('yMintStore: ', $yMintStore);
 		console.log('sellerStore: ', $sellerStore);
@@ -279,6 +236,7 @@
 		// It may be missing the Wallet. When using wallet-adapter, the wallet is a Default
 		// Signer, but you don't have access to it. So, maybe the workspaceStore won't work
 		// because it doesn't have access to the Wallet? Need to test...
+		// A: Yep! Missing the Wallet!
 		// NOTE You need to pass in BOTH keypairs of the signer, AND the keypairs
 		// of the accounts you're creating.
 		// console.log(`TxHash :: ${await $workspaceStore.connection.sendTransaction(tx, [mint])}`); // ERROR: signature verification failed (also deprecated?)
@@ -290,10 +248,20 @@
 			signers: [xMintKeypair]
 		});
 		console.log('signature:	', signature);
-		const confirmedTx = await $workspaceStore.connection.confirmTransaction(signature, 'confirmed');
+		// NOTE Must call confirmTransaction() or else get TokenAccountNotFoundError
+		// Q: Why do I get TokenAccountNotFoundError if I DON'T call confirmTransaction()?
+		// U: New signature for confirmTransaction uses BlockHeightBasedTransactionConfirmationStrategy
+		// REF: https://stackoverflow.com/a/72333685
+		const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+			blockhash: latestBlockhash.blockhash,
+			lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+			signature: signature
+		});
 		console.log('confirmedTx: ', confirmedTx);
 
 		const xMintAccountData = await getMint($workspaceStore.connection, xMintPubkey);
+		console.log('xMintAccountData: ', xMintAccountData);
 		xMintStore.set({ address: xMintPubkey, mint: xMintAccountData });
 
 		// console.log(
@@ -396,7 +364,14 @@
 			signers: [yMintKeypair]
 		});
 		console.log('signature:	', signature);
-		const confirmedTx = await $workspaceStore.connection.confirmTransaction(signature, 'confirmed');
+		// NOTE Must call confirmTransaction() or else get TokenAccountNotFoundError
+		// Q: Why do I get TokenAccountNotFoundError if I DON'T call confirmTransaction()?
+		const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+			blockhash: latestBlockhash.blockhash,
+			lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+			signature: signature
+		});
 		console.log('confirmedTx: ', confirmedTx);
 
 		const yMintAccountData = await getMint($workspaceStore.connection, yMintPubkey);
@@ -514,7 +489,19 @@
 			)
 		);
 
-		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
+		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection);
+		console.log('signature:	', signature);
+		// NOTE Must call confirmTransaction() or else get TokenAccountNotFoundError
+		// Q: Why do I get TokenAccountNotFoundError if I DON'T call confirmTransaction()?
+		// U: New signature for confirmTransaction uses BlockHeightBasedTransactionConfirmationStrategy
+		// REF: https://stackoverflow.com/a/72333685
+		const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+			blockhash: latestBlockhash.blockhash,
+			lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+			signature: signature
+		});
+		console.log('confirmedTx: ', confirmedTx);
 	}
 
 	async function createBuyerTokenXAssociatedTokenAccount() {
@@ -536,7 +523,19 @@
 			)
 		);
 
-		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
+		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection);
+		console.log('signature:	', signature);
+		// NOTE Must call confirmTransaction() or else get TokenAccountNotFoundError
+		// Q: Why do I get TokenAccountNotFoundError if I DON'T call confirmTransaction()?
+		// U: New signature for confirmTransaction uses BlockHeightBasedTransactionConfirmationStrategy
+		// REF: https://stackoverflow.com/a/72333685
+		const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+			blockhash: latestBlockhash.blockhash,
+			lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+			signature: signature
+		});
+		console.log('confirmedTx: ', confirmedTx);
 	}
 
 	async function createBuyerTokenYAssociatedTokenAccount() {
@@ -558,7 +557,19 @@
 			)
 		);
 
-		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
+		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection);
+		console.log('signature:	', signature);
+		// NOTE Must call confirmTransaction() or else get TokenAccountNotFoundError
+		// Q: Why do I get TokenAccountNotFoundError if I DON'T call confirmTransaction()?
+		// U: New signature for confirmTransaction uses BlockHeightBasedTransactionConfirmationStrategy
+		// REF: https://stackoverflow.com/a/72333685
+		const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+			blockhash: latestBlockhash.blockhash,
+			lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+			signature: signature
+		});
+		console.log('confirmedTx: ', confirmedTx);
 
 		// Update UI
 		formState.buyerYToken = $buyerStore.yTokenATA.toBase58();
@@ -626,7 +637,16 @@
 		// A: NOPE! Just saving the signature (above) seems to resolve!
 		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection);
 		console.log('signature: ', signature);
-		const confirmedTx = await $workspaceStore.connection.confirmTransaction(signature, 'confirmed');
+		// NOTE Must call confirmTransaction() or else get TokenAccountNotFoundError
+		// Q: Why do I get TokenAccountNotFoundError if I DON'T call confirmTransaction()?
+		// U: New signature for confirmTransaction uses BlockHeightBasedTransactionConfirmationStrategy
+		// REF: https://stackoverflow.com/a/72333685
+		const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+			blockhash: latestBlockhash.blockhash,
+			lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+			signature: signature
+		});
 		console.log('confirmedTx: ', confirmedTx);
 	}
 
@@ -658,7 +678,12 @@
 		// A: NOPE! Just saving the signature (above) seems to resolve!
 		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection);
 		console.log('signature: ', signature);
-		const confirmedTx = await $workspaceStore.connection.confirmTransaction(signature, 'confirmed');
+		const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+			blockhash: latestBlockhash.blockhash,
+			lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+			signature: signature
+		});
 		console.log('confirmedTx: ', confirmedTx);
 	}
 
@@ -725,7 +750,7 @@
 		// NOTE We just need an address to store the escrowed X tokens
 		// NOTE This also allows me to later create MULTIPLE escrow accounts
 		// with different token pairs, etc.
-		escrowedXToken = anchor.web3.Keypair.generate();
+		let escrowedXToken = anchor.web3.Keypair.generate();
 
 		const tx = await $workspaceStore.program?.methods
 			.initialize(xAmount, yAmount)
@@ -762,18 +787,12 @@
 		// that has additional fields? Like partially fill whatever fields match
 		escrowStore.set({ escrow: data, pda: escrowPDA } as EscrowStoreObject);
 
-		// TODO: Replace these local vars with escrowStore values
-		escrowIsActive = data?.isActive as boolean;
-		escrowHasExchanged = data?.hasExchanged as boolean;
-		// Disable input xAmount and yAmount input fields
-		isDisabled = true;
-
 		const escrowedXTokenAccountBalance =
 			await $workspaceStore.provider?.connection.getTokenAccountBalance(
 				$escrowStore.escrow?.escrowedXToken as anchor.web3.PublicKey
 			);
 		console.log('INITIALIZE::escrowedXTokenAccountBalance: ', escrowedXTokenAccountBalance);
-		escrowedXTokenBalance = escrowedXTokenAccountBalance?.value.uiAmount as number;
+		// escrowedXTokenBalance = escrowedXTokenAccountBalance?.value.uiAmount as number;
 
 		// NOTE After running this and looking at solana logs, I can search the escrowedXToken
 		//❯ solana-anchor-sveltekit-multiple-programs main [!] spl-token account-info --address H4v4RYzNqVPAV88Zus9j1GYYiUf64hsFFBScTYvmdYQh
@@ -788,7 +807,8 @@
 		//
 		//* Please run `spl-token gc` to clean up Aux accounts
 
-		// Update UI?
+		// Update/double-check Escrow State
+		console.log('INITIALIZE::$escrowStore: ', $escrowStore);
 	}
 
 	async function handleAcceptTrade() {
@@ -797,7 +817,7 @@
 			.accounts({
 				buyer: $walletStore.publicKey as anchor.web3.PublicKey,
 				escrow: $escrowStore.pda as anchor.web3.PublicKey,
-				escrowedXToken: escrowedXToken.publicKey,
+				escrowedXToken: $escrowStore.escrow?.escrowedXToken as anchor.web3.PublicKey,
 				sellerYToken: $sellerStore.yTokenATA as anchor.web3.PublicKey,
 				buyerXToken: $buyerStore.xTokenATA as anchor.web3.PublicKey,
 				buyerYToken: $buyerStore.yTokenATA as anchor.web3.PublicKey,
@@ -809,20 +829,17 @@
 		console.log('TxHash ::', tx);
 
 		const escrowedXTokenAccountBalance =
-			await $workspaceStore.provider?.connection.getTokenAccountBalance(escrowedXToken.publicKey);
+			await $workspaceStore.provider?.connection.getTokenAccountBalance(
+				$escrowStore.escrow?.escrowedXToken
+			);
 		console.log('ACCEPT::escrowedXTokenAccountBalance: ', escrowedXTokenAccountBalance);
 		// ACCEPT::escrowedXTokenAccountBalance:  {
 		//   context: { apiVersion: '1.10.38', slot: 81 },
 		//   value: { amount: '0', decimals: 8, uiAmount: 0, uiAmountString: '0' }
 		// }
 
-		// Update Escrow State
-		// Q: How to make this reactive instead? Use a Store?
-		// I'm going to just use a helper for now...
-		escrowedXTokenBalance = escrowedXTokenAccountBalance?.value.uiAmount as number;
-		escrowIsActive = false;
-		escrowHasExchanged = true;
-		updateEscrowState();
+		// Update/double-check Escrow State
+		console.log('ACCEPT::$escrowStore: ', $escrowStore);
 
 		// Add to notificationStore
 		notificationStore.add({
@@ -837,8 +854,8 @@
 			.cancel()
 			.accounts({
 				seller: $walletStore.publicKey as PublicKey,
-				escrow: escrow,
-				escrowedXToken: escrowedXToken.publicKey,
+				escrow: $escrowStore.pda as anchor.web3.PublicKey,
+				escrowedXToken: $escrowStore.escrow?.escrowedXToken as anchor.web3.PublicKey,
 				sellerXToken: $sellerStore.xTokenATA as anchor.web3.PublicKey,
 				tokenProgram: TOKEN_PROGRAM_ID
 			})
@@ -847,10 +864,8 @@
 
 		console.log('TxHash ::', tx);
 
-		// Update Escrow State
-		escrowIsActive = false;
-		escrowHasExchanged = false;
-		updateEscrowState();
+		// Update/double-check Escrow State
+		console.log('CANCEL::$escrowStore: ', $escrowStore);
 
 		// Add to notificationStore
 		notificationStore.add({
@@ -885,7 +900,7 @@
 			<li class="step" class:step-accent={$sellerStore.xTokenBalance && $buyerStore.yTokenBalance}>
 				Mint Tokens
 			</li>
-			<li class="step">Create Escrow</li>
+			<li class="step" class:step-accent={$escrowStore.escrow !== null}>Create Escrow</li>
 		</ul>
 		<div class="grid grid-cols-4 gap-6 pt-2">
 			<div class="form-control">
@@ -902,9 +917,7 @@
 				>
 			</div>
 			<div class="form-control">
-				<button class="btn btn-info" on:click={handleInitializeEscrowAccount} disabled={isDisabled}
-					>Create Escrow</button
-				>
+				<button class="btn btn-info" on:click={handleInitializeEscrowAccount}>Create Escrow</button>
 			</div>
 			<div class="form-control">
 				<button class="btn mt-1" on:click={getXMintAccount}>Get X Mint</button>
