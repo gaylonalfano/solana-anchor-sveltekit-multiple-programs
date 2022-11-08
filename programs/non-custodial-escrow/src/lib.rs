@@ -186,6 +186,8 @@ pub struct Initialize<'info> {
         init, 
         payer = seller,  // authority (wallet that's paysing for PDA account creation)
         space = Escrow::ACCOUNT_SPACE,
+        // Q: If I want to create MULTIPLE escrow accounts, then do I need
+        // to rethink the seed with only seller.key()? 
         seeds = [Escrow::SEED_PREFIX.as_bytes(), seller.key().as_ref()],
         bump,
     )]

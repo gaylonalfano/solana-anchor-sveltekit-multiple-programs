@@ -838,8 +838,43 @@
 		//   value: { amount: '0', decimals: 8, uiAmount: 0, uiAmountString: '0' }
 		// }
 
-		// Update/double-check Escrow State
+		// Fetch data after tx confirms & update global state
+		// REF: Here's how I did it with Polls program:
+		// const currentPoll = (await $workspaceStore.program?.account.poll.fetch(pda)) as PollObject;
+		// pollsStore.addPoll(currentPoll, pda);
+		// const currentProfile = (await $workspaceStore.program?.account.profile.fetch(
+		// 	$profileStore.pda as anchor.web3.PublicKey
+		// )) as ProfileObject;
+		// profileStore.set({ profile: currentProfile, pda: $profileStore.pda });
+		// Fetch data after tx confirms & update global state
+		const currentEscrow = (await $workspaceStore.program?.account.escrow.fetch(
+			$escrowStore.pda as anchor.web3.PublicKey
+		)) as EscrowObject;
+		escrowStore.set({
+			escrow: currentEscrow,
+			pda: $escrowStore.pda as anchor.web3.PublicKey
+		} as EscrowStoreObject);
 		console.log('ACCEPT::$escrowStore: ', $escrowStore);
+		// Confirm that seller/buyer ATAs also updated correctly
+		const currentSellerXBalance = await $workspaceStore.provider?.connection.getTokenAccountBalance(
+			$sellerStore.xTokenATA as anchor.web3.PublicKey
+		);
+		$sellerStore.xTokenBalance = currentSellerXBalance?.value.uiAmount as number;
+
+		const currentSellerYBalance = await $workspaceStore.provider?.connection.getTokenAccountBalance(
+			$sellerStore.yTokenATA as anchor.web3.PublicKey
+		);
+		$sellerStore.yTokenBalance = currentSellerYBalance?.value.uiAmount as number;
+
+		const currentBuyerXBalance = await $workspaceStore.provider?.connection.getTokenAccountBalance(
+			$buyerStore.xTokenATA as anchor.web3.PublicKey
+		);
+		$buyerStore.xTokenBalance = currentBuyerXBalance?.value.uiAmount as number;
+
+		const currentBuyerYBalance = await $workspaceStore.provider?.connection.getTokenAccountBalance(
+			$buyerStore.yTokenATA as anchor.web3.PublicKey
+		);
+		$buyerStore.yTokenBalance = currentBuyerYBalance?.value.uiAmount as number;
 
 		// Add to notificationStore
 		notificationStore.add({
@@ -864,7 +899,14 @@
 
 		console.log('TxHash ::', tx);
 
-		// Update/double-check Escrow State
+		// Fetch data after tx confirms & update global state
+		const currentEscrow = (await $workspaceStore.program?.account.escrow.fetch(
+			$escrowStore.pda as anchor.web3.PublicKey
+		)) as EscrowObject;
+		escrowStore.set({
+			escrow: currentEscrow,
+			pda: $escrowStore.pda as anchor.web3.PublicKey
+		} as EscrowStoreObject);
 		console.log('CANCEL::$escrowStore: ', $escrowStore);
 
 		// Add to notificationStore
