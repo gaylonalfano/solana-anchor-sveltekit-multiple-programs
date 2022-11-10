@@ -43,7 +43,7 @@
 	// TODOS:
 	// - Fetch all active Escrows involving wallet and display
 	// - Add a Token select menu rather than hardcoding X/Y
-	// - WIP Create custom Store for escrow
+	// - DONE Create custom Store for escrow
 	//    - Implement the store into the code to replace local vars
 	//    - U: May need expand custom EscrowStoreObject to include
 	//      fields NOT saved on-chain ie:
@@ -51,9 +51,13 @@
 	//    - U: Updated Escrow account struct to have xMint, xAmount and buyer fields
 	// - DONE Create custom Store for Buyer? Seller?
 	// - DONE Create custom Store X and Y Mints
-	// - Declare return types for async functions (Promise<web3.Transaction>, etc.)
+	// - DONE Declare return types for async functions (Promise<web3.Transaction>, etc.)
 	//    - U: Not needed! Just need to save await sendTransaction() to local var
 	// - Add reactive statements for $walletStore.publicKey to fetch state
+	// - Add Dapp_Program Account Struct that allows the same wallet to init multiple Escrow
+	//   exchanges. Currently seeds will only allow 1 unique escrow. This is a bigger task!
+	// - DONE Add ability to cancel Escrow by authority (wallet)
+	// - Add helper resetStores() method for successful accept or cancel
 
 	const network = constants.NETWORK;
 
@@ -648,6 +652,10 @@
 			signature: signature
 		});
 		console.log('confirmedTx: ', confirmedTx);
+
+		// Get updated xMint data and update xMintStore for Supply UI
+		// NOTE Using helper to fetch and update Store
+		await getXMintAccount();
 	}
 
 	async function mintTokenYAndTransferToBuyerTokenYAssociatedTokenAccount() {
@@ -685,6 +693,10 @@
 			signature: signature
 		});
 		console.log('confirmedTx: ', confirmedTx);
+
+		// Get updated mint account data and update Store for Supply UI
+		// NOTE Using helper to fetch and update Store
+		await getYMintAccount();
 	}
 
 	async function mintAllTokensAndTransferToAssociatedTokenAccounts() {
@@ -885,36 +897,53 @@
 	}
 
 	async function handleCancelTrade() {
-		const tx = await $workspaceStore.program?.methods
-			.cancel()
-			.accounts({
-				seller: $walletStore.publicKey as PublicKey,
-				escrow: $escrowStore.pda as anchor.web3.PublicKey,
-				escrowedXToken: $escrowStore.escrow?.escrowedXToken as anchor.web3.PublicKey,
-				sellerXToken: $sellerStore.xTokenATA as anchor.web3.PublicKey,
-				tokenProgram: TOKEN_PROGRAM_ID
-			})
-			.signers([]) // NOTE seller is wallet, so don't need!
-			.rpc({ skipPreflight: true });
+		// U: Copying some of the code from SendTransaction.svelte to add
+		// better notifications.
+		if (!$walletStore.publicKey) {
+			notificationStore.add({ type: 'error', message: `Wallet not connected!` });
+			console.log('error', `Send Transaction: Wallet not connected!`);
+			return;
+		}
 
-		console.log('TxHash ::', tx);
+		let tx: anchor.web3.TransactionSignature = '';
 
-		// Fetch data after tx confirms & update global state
-		const currentEscrow = (await $workspaceStore.program?.account.escrow.fetch(
-			$escrowStore.pda as anchor.web3.PublicKey
-		)) as EscrowObject;
-		escrowStore.set({
-			escrow: currentEscrow,
-			pda: $escrowStore.pda as anchor.web3.PublicKey
-		} as EscrowStoreObject);
-		console.log('CANCEL::$escrowStore: ', $escrowStore);
+		try {
+			tx = (await $workspaceStore.program?.methods
+				.cancel()
+				.accounts({
+					seller: $walletStore.publicKey as PublicKey,
+					escrow: $escrowStore.pda as anchor.web3.PublicKey,
+					escrowedXToken: $escrowStore.escrow?.escrowedXToken as anchor.web3.PublicKey,
+					sellerXToken: $sellerStore.xTokenATA as anchor.web3.PublicKey,
+					tokenProgram: TOKEN_PROGRAM_ID
+				})
+				.signers([]) // NOTE seller is wallet, so don't need!
+				.rpc({ skipPreflight: true })) as string;
 
-		// Add to notificationStore
-		notificationStore.add({
-			type: 'success',
-			message: 'Transaction successful!',
-			txid: tx
-		});
+			console.log('TxHash ::', tx);
+
+			// NOTE After closing the account it's no longer available!
+			// If we try to fetch the PDA, it will error: Account does not exist!
+			// Let's reset our escrowStore for the UI.
+			escrowStore.reset();
+			console.log('CANCEL::$escrowStore: ', $escrowStore);
+
+			// Add to notificationStore
+			notificationStore.add({
+				type: 'success',
+				message: 'Transaction successful!',
+				txid: tx
+			});
+		} catch (error: any) {
+			// Add to notificationStore
+			notificationStore.add({
+				type: 'error',
+				message: 'Transaction failed!',
+				description: error?.message,
+				txid: tx
+			});
+			console.log('error', `Transaction failed! ${error?.message}`, tx);
+		}
 	}
 </script>
 
@@ -1104,62 +1133,60 @@
 		</div>
 		<div class="divider" />
 		<div class="flex w-full justify-evenly">
-			<div class="grid flex-grow card bg-base-300 rounded-box place-items-center">
-				<div class="form-control">
-					<div class="stat place-items-center">
-						<div class="stat-title">Initialize</div>
-					</div>
-					<label class="input-group input-group-vertical pt-1">
-						<span class="bg-info">Seller X Account</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							bind:value={$sellerStore.xTokenATA}
-							disabled
-						/>
-					</label>
-					<label class="input-group input-group-vertical pt-1">
-						<span class="bg-info">Buyer Y Account</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							bind:value={$buyerStore.yTokenATA}
-							disabled
-						/>
-					</label>
-					<label class="input-group input-group-vertical pt-1">
-						<span class="bg-info">X Amount From Seller</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							bind:value={formState.xAmountFromSeller}
-						/>
-					</label>
-					<label class="input-group input-group-vertical pt-1">
-						<span class="bg-info">Y Amount From Buyer</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							bind:value={formState.yAmountFromBuyer}
-						/>
-					</label>
-					<button class="btn btn-accent mt-1" on:click={handleInitializeEscrowAccount}
-						>Create Escrow</button
-					>
-				</div>
-			</div>
-			<div class="divider divider-horizontal" />
-			<div class="grid flex-grow card bg-base-300 rounded-box place-items-center">
-				<div class="form-control">
-					{#if $escrowStore.escrow === null}
+			{#if $escrowStore.escrow === null}
+				<div class="grid flex-grow card bg-base-300 rounded-box place-items-center">
+					<div class="form-control pb-4">
 						<div class="stat place-items-center">
-							<div class="stat-title">Please initialize...</div>
+							<div class="stat-title">Initialize</div>
 						</div>
-					{:else}
+						<label class="input-group input-group-vertical pt-1">
+							<span class="bg-info">Seller X Account</span>
+							<input
+								type="text"
+								placeholder=""
+								class="input input-bordered"
+								bind:value={$sellerStore.xTokenATA}
+								disabled
+							/>
+						</label>
+						<label class="input-group input-group-vertical pt-1">
+							<span class="bg-info">Buyer Y Account</span>
+							<input
+								type="text"
+								placeholder=""
+								class="input input-bordered"
+								bind:value={$buyerStore.yTokenATA}
+								disabled
+							/>
+						</label>
+						<label class="input-group input-group-vertical pt-1">
+							<span class="bg-info">X Amount From Seller</span>
+							<input
+								type="text"
+								placeholder=""
+								class="input input-bordered"
+								bind:value={formState.xAmountFromSeller}
+							/>
+						</label>
+						<label class="input-group input-group-vertical pt-1">
+							<span class="bg-info">Y Amount From Buyer</span>
+							<input
+								type="text"
+								placeholder=""
+								class="input input-bordered"
+								bind:value={formState.yAmountFromBuyer}
+							/>
+						</label>
+						<button
+							class="btn btn-accent mt-1"
+							on:click={handleInitializeEscrowAccount}
+							disabled={$escrowStore.escrow !== null}>Create Escrow</button
+						>
+					</div>
+				</div>
+			{:else}
+				<div class="grid flex-grow card bg-base-300 rounded-box place-items-center">
+					<div class="form-control mb-4">
 						<div class="stat place-items-center">
 							<div class="stat-title">Escrow</div>
 						</div>
@@ -1224,11 +1251,10 @@
 							/>
 						</label>
 						<button class="btn btn-accent mt-1" on:click={handleAcceptTrade}>Accept Escrow</button>
-						<button class="btn btn-accent mt-1" on:click={handleCancelTrade}>Cancel Escrow</button>
-					{/if}
+						<button class="btn btn-error mt-1" on:click={handleCancelTrade}>Cancel Escrow</button>
+					</div>
 				</div>
-			</div>
-			<div class="horizontal-divider" />
+			{/if}
 		</div>
 	</div>
 </div>

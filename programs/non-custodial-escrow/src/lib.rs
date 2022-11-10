@@ -307,9 +307,9 @@ pub struct Cancel<'info> {
 // NOTE I'd like to be able to create MULTIPLE escrows with their own PDA route (similar to /polls/[pda])
 // So, I could later query the exchange details such as xAmount, buyer, seller, yAmount, etc.
 // Most of this is in Escrow account, but may need to add x_amount field.
-// Q: Would it be worth creating an Exchange account struct that stores all of the final
+// Q: Would it be worth creating an Exchange account Struct that stores all of the final
 // details of the swap? It would have a escrow: Pubkey field that points to the Escrow
-// account PDA...
+// account PDA, as well as the final buyer's wallet info, etc.
 // Q: OR, what if I added some new fields to Escrow account and create a new Instruction
 // that allows the Escrow to be updated/modified some way?
 // NOTE The cancel() instruction closes the escrowed_x_token account, which also

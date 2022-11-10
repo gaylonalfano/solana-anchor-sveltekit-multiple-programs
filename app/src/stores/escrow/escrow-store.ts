@@ -101,6 +101,7 @@ function createEscrowStore() {
 
       escrowStore.set({ escrow: decodedAccountInfo, pda: escrowAccountEncoded?.pubkey } as EscrowStoreObject);
     },
+    reset: () => set({ escrow: null, pda: null })
   }
 }
 
