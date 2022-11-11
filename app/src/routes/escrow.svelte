@@ -57,7 +57,7 @@
 	// - Add Dapp_Program Account Struct that allows the same wallet to init multiple Escrow
 	//   exchanges. Currently seeds will only allow 1 unique escrow. This is a bigger task!
 	// - DONE Add ability to cancel Escrow by authority (wallet)
-	// - Add helper resetStores() method for successful accept or cancel
+	// - DONE Add helper resetStores() method for successful accept or cancel
 
 	const network = constants.NETWORK;
 
@@ -945,6 +945,22 @@
 			console.log('error', `Transaction failed! ${error?.message}`, tx);
 		}
 	}
+
+	function resetAllStores() {
+		// Reset all Stores for fresh UI update after accept/cancel
+		// NOTE I'm not resetting the Tokens for testing purposes.
+		// Normally they'd get reset too since the user will be able to
+		// select a token in their wallet.
+		// U: I tried the above but got an error when trying to create
+		// the ATAs again for seller/buyer. Think I need to completely
+		// wipe/reset all the stores and recreate Tokens.
+		// U: Yep, wipe it all and it restarts the whole process.
+		xMintStore.set({ address: null, mint: null });
+		yMintStore.set({ address: null, mint: null });
+		sellerStore.reset();
+		buyerStore.reset();
+		escrowStore.reset();
+	}
 </script>
 
 <AnchorConnectionProvider {network} {idl} />
@@ -1256,5 +1272,6 @@
 				</div>
 			{/if}
 		</div>
+		<button class="btn btn-secondary mt-1" on:click={resetAllStores}>Reset</button>
 	</div>
 </div>

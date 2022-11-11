@@ -11,12 +11,31 @@ export type SellerStoreObject = {
   yTokenBalance: number | null,
 }
 
-export const sellerStore = writable<SellerStoreObject>(
-  {
-    walletAddress: constants.SELLER_WALLET_ADDRESS, // Phantom Dev
-    xTokenATA: null,
-    xTokenBalance: null,
-    yTokenATA: null,
-    yTokenBalance: null,
+// U: Creating a function to build the Store so I can add a reset() method
+function createSellerStore() {
+  const { subscribe, set, update } = writable<SellerStoreObject>(
+    {
+      walletAddress: constants.SELLER_WALLET_ADDRESS, // Phantom Dev
+      xTokenATA: null,
+      xTokenBalance: null,
+      yTokenATA: null,
+      yTokenBalance: null,
+    }
+  );
+
+  return {
+    subscribe,
+    set,
+    update,
+    reset: () => set({
+      walletAddress: constants.SELLER_WALLET_ADDRESS, // Phantom Dev
+      xTokenATA: null,
+      xTokenBalance: null,
+      yTokenATA: null,
+      yTokenBalance: null,
+    })
   }
-);
+}
+
+
+export const sellerStore = createSellerStore();

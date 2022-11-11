@@ -13,12 +13,42 @@ export type BuyerStoreObject = {
   yTokenBalance: number | null,
 }
 
-export const buyerStore = writable<BuyerStoreObject>(
-  {
-    walletAddress: constants.BUYER_WALLET_ADDRESS, // Solflare Dev
-    xTokenATA: null,
-    xTokenBalance: null,
-    yTokenATA: null,
-    yTokenBalance: null,
+// U: Creating a function to build the Store so I can add a reset() method
+function createBuyerStore() {
+  const { subscribe, set, update } = writable<BuyerStoreObject>(
+    {
+      walletAddress: constants.BUYER_WALLET_ADDRESS, // Solflare Dev
+      xTokenATA: null,
+      xTokenBalance: null,
+      yTokenATA: null,
+      yTokenBalance: null,
+    }
+  );
+
+  return {
+    subscribe,
+    set,
+    update,
+    reset: () => set({
+      walletAddress: constants.BUYER_WALLET_ADDRESS, // Solflare Dev
+      xTokenATA: null,
+      xTokenBalance: null,
+      yTokenATA: null,
+      yTokenBalance: null,
+    })
   }
-);
+}
+
+
+export const buyerStore = createBuyerStore();
+
+// export const buyerStore = writable<BuyerStoreObject>(
+//   {
+//     walletAddress: constants.BUYER_WALLET_ADDRESS, // Solflare Dev
+//     xTokenATA: null,
+//     xTokenBalance: null,
+//     yTokenATA: null,
+//     yTokenBalance: null,
+//   }
+// );
+
