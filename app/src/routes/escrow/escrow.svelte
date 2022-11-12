@@ -42,7 +42,8 @@
 
 	// TODOS:
 	// - Fetch all active Escrows involving wallet and display
-	// - Add a Token select menu rather than hardcoding X/Y
+	// - WIP Add a Token select menu rather than hardcoding X/Y
+	//    - TODO Build getTokenAccountsByOwner for select: https://github.com/abbylow/raydium-test/blob/main/src/utils/index.ts
 	// - DONE Create custom Store for escrow
 	//    - Implement the store into the code to replace local vars
 	//    - U: May need expand custom EscrowStoreObject to include
@@ -1145,6 +1146,84 @@
 						/>
 					</label>
 				{/if}
+			</div>
+		</div>
+		<div class="divider" />
+		<div class="grid flex-grow card bg-base-300 rounded-box place-items-center">
+			<div class="form-control w-full max-w-xs ">
+				<label class="label">
+					<span class="label-text">Input</span>
+					<span class="label-text-alt">Balance: 0.0000</span>
+				</label>
+				<div class="relative">
+					<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+						<span class="text-gray-500 sm:text-sm">$</span>
+					</div>
+					<input
+						type="text"
+						placeholder="0.00"
+						class="input input-bordered w-full max-w-xs pl-7 pr-12"
+					/>
+					<div class="absolute inset-y-0 right-0 flex items-center">
+						<label for="currency" class="sr-only">Currency</label>
+						<select class="select select-bordered py-0 pl-2 pr-7" id="currency" name="currency">
+							<option>SOL</option>
+							<option>RAY</option>
+							<option>DUST</option>
+						</select>
+					</div>
+				</div>
+				<label class="label">
+					<span class="label-text-alt">Exchange Rate (not real time)</span>
+					<span class="label-text-alt">1 SOL = RAY</span>
+				</label>
+			</div>
+
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke-width="1.5"
+				stroke="currentColor"
+				class="w-6 h-6"
+			>
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5"
+				/>
+			</svg>
+
+			<div class="form-control w-full max-w-xs pb-2">
+				<label class="label">
+					<span class="label-text">Expected Output</span>
+					<span class="label-text-alt">Balance: 0.0000</span>
+				</label>
+				<div class="relative">
+					<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+						<span class="text-gray-500 sm:text-sm">$</span>
+					</div>
+					<input
+						type="text"
+						placeholder="0.00"
+						class="input input-bordered w-full max-w-xs pl-7 pr-12"
+					/>
+					<div class="absolute inset-y-0 right-0 flex items-center">
+						<label for="currency" class="sr-only">Currency</label>
+						<select class="select select-bordered py-0 pl-2 pr-7" id="currency" name="currency">
+							<option>DUST</option>
+							<option>RAY</option>
+							<option>SOL</option>
+						</select>
+					</div>
+				</div>
+				<label class="label">
+					<span class="label-text-alt">Exchange Rate (not real time)</span>
+					<span class="label-text-alt">1 SOL = RAY</span>
+				</label>
+				<button class="btn btn-accent mt-1 w-full max-w-xs" on:click={resetAllStores}
+					>Initialize Escrow</button
+				>
 			</div>
 		</div>
 		<div class="divider" />

@@ -6,9 +6,6 @@ import { escrowStore } from '../escrow/escrow-store';
 import type { Mint } from '@solana/spl-token';
 
 
-// TODO Create a Store for each Token Mint involved with the Escrow
-// E.g. Mint Address, Seller X ATA, Buyer Y ATA
-
 // Q: Is there an SPL type to use for TS?
 // A: Yes, it's called 'Mint' with the following:
 // export interface Mint {
@@ -53,6 +50,20 @@ export const yMintStore = writable<TokenMintStoreObject>(
     mint: null,
   }
 );
+
+// U: Adding a swap UI with a select dropdown. Want to have a list
+// of tokens in the connected walletStore. I'm adding a 
+// getTokenAccountsByOwner() inside __layout, so I could update/set this
+// store there on new wallet connections.
+// Q: What's the Type for the SPL token account returned by getParsedTokenAccountsByOwner?
+// REF: https://solana-labs.github.io/solana-web3.js/classes/Connection.html#getParsedTokenAccountsByOwner
+// A: Promise<RpcResponseAndContext<{ account: AccountInfo<ParsedAccountData>; pubkey: PublicKey }[]>>
+export const walletTokenAccountsStore = writable<
+  {
+    account: anchor.web3.AccountInfo<anchor.web3.ParsedAccountData>,
+    pubkey: anchor.web3.PublicKey
+  }[]
+>()
 
 // Q: Should this be DERIVED from single escrowStore?
 // Or, do I need to derive from some other store?
