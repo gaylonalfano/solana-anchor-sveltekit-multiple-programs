@@ -16,6 +16,8 @@
 	// Create a helper to getTokenAccountsByOwner for connected walletStore
 	// REF: https://solanacookbook.com/references/token.html#how-to-get-all-token-accounts-by-owner
 	// REF: https://github.com/abbylow/raydium-test/blob/main/src/utils/index.ts
+	// U: TODO Need possibly move this inside index.svelte as well, or directly on
+	// the Store as a helper. Doesn't update if already connected but then minted tokens
 	async function getParsedTokenAccountsByOwner(
 		connection: anchor.web3.Connection,
 		owner: anchor.web3.PublicKey

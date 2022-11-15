@@ -41,8 +41,12 @@
 
 	// TODOS:
 	// - Fetch all active Escrows involving wallet and display
+	//    - First, simply display active Escrows on page load
 	// - WIP Add a Token select menu rather than hardcoding X/Y
-	//    - TODO Build getTokenAccountsByOwner for select: https://github.com/abbylow/raydium-test/blob/main/src/utils/index.ts
+	//    - DONE Build getTokenAccountsByOwner for select: https://github.com/abbylow/raydium-test/blob/main/src/utils/index.ts
+	//    - Update x/yMintStores OR update buyer/SellerStores to store
+	//      token info and balance based on selected token mint address
+	//      - U: Ended up leaving x/yMintStores alone. Updated buyer/sellerStores instead
 	// - DONE Create custom Store for escrow
 	//    - Implement the store into the code to replace local vars
 	//    - U: May need expand custom EscrowStoreObject to include
@@ -456,6 +460,7 @@
 	}
 
 	async function getSellerXTokenAccountBalance() {
+		// FIXME
 		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
 			$sellerStore.xTokenATA as anchor.web3.PublicKey
 		);
