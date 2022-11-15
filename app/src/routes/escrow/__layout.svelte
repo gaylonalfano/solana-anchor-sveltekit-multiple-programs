@@ -6,6 +6,7 @@
 	import idl from '../../../../target/idl/non_custodial_escrow.json';
 	import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 	import { get } from 'svelte/store';
+	import { balanceStore } from '$stores/balance';
 	import { walletTokenAccountsStore } from '$stores/escrow/tokens-store';
 	import * as constants from '../../helpers/escrow/constants';
 
@@ -24,11 +25,11 @@
 		console.log('getTokenAccountsByOwner INVOKED!');
 
 		// Q: Use Parsed or normal getTokenAccountsByOwner?
+		// A: Parsed seems to work just fine and it auto-decodes the data for me
 		const response = await connection.getParsedTokenAccountsByOwner(owner, {
 			programId: TOKEN_PROGRAM_ID
 		});
 
-		// TODO Need to sort out the types
 		// REF: https://solana-labs.github.io/solana-web3.js/classes/Connection.html#getParsedTokenAccountsByOwner
 		const accounts = [];
 
@@ -71,6 +72,12 @@
 		getParsedTokenAccountsByOwner(
 			$workspaceStore.connection,
 			$walletStore.publicKey as anchor.web3.PublicKey
+		);
+
+		// Get the user's SOL balance using balanceStore
+		balanceStore.getUserSOLBalance(
+			$walletStore.publicKey as anchor.web3.PublicKey,
+			$workspaceStore.connection
 		);
 	}
 </script>

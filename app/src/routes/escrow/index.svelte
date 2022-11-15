@@ -27,6 +27,7 @@
 	// import { IDL as idl } from '../idl/non_custodial_escrow';
 
 	import { notificationStore } from '../../stores/notification';
+	import { balanceStore } from '$stores/balance';
 	import { xMintStore, yMintStore, walletTokenAccountsStore } from '$stores/escrow/tokens-store';
 	import { sellerStore } from '$stores/escrow/seller-store';
 	import { buyerStore } from '$stores/escrow/buyer-store';
@@ -75,6 +76,7 @@
 
 	let yMintKeypair = Keypair.generate();
 	let yMintPubkey = yMintKeypair.publicKey;
+
 	// Q: Is there an SPL 'Account' type to use for TS?
 	// A: Yes, it's 'Mint'
 	// U: Replacing local vars with buyer/sellerStores
@@ -153,16 +155,56 @@
 	// 	}
 	// }
 
+	// U: Adding select menu for token options in wallet, so adding some vars to bind
+	// FIXME Fix the Type of selectedToken or come up with something else for SOL
+	let selectedToken: string; // Going to be the mint address for now
+	let selectedTokenBalance = 0;
+	let reactiveTokenBalance = 0;
+
+	$: if ($walletTokenAccountsStore && $walletTokenAccountsStore.length > 0) {
+		reactiveTokenBalance = getSelectedTokenBalance(selectedToken) as number;
+	}
+
+	// TODO I need to get the selectedToken's balance from the Store
+	function getSelectedTokenBalance(token: string) {
+		// Check if the selectedToken === 'SOL' so return the SOL
+		// balance from balanceStore instead.
+		if (token === 'SOL') {
+			selectedTokenBalance = $balanceStore.balance;
+			return selectedTokenBalance;
+		}
+
+		console.log('token: ', token); // FIXME Has { acount, pubkey} structure! not a striung!
+		let matchingToken = $walletTokenAccountsStore.find((tokenAccount) => {
+			// return tokenAccount.account.data.parsed.info.mint === token.account.data.parsed.info.mint;
+			return tokenAccount.account.data.parsed.info.mint === token;
+		});
+		console.log('matchingToken: ', matchingToken);
+
+		if (matchingToken) {
+			selectedTokenBalance = matchingToken.account.data.parsed.info.tokenAmount.uiAmount;
+			return selectedTokenBalance;
+		}
+	}
+
+	// $: if (selectedToken) {
+	// 	getSelectedTokenBalance();
+	// }
+
 	$: {
-		console.log('workspaceStore: ', $workspaceStore);
-		console.log('walletStore: ', $walletStore);
-		console.log('xMintStore: ', $xMintStore);
-		console.log('yMintStore: ', $yMintStore);
+		// console.log('workspaceStore: ', $workspaceStore);
+		// console.log('walletStore: ', $walletStore);
+		// console.log('xMintStore: ', $xMintStore);
+		// console.log('yMintStore: ', $yMintStore);
 		console.log('walletTokenAccountsStore: ', $walletTokenAccountsStore);
-		console.log('sellerStore: ', $sellerStore);
-		console.log('buyerStore: ', $buyerStore);
-		console.log('escrowStore: ', $escrowStore);
-		console.log('formState: ', formState);
+		console.log('balanceStore: ', $balanceStore);
+		console.log('selectedToken: ', selectedToken);
+		console.log('selectedTokenBalance: ', selectedTokenBalance);
+		console.log('reactiveTokenBalance: ', reactiveTokenBalance);
+		// console.log('sellerStore: ', $sellerStore);
+		// console.log('buyerStore: ', $buyerStore);
+		// console.log('escrowStore: ', $escrowStore);
+		// console.log('formState: ', formState);
 	}
 
 	async function createTokenX() {
@@ -1127,81 +1169,98 @@
 			</div>
 		</div>
 		<div class="divider" />
-		<div class="grid flex-grow card bg-base-300 rounded-box place-items-center">
-			<div class="form-control w-full max-w-xs ">
-				<label class="label">
-					<span class="label-text">Input</span>
-					<span class="label-text-alt">Balance: 0.0000</span>
-				</label>
-				<div class="relative">
-					<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-						<span class="text-gray-500 sm:text-sm">$</span>
-					</div>
-					<input
-						type="text"
-						placeholder="0.00"
-						class="input input-bordered w-full max-w-xs pl-7 pr-12"
-					/>
-					<div class="absolute inset-y-0 right-0 flex items-center">
-						<label for="currency" class="sr-only">Currency</label>
-						<select class="select select-bordered py-0 pl-2 pr-7" id="currency" name="currency">
-							<option>SOL</option>
-							<option>RAY</option>
-							<option>DUST</option>
-						</select>
-					</div>
-				</div>
-				<label class="label">
-					<span class="label-text-alt">Exchange Rate (not real time)</span>
-					<span class="label-text-alt">1 SOL = RAY</span>
-				</label>
-			</div>
 
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke-width="1.5"
-				stroke="currentColor"
-				class="w-6 h-6"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5"
-				/>
-			</svg>
+		<div class="flex w-full justify-evenly">
+			<div class="grid flex-grow card bg-base-300 rounded-box place-items-center">
+				{#if $walletTokenAccountsStore && $walletTokenAccountsStore.length > 0}
+					<div class="form-control w-full max-w-xs ">
+						<label class="label">
+							<span class="label-text">Input</span>
+							<span class="label-text-alt">Balance: {selectedTokenBalance}</span>
+							<span class="label-text-alt">Reactive: {reactiveTokenBalance}</span>
+						</label>
+						<div class="relative">
+							<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+								<span class="text-gray-500 sm:text-sm">$</span>
+							</div>
+							<input
+								type="text"
+								placeholder="0.00"
+								class="input input-bordered w-full max-w-xs pl-7 pr-12"
+							/>
+							<div class="absolute inset-y-0 right-0 flex items-center">
+								<label for="token" class="sr-only">Token</label>
+								<select
+									bind:value={selectedToken}
+									on:change={() => getSelectedTokenBalance(selectedToken)}
+									class="select select-bordered py-0 pl-2 pr-7"
+									id="token"
+									name="token"
+								>
+									<option value="SOL" selected={selectedToken === 'SOL'}>SOL</option>
+									{#each $walletTokenAccountsStore as tokenAccount}
+										<option
+											value={tokenAccount.account.data.parsed.info.mint}
+											selected={selectedToken == tokenAccount.account.data.parsed.info.mint}
+										>
+											{tokenAccount.account.data.parsed.info.mint.slice(0, 4)}
+										</option>
+									{/each}
+								</select>
+							</div>
+						</div>
+						<label class="label">
+							<span class="label-text-alt">{selectedToken}</span>
+						</label>
+					</div>
+				{/if}
 
-			<div class="form-control w-full max-w-xs pb-2">
-				<label class="label">
-					<span class="label-text">Expected Output</span>
-					<span class="label-text-alt">Balance: 0.0000</span>
-				</label>
-				<div class="relative">
-					<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-						<span class="text-gray-500 sm:text-sm">$</span>
-					</div>
-					<input
-						type="text"
-						placeholder="0.00"
-						class="input input-bordered w-full max-w-xs pl-7 pr-12"
-					/>
-					<div class="absolute inset-y-0 right-0 flex items-center">
-						<label for="currency" class="sr-only">Currency</label>
-						<select class="select select-bordered py-0 pl-2 pr-7" id="currency" name="currency">
-							<option>DUST</option>
-							<option>RAY</option>
-							<option>SOL</option>
-						</select>
-					</div>
-				</div>
-				<label class="label">
-					<span class="label-text-alt">Exchange Rate (not real time)</span>
-					<span class="label-text-alt">1 SOL = RAY</span>
-				</label>
-				<button class="btn btn-accent mt-1 w-full max-w-xs" on:click={resetAllStores}
-					>Initialize Escrow</button
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke-width="1.5"
+					stroke="currentColor"
+					class="w-6 h-6"
 				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5"
+					/>
+				</svg>
+
+				<div class="form-control w-full max-w-xs pb-2">
+					<label class="label">
+						<span class="label-text">Expected Output</span>
+						<span class="label-text-alt">Balance: 0.0000</span>
+					</label>
+					<div class="relative">
+						<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+							<span class="text-gray-500 sm:text-sm">$</span>
+						</div>
+						<input
+							type="text"
+							placeholder="0.00"
+							class="input input-bordered w-full max-w-xs pl-7 pr-12"
+						/>
+						<div class="absolute inset-y-0 right-0 flex items-center">
+							<label for="currency" class="sr-only">Currency</label>
+							<select class="select select-bordered py-0 pl-2 pr-7" id="currency" name="currency">
+								<option>DUST</option>
+								<option>RAY</option>
+								<option>SOL</option>
+							</select>
+						</div>
+					</div>
+					<label class="label">
+						<span class="label-text-alt">Exchange Rate (not real time)</span>
+						<span class="label-text-alt">1 SOL = RAY</span>
+					</label>
+					<button class="btn btn-accent mt-1 w-full max-w-xs" on:click={resetAllStores}
+						>Initialize Escrow</button
+					>
+				</div>
 			</div>
 		</div>
 		<div class="divider" />

@@ -58,22 +58,11 @@ export const yMintStore = writable<TokenMintStoreObject>(
 // Q: What's the Type for the SPL token account returned by getParsedTokenAccountsByOwner?
 // REF: https://solana-labs.github.io/solana-web3.js/classes/Connection.html#getParsedTokenAccountsByOwner
 // A: Promise<RpcResponseAndContext<{ account: AccountInfo<ParsedAccountData>; pubkey: PublicKey }[]>>
+// Q: Do I need to add a field to store SOL balance as well?
+// A: NO! Already have balanceStore for connected wallet!
 export const walletTokenAccountsStore = writable<
   {
     account: anchor.web3.AccountInfo<anchor.web3.ParsedAccountData>,
-    pubkey: anchor.web3.PublicKey
+    pubkey: anchor.web3.PublicKey // ATA address in wallet
   }[]
 >()
-
-// Q: Should this be DERIVED from single escrowStore?
-// Or, do I need to derive from some other store?
-// export const xTokenStore = derived<Writable<EscrowStoreObject>>(
-//   escrowStore,
-//   ($escrowStore) => {
-//     // NOTE Must convert PublicKeys to strings to compare!
-//     return $escrowStore;
-//   }
-// )
-
-
-
