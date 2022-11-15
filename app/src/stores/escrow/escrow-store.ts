@@ -108,7 +108,6 @@ function createEscrowStore() {
 export const escrowStore = createEscrowStore();
 
 
-// TODO =========
 // Q: Would a Derived Store be better to encapsulate everything about the Escrow State?
 // NOTE I'd like to be able to create MULTIPLE escrows with their own PDA route (similar to /polls/[pda])
 // So, I could later query the exchange details such as xAmount, buyer, seller, yAmount, etc.

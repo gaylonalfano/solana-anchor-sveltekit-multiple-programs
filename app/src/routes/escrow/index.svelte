@@ -166,6 +166,13 @@
 	}
 
 	// TODO I need to get the selectedToken's balance from the Store
+	// Q: How could I use X/Y tokens from wallets or mint addresses?
+	// Currently I hardcode my X & Y Mints, but I want a UI that grabs tokens
+	// from connected wallet, and I want the Seller to be able to select and/or
+	// paste Mint address of the Y token they want. This means that I need to be
+	// setting/updating the x/yMintStores onChange. However, I also have a Store
+	// for keeping track of tokens in the wallet. I'd need its data to update/set
+	// my x/yMintStores...
 	function getSelectedTokenBalance(token: string) {
 		// Check if the selectedToken === 'SOL' so return the SOL
 		// balance from balanceStore instead.
@@ -796,6 +803,13 @@
 			// Associated Token Program, since Anchor resolves these automatically.
 			// NOTE Values in accounts([]) are PublicKeys!
 			// U: Replacing local vars with Stores
+			// Q: How could I use X/Y tokens from wallets or mint addresses?
+			// Currently I hardcode my X & Y Mints, but I want a UI that grabs tokens
+			// from connected wallet, and I want the Seller to be able to select and/or
+			// paste Mint address of the Y token they want. This means that I need to be
+			// setting/updating the x/yMintStores onChange. However, I also have a Store
+			// for keeping track of tokens in the wallet. I'd need its data to update/set
+			// my x/yMintStores...
 			.accounts({
 				seller: ($workspaceStore.provider as anchor.AnchorProvider).wallet.publicKey,
 				xMint: $xMintStore.address as anchor.web3.PublicKey,
@@ -1230,11 +1244,12 @@
 					/>
 				</svg>
 
-				<div class="form-control w-full max-w-xs pb-2">
-					<label class="label">
-						<span class="label-text">Expected Output</span>
-						<span class="label-text-alt">Balance: 0.0000</span>
-					</label>
+				<div class="form-control w-full max-w-xs pb-4">
+					<input
+						type="text"
+						placeholder="Mint address"
+						class="input input-bordered w-full max-w-xs"
+					/>
 					<div class="relative">
 						<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 							<span class="text-gray-500 sm:text-sm">$</span>
@@ -1244,20 +1259,9 @@
 							placeholder="0.00"
 							class="input input-bordered w-full max-w-xs pl-7 pr-12"
 						/>
-						<div class="absolute inset-y-0 right-0 flex items-center">
-							<label for="currency" class="sr-only">Currency</label>
-							<select class="select select-bordered py-0 pl-2 pr-7" id="currency" name="currency">
-								<option>DUST</option>
-								<option>RAY</option>
-								<option>SOL</option>
-							</select>
-						</div>
 					</div>
-					<label class="label">
-						<span class="label-text-alt">Exchange Rate (not real time)</span>
-						<span class="label-text-alt">1 SOL = RAY</span>
-					</label>
-					<button class="btn btn-accent mt-1 w-full max-w-xs" on:click={resetAllStores}
+
+					<button class="btn btn-accent mt-2 w-full max-w-xs" on:click={resetAllStores}
 						>Initialize Escrow</button
 					>
 				</div>
