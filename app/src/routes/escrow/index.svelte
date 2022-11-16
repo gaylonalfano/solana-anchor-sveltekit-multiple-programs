@@ -17,7 +17,8 @@
 		getMint,
 		getAssociatedTokenAddress,
 		createAssociatedTokenAccountInstruction,
-		createMintToCheckedInstruction
+		createMintToCheckedInstruction,
+		type Mint
 	} from '@solana/spl-token';
 
 	import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
@@ -37,6 +38,7 @@
 		type EscrowStoreObject
 	} from '$stores/escrow/escrow-store';
 	import * as constants from '../../helpers/escrow/constants';
+	import { get } from 'svelte/store';
 	// import type { EscrowObject, EscrowStoreObject } from 'src/models/escrow-types';
 
 	// TODOS:
@@ -47,6 +49,7 @@
 	//    - Update x/yMintStores OR update buyer/SellerStores to store
 	//      token info and balance based on selected token mint address
 	//      - U: Ended up leaving x/yMintStores alone. Updated buyer/sellerStores instead
+	//    - Limit mint address input to 32-44 chars long (base58 pubkeys)
 	// - DONE Create custom Store for escrow
 	//    - Implement the store into the code to replace local vars
 	//    - U: May need expand custom EscrowStoreObject to include
@@ -98,6 +101,13 @@
 	// Would I even need the global escrowState, updateEscrowState(), etc.?
 	// Perhaps may need some derived Store that combines all? Need to test...
 	// A: Implementing escrowStore is enough! Can purge/remove lots of original vars
+	// U: Adding SwapUI. Could capture all the swapUI data inside this formState obj.
+	// U: Adding select menu for token options in wallet, so adding some vars to bind
+	// FIXME Fix the Type of selectedToken or come up with something else for SOL
+	let selectedToken: string; // Going to be the mint address for now
+	let selectedTokenBalance = 0;
+	let reactiveTokenBalance = 0;
+
 	let formState = {
 		escrow: '',
 		programId: '',
@@ -108,65 +118,91 @@
 		sellerXToken: '',
 		buyerYToken: '',
 		xAmountFromSeller: 0,
-		yAmountFromBuyer: 0
+		yAmountFromBuyer: 0,
+		// NOTE Adding out/inToken fields (see seller/buyerStores)
+		outTokenMint: 'SOL',
+		outTokenATA: '',
+		outTokenAmount: '',
+		outTokenBalance: 0,
+		inTokenMint: '',
+		inTokenATA: '',
+		inTokenAmount: '',
+		inTokenBalance: 0
 	};
 
 	// $: hasCreatedTokens = if(yMint != null && xMint != null) return true;
 
-	// TODO Uncomment and continuing. Debugging something else atm
-	// $: if (hasWalletReadyForFetch && hasWorkspaceProgramReady) {
-	// 	console.log('REFETCH!');
-	// 	// NOTE Can't use getAllProgramAccounts() just yet until I generalize it
-	// 	// U: Going to modify my xMintStore to use a custom type in order to
-	// 	// save the mint address, so I can pass it to getMint(xMintStore.pubkey)
-	// 	// to refetch if the UI state gets wiped.
-	// 	// FIXME Trying to prevent creating multiple mint tokens on refresh...
+	$: hasWorkspaceProgramReady =
+		$workspaceStore &&
+		$workspaceStore.program &&
+		$workspaceStore.program.programId.toBase58() ===
+			constants.NON_CUSTODIAL_ESCROW_PROGRAM_ID.toBase58();
+	$: hasWalletReadyForFetch =
+		$walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting;
 
-	// 	try {
-	// 		// Attempt to grab xMintStore, yMintStore values
-	// 		// Attempt to getMint() using Store address
-	// 		// Finally recreate the tokens!
-	// 		// ======= do next =====
-	// 		// TODO -  think I just need getMint(connection, address)
-	// 		// Q: Do I need a CONST to store the addresses or just
-	// 		// save in the xMintStore is enough?
-	// 		// U: I'm thinking I need to create CONSTANTS to represent
-	// 		// each token Keypair and then just use them inside the createToken()
-	// 		// functions. Otherwise, it will generate again and again...
-	// 		get(xMintStore);
-	// 		get(yMintStore);
-
-	// 		// TODO Don't forget about yMintStore!
-	// 		if ($xMintStore.address !== null && $xMintStore.mint === null) {
-	// 			// Store maintains mint address but need to get mint account info
-	// 			// Q: Do I need to await or resolve Promise? How? tick()?
-	// 			let xMintInfo: Mint;
-	// 			getMint($workspaceStore.connection, $xMintStore.address).then((response) => {
-	// 				xMintInfo = response;
-	// 				console.log('xMintInfo: ', xMintInfo);
-	// 				// $xMintStore.mint = xMintInfo;
-	// 				xMintStore.set({ address: $xMintStore.address, mint: xMintInfo });
-	// 			});
-	// 			// console.log('Fetched xMintInfo: ', xMintInfo);
-	// 			// $xMintStore.mint = xMintInfo;
-	// 		} else if ($xMintStore.address === null && $xMintStore.mint === null) {
-	// 			// Need to recreate the mint
-	// 			console.log('X Mint not found. Need to create token.');
-	// 		}
-	// 	} catch (e) {
-	// 		console.log('Mint Stores unavailable! Need to create token!');
-	// 		console.log(e);
-	// 	}
+	// $: if ($walletTokenAccountsStore && $walletTokenAccountsStore.length > 0) {
+	// 	reactiveTokenBalance = setSelectedTokenBalance(selectedToken) as number;
 	// }
 
-	// U: Adding select menu for token options in wallet, so adding some vars to bind
-	// FIXME Fix the Type of selectedToken or come up with something else for SOL
-	let selectedToken: string; // Going to be the mint address for now
-	let selectedTokenBalance = 0;
-	let reactiveTokenBalance = 0;
+	$: if (hasWalletReadyForFetch && hasWorkspaceProgramReady) {
+		console.log('REFETCH!');
+		// NOTE Can't use getAllProgramAccounts() just yet until I generalize it
+		// U: Going to modify my xMintStore to use a custom type in order to
+		// save the mint address, so I can pass it to getMint(xMintStore.pubkey)
+		// to refetch if the UI state gets wiped.
+		// FIXME Trying to prevent creating multiple mint tokens on refresh...
 
-	$: if ($walletTokenAccountsStore && $walletTokenAccountsStore.length > 0) {
-		reactiveTokenBalance = getSelectedTokenBalance(selectedToken) as number;
+		try {
+			// Attempt to grab xMintStore, yMintStore values
+			// Attempt to getMint() using Store address
+			// Finally recreate the tokens!
+			// ======= do next =====
+			// TODO -  think I just need getMint(connection, address)
+			// Q: Do I need a CONST to store the addresses or just
+			// save in the xMintStore is enough?
+			// U: I'm thinking I need to create CONSTANTS to represent
+			// each token Keypair and then just use them inside the createToken()
+			// functions. Otherwise, it will generate again and again...
+			get(xMintStore);
+			get(yMintStore);
+
+			// TODO Don't forget about yMintStore!
+			if ($xMintStore.address !== null && $xMintStore.mint === null) {
+				// Store maintains mint address but need to get mint account info
+				// Q: Do I need to await or resolve Promise? How? tick()?
+				let xMintInfo: Mint;
+				getMint($workspaceStore.connection, $xMintStore.address).then((response) => {
+					xMintInfo = response;
+					console.log('xMintInfo: ', xMintInfo);
+					// $xMintStore.mint = xMintInfo;
+					xMintStore.set({ address: $xMintStore.address, mint: xMintInfo });
+				});
+				// console.log('Fetched xMintInfo: ', xMintInfo);
+				// $xMintStore.mint = xMintInfo;
+			} else if ($xMintStore.address === null && $xMintStore.mint === null) {
+				// Need to recreate the mint
+				console.log('X Mint not found. Need to create token.');
+			}
+		} catch (e) {
+			console.log('Mint Stores unavailable! Need to create token!');
+			console.log(e);
+		}
+	}
+
+	$: {
+		// console.log('workspaceStore: ', $workspaceStore);
+		// console.log('walletStore: ', $walletStore);
+		// console.log('xMintStore: ', $xMintStore);
+		// console.log('yMintStore: ', $yMintStore);
+		console.log('walletTokenAccountsStore: ', $walletTokenAccountsStore);
+		console.log('balanceStore: ', $balanceStore);
+		// console.log('selectedToken: ', selectedToken);
+		// console.log('selectedTokenBalance: ', selectedTokenBalance);
+		// console.log('reactiveTokenBalance: ', reactiveTokenBalance);
+		// console.log('sellerStore: ', $sellerStore);
+		// console.log('buyerStore: ', $buyerStore);
+		// console.log('escrowStore: ', $escrowStore);
+		console.log('formState: ', formState);
 	}
 
 	// TODO I need to get the selectedToken's balance from the Store
@@ -177,45 +213,34 @@
 	// setting/updating the x/yMintStores onChange. However, I also have a Store
 	// for keeping track of tokens in the wallet. I'd need its data to update/set
 	// my x/yMintStores...
-	function getSelectedTokenBalance(token: string) {
-		// Check if the selectedToken === 'SOL' so return the SOL
+	// U: For now, I've added new out/inToken fields to the seller/buyerStores so
+	// I can start initializing Escrows with other tokens (not just X/Y only)
+	// U: Move the variables into formState object instead
+	function setSelectedTokenBalance() {
+		// NOTE Check if the selectedToken === 'SOL' so return the SOL
 		// balance from balanceStore instead.
-		if (token === 'SOL') {
-			selectedTokenBalance = $balanceStore.balance;
-			return selectedTokenBalance;
+		console.log('formState.outTokenMint: ', formState.outTokenMint);
+		if (formState.outTokenMint === 'SOL') {
+			formState.outTokenBalance = $balanceStore.balance;
 		}
 
-		console.log('token: ', token); // FIXME Has { acount, pubkey} structure! not a striung!
 		let matchingToken = $walletTokenAccountsStore.find((tokenAccount) => {
 			// return tokenAccount.account.data.parsed.info.mint === token.account.data.parsed.info.mint;
-			return tokenAccount.account.data.parsed.info.mint === token;
+			// return tokenAccount.account.data.parsed.info.mint === token;
+			return tokenAccount.account.data.parsed.info.mint === formState.outTokenMint;
 		});
 		console.log('matchingToken: ', matchingToken);
 
 		if (matchingToken) {
-			selectedTokenBalance = matchingToken.account.data.parsed.info.tokenAmount.uiAmount;
-			return selectedTokenBalance;
+			formState.outTokenBalance = matchingToken.account.data.parsed.info.tokenAmount.uiAmount;
+			console.log('outTokenBalance: ', formState.outTokenBalance);
 		}
 	}
 
-	// $: if (selectedToken) {
-	// 	getSelectedTokenBalance();
-	// }
-
-	$: {
-		// console.log('workspaceStore: ', $workspaceStore);
-		// console.log('walletStore: ', $walletStore);
-		// console.log('xMintStore: ', $xMintStore);
-		// console.log('yMintStore: ', $yMintStore);
-		console.log('walletTokenAccountsStore: ', $walletTokenAccountsStore);
-		console.log('balanceStore: ', $balanceStore);
-		console.log('selectedToken: ', selectedToken);
-		console.log('selectedTokenBalance: ', selectedTokenBalance);
-		console.log('reactiveTokenBalance: ', reactiveTokenBalance);
-		// console.log('sellerStore: ', $sellerStore);
-		// console.log('buyerStore: ', $buyerStore);
-		// console.log('escrowStore: ', $escrowStore);
-		// console.log('formState: ', formState);
+	function handleOnChange() {
+		// Get the selected token's details and balance
+		setSelectedTokenBalance();
+		// Update the UI
 	}
 
 	async function createTokenX() {
@@ -1196,13 +1221,18 @@
 						<label class="label">
 							<span class="label-text">Input</span>
 							<span class="label-text-alt">Balance: {selectedTokenBalance}</span>
-							<span class="label-text-alt">Reactive: {reactiveTokenBalance}</span>
+							<span class="label-text-alt"
+								>FormState: {formState.outTokenMint === 'SOL'
+									? $balanceStore.balance
+									: formState.outTokenBalance}</span
+							>
 						</label>
 						<div class="relative">
 							<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 								<span class="text-gray-500 sm:text-sm">$</span>
 							</div>
 							<input
+								bind:value={formState.outTokenAmount}
 								type="text"
 								placeholder="0.00"
 								class="input input-bordered w-full max-w-xs pl-7 pr-12"
@@ -1210,17 +1240,18 @@
 							<div class="absolute inset-y-0 right-0 flex items-center">
 								<label for="token" class="sr-only">Token</label>
 								<select
-									bind:value={selectedToken}
-									on:change={() => getSelectedTokenBalance(selectedToken)}
+									bind:value={formState.outTokenMint}
+									on:change={handleOnChange}
 									class="select select-bordered py-0 pl-2 pr-7"
 									id="token"
 									name="token"
 								>
-									<option value="SOL" selected={selectedToken === 'SOL'}>SOL</option>
+									<option value="SOL" selected={formState.outTokenMint === 'SOL'}>SOL</option>
 									{#each $walletTokenAccountsStore as tokenAccount}
 										<option
 											value={tokenAccount.account.data.parsed.info.mint}
-											selected={selectedToken == tokenAccount.account.data.parsed.info.mint}
+											selected={formState.outTokenMint ==
+												tokenAccount.account.data.parsed.info.mint}
 										>
 											{tokenAccount.account.data.parsed.info.mint.slice(0, 4)}
 										</option>
@@ -1229,7 +1260,7 @@
 							</div>
 						</div>
 						<label class="label">
-							<span class="label-text-alt">{selectedToken}</span>
+							<span class="label-text-alt">{formState.outTokenMint}</span>
 						</label>
 					</div>
 				{/if}
