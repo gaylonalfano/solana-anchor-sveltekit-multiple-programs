@@ -811,8 +811,11 @@
 		);
 		console.log('escrow PDA: ', escrowPDA);
 
+		// U: Added swapUI fields to formState
 		const xAmount = new anchor.BN(formState.xAmountFromSeller);
 		const yAmount = new anchor.BN(formState.yAmountFromBuyer); // number of token seller wants in exchange for xAmount
+		// const xAmount = new anchor.BN(formState.xAmountFromSeller);
+		// const yAmount = new anchor.BN(formState.yAmountFromBuyer); // number of token seller wants in exchange for xAmount
 		// xAmountFromSeller = xAmount.toNumber();
 		// yAmountFromBuyer = yAmount.toNumber();
 
@@ -1220,7 +1223,6 @@
 					<div class="form-control w-full max-w-xs ">
 						<label class="label">
 							<span class="label-text">Input</span>
-							<span class="label-text-alt">Balance: {selectedTokenBalance}</span>
 							<span class="label-text-alt"
 								>FormState: {formState.outTokenMint === 'SOL'
 									? $balanceStore.balance
@@ -1271,7 +1273,7 @@
 					viewBox="0 0 24 24"
 					stroke-width="1.5"
 					stroke="currentColor"
-					class="w-6 h-6"
+					class="w-6 h-6 m-2"
 				>
 					<path
 						stroke-linecap="round"
@@ -1282,15 +1284,17 @@
 
 				<div class="form-control w-full max-w-xs pb-4">
 					<input
+						bind:value={formState.inTokenMint}
 						type="text"
 						placeholder="Mint address"
-						class="input input-bordered w-full max-w-xs"
+						class="input input-bordered w-full max-w-xs mb-2"
 					/>
 					<div class="relative">
 						<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 							<span class="text-gray-500 sm:text-sm">$</span>
 						</div>
 						<input
+							bind:value={formState.inTokenAmount}
 							type="text"
 							placeholder="0.00"
 							class="input input-bordered w-full max-w-xs pl-7 pr-12"
