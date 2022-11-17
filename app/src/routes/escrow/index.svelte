@@ -65,6 +65,7 @@
 	//   exchanges. Currently seeds will only allow 1 unique escrow. This is a bigger task!
 	// - DONE Add ability to cancel Escrow by authority (wallet)
 	// - DONE Add helper resetStores() method for successful accept or cancel
+	// - DONE Rename Escrow struct fields to out/in instead of x/y
 
 	// Q: Losing reactivity in UI. Not sure why. Just seems like after I sendTransaction(),
 	// no other async/awaits really work unless I add to button onclick handler...
@@ -122,11 +123,11 @@
 		// NOTE Adding out/inToken fields (see seller/buyerStores)
 		outTokenMint: 'SOL',
 		outTokenATA: '',
-		outTokenAmount: '',
+		outTokenAmount: 0,
 		outTokenBalance: 0,
 		inTokenMint: '',
 		inTokenATA: '',
-		inTokenAmount: '',
+		inTokenAmount: 0,
 		inTokenBalance: 0
 	};
 
@@ -199,13 +200,12 @@
 		// console.log('selectedToken: ', selectedToken);
 		// console.log('selectedTokenBalance: ', selectedTokenBalance);
 		// console.log('reactiveTokenBalance: ', reactiveTokenBalance);
-		// console.log('sellerStore: ', $sellerStore);
+		console.log('sellerStore: ', $sellerStore);
 		// console.log('buyerStore: ', $buyerStore);
 		// console.log('escrowStore: ', $escrowStore);
 		console.log('formState: ', formState);
 	}
 
-	// TODO I need to get the selectedToken's balance from the Store
 	// Q: How could I use X/Y tokens from wallets or mint addresses?
 	// Currently I hardcode my X & Y Mints, but I want a UI that grabs tokens
 	// from connected wallet, and I want the Seller to be able to select and/or
@@ -213,15 +213,24 @@
 	// setting/updating the x/yMintStores onChange. However, I also have a Store
 	// for keeping track of tokens in the wallet. I'd need its data to update/set
 	// my x/yMintStores...
+	// A: For SOL use getBalance(), for all other SPL tokens use getParsedTokenAccountsByOwner()
 	// U: For now, I've added new out/inToken fields to the seller/buyerStores so
 	// I can start initializing Escrows with other tokens (not just X/Y only)
 	// U: Move the variables into formState object instead
+	// TODO need to update sellerStore outTokenATA and inTokenATA values when selected
+	// TODO Need to eventually allow SOL to be used for creating escrows as well
 	function setSelectedTokenBalance() {
 		// NOTE Check if the selectedToken === 'SOL' so return the SOL
 		// balance from balanceStore instead.
 		console.log('formState.outTokenMint: ', formState.outTokenMint);
 		if (formState.outTokenMint === 'SOL') {
 			formState.outTokenBalance = $balanceStore.balance;
+			// U: Need to update sellerStore values as well to init escrow
+			$sellerStore.outTokenMint = constants.SOL_PUBLIC_KEY;
+			// Q: Should I set outTokenATA to wallet address for SOL? Or leave null?
+			// NOTE Still need to update my init escrow to allow SOL
+			$sellerStore.outTokenATA = $walletStore.publicKey;
+			$sellerStore.outTokenBalance = $balanceStore.balance;
 		}
 
 		let matchingToken = $walletTokenAccountsStore.find((tokenAccount) => {
@@ -234,6 +243,10 @@
 		if (matchingToken) {
 			formState.outTokenBalance = matchingToken.account.data.parsed.info.tokenAmount.uiAmount;
 			console.log('outTokenBalance: ', formState.outTokenBalance);
+			// U: Need to update sellerStore values as well to init escrow
+			$sellerStore.outTokenMint = matchingToken.account.data.parsed.info.mint;
+			$sellerStore.outTokenATA = matchingToken.pubkey;
+			$sellerStore.outTokenBalance = matchingToken.account.data.parsed.info.tokenAmount.uiAmount;
 		}
 	}
 
@@ -812,8 +825,8 @@
 		console.log('escrow PDA: ', escrowPDA);
 
 		// U: Added swapUI fields to formState
-		const xAmount = new anchor.BN(formState.xAmountFromSeller);
-		const yAmount = new anchor.BN(formState.yAmountFromBuyer); // number of token seller wants in exchange for xAmount
+		const outAmount = new anchor.BN(formState.outTokenAmount);
+		const inAmount = new anchor.BN(formState.inTokenAmount); // number of token seller wants in exchange for xAmount
 		// const xAmount = new anchor.BN(formState.xAmountFromSeller);
 		// const yAmount = new anchor.BN(formState.yAmountFromBuyer); // number of token seller wants in exchange for xAmount
 		// xAmountFromSeller = xAmount.toNumber();
@@ -824,10 +837,10 @@
 		// NOTE We just need an address to store the escrowed X tokens
 		// NOTE This also allows me to later create MULTIPLE escrow accounts
 		// with different token pairs, etc.
-		let escrowedXToken = anchor.web3.Keypair.generate();
+		let escrowedOutTokenAccount = anchor.web3.Keypair.generate();
 
 		const tx = await $workspaceStore.program?.methods
-			.initialize(xAmount, yAmount)
+			.initialize(outAmount, inAmount)
 			// NOTE We only provide the PublicKeys for all the accounts.
 			// We do NOT have to deal with isSigner, isWritable, etc. like in RAW
 			// since we already declared that in the program Context struct.
@@ -845,19 +858,19 @@
 			// my x/yMintStores...
 			.accounts({
 				seller: ($workspaceStore.provider as anchor.AnchorProvider).wallet.publicKey,
-				xMint: $xMintStore.address as anchor.web3.PublicKey,
-				yMint: $yMintStore.address as anchor.web3.PublicKey,
-				sellerXToken: $sellerStore.xTokenATA as anchor.web3.PublicKey, // ATA
+				outMint: new PublicKey(formState.outTokenMint),
+				inMint: new PublicKey(formState.inTokenMint),
+				sellerOutTokenAccount: $sellerStore.outTokenATA as anchor.web3.PublicKey, // ATA
 				escrow: escrowPDA, // created in program
-				escrowedXToken: escrowedXToken.publicKey, // created in program
+				escrowedOutTokenAccount: escrowedOutTokenAccount.publicKey, // created in program
 				// tokenProgram: TOKEN_PROGRAM_ID, // Q: Use 2022 version? A: TOKEN_PROGRAM_ID!
 				// rent: SYSVAR_RENT_PUBKEY,
 				systemProgram: anchor.web3.SystemProgram.programId
 			})
 			// Q: Which accounts are Signers?
-			// A: Check IDL! Wallet and escrowedXToken!
-			// Q: Why is escrowedXToken a Signer? It's just a type TokenAccount...
-			.signers([escrowedXToken])
+			// A: Check IDL! Wallet and escrowedOutTokenAccount!
+			// Q: Why is escrowedOutTokenAccount a Signer? It's just a type TokenAccount...
+			.signers([escrowedOutTokenAccount])
 			.rpc();
 
 		console.log('TxHash ::', tx);
@@ -868,14 +881,14 @@
 		// that has additional fields? Like partially fill whatever fields match
 		escrowStore.set({ escrow: data, pda: escrowPDA } as EscrowStoreObject);
 
-		const escrowedXTokenAccountBalance =
+		const escrowedOutTokenAccountBalance =
 			await $workspaceStore.provider?.connection.getTokenAccountBalance(
-				$escrowStore.escrow?.escrowedXToken as anchor.web3.PublicKey
+				$escrowStore.escrow?.escrowedOutTokenAccount as anchor.web3.PublicKey
 			);
-		console.log('INITIALIZE::escrowedXTokenAccountBalance: ', escrowedXTokenAccountBalance);
-		// escrowedXTokenBalance = escrowedXTokenAccountBalance?.value.uiAmount as number;
+		console.log('INITIALIZE::escrowedOutTokenAccountBalance: ', escrowedOutTokenAccountBalance);
+		// escrowedOutTokenAccountBalance = escrowedOutTokenAccountBalance?.value.uiAmount as number;
 
-		// NOTE After running this and looking at solana logs, I can search the escrowedXToken
+		// NOTE After running this and looking at solana logs, I can search the escrowedOutTokenAccount
 		//❯ solana-anchor-sveltekit-multiple-programs main [!] spl-token account-info --address H4v4RYzNqVPAV88Zus9j1GYYiUf64hsFFBScTYvmdYQh
 		//
 		//Address: H4v4RYzNqVPAV88Zus9j1GYYiUf64hsFFBScTYvmdYQh  (Aux*)
@@ -898,10 +911,11 @@
 			.accounts({
 				buyer: $walletStore.publicKey as anchor.web3.PublicKey,
 				escrow: $escrowStore.pda as anchor.web3.PublicKey,
-				escrowedXToken: $escrowStore.escrow?.escrowedXToken as anchor.web3.PublicKey,
-				sellerYToken: $sellerStore.yTokenATA as anchor.web3.PublicKey,
-				buyerXToken: $buyerStore.xTokenATA as anchor.web3.PublicKey,
-				buyerYToken: $buyerStore.yTokenATA as anchor.web3.PublicKey,
+				escrowedOutTokenAccount: $escrowStore.escrow
+					?.escrowedOutTokenAccount as anchor.web3.PublicKey,
+				sellerInTokenAccount: $sellerStore.inTokenATA as anchor.web3.PublicKey,
+				buyerInTokenAccount: $buyerStore.inTokenATA as anchor.web3.PublicKey,
+				buyerOutTokenAccount: $buyerStore.outTokenATA as anchor.web3.PublicKey,
 				tokenProgram: TOKEN_PROGRAM_ID
 			})
 			.signers([]) // NOTE buyer is wallet, so don't need!
@@ -909,12 +923,12 @@
 
 		console.log('TxHash ::', tx);
 
-		const escrowedXTokenAccountBalance =
+		const escrowedOutTokenAccountBalance =
 			await $workspaceStore.provider?.connection.getTokenAccountBalance(
-				$escrowStore.escrow?.escrowedXToken
+				$escrowStore.escrow?.escrowedOutTokenAccount as anchor.web3.PublicKey
 			);
-		console.log('ACCEPT::escrowedXTokenAccountBalance: ', escrowedXTokenAccountBalance);
-		// ACCEPT::escrowedXTokenAccountBalance:  {
+		console.log('ACCEPT::escrowedOutTokenAccountBalance: ', escrowedOutTokenAccountBalance);
+		// ACCEPT::escrowedOutTokenAccountBalance:  {
 		//   context: { apiVersion: '1.10.38', slot: 81 },
 		//   value: { amount: '0', decimals: 8, uiAmount: 0, uiAmountString: '0' }
 		// }
@@ -937,25 +951,30 @@
 		} as EscrowStoreObject);
 		console.log('ACCEPT::$escrowStore: ', $escrowStore);
 		// Confirm that seller/buyer ATAs also updated correctly
-		const currentSellerXBalance = await $workspaceStore.provider?.connection.getTokenAccountBalance(
-			$sellerStore.xTokenATA as anchor.web3.PublicKey
-		);
-		$sellerStore.xTokenBalance = currentSellerXBalance?.value.uiAmount as number;
+		// TODO Need to also account for SOL token exchanges (not just SPL)
+		const currentSellerOutTokenBalance =
+			await $workspaceStore.provider?.connection.getTokenAccountBalance(
+				$sellerStore.outTokenATA as anchor.web3.PublicKey
+			);
+		$sellerStore.outTokenBalance = currentSellerOutTokenBalance?.value.uiAmount as number;
 
-		const currentSellerYBalance = await $workspaceStore.provider?.connection.getTokenAccountBalance(
-			$sellerStore.yTokenATA as anchor.web3.PublicKey
-		);
-		$sellerStore.yTokenBalance = currentSellerYBalance?.value.uiAmount as number;
+		const currentSellerInTokenBalance =
+			await $workspaceStore.provider?.connection.getTokenAccountBalance(
+				$sellerStore.inTokenATA as anchor.web3.PublicKey
+			);
+		$sellerStore.inTokenBalance = currentSellerInTokenBalance?.value.uiAmount as number;
 
-		const currentBuyerXBalance = await $workspaceStore.provider?.connection.getTokenAccountBalance(
-			$buyerStore.xTokenATA as anchor.web3.PublicKey
-		);
-		$buyerStore.xTokenBalance = currentBuyerXBalance?.value.uiAmount as number;
+		const currentBuyerInTokenBalance =
+			await $workspaceStore.provider?.connection.getTokenAccountBalance(
+				$buyerStore.inTokenATA as anchor.web3.PublicKey
+			);
+		$buyerStore.inTokenBalance = currentBuyerInTokenBalance?.value.uiAmount as number;
 
-		const currentBuyerYBalance = await $workspaceStore.provider?.connection.getTokenAccountBalance(
-			$buyerStore.yTokenATA as anchor.web3.PublicKey
-		);
-		$buyerStore.yTokenBalance = currentBuyerYBalance?.value.uiAmount as number;
+		const currentBuyerOutTokenBalance =
+			await $workspaceStore.provider?.connection.getTokenAccountBalance(
+				$buyerStore.outTokenATA as anchor.web3.PublicKey
+			);
+		$buyerStore.outTokenBalance = currentBuyerOutTokenBalance?.value.uiAmount as number;
 
 		// Add to notificationStore
 		notificationStore.add({
@@ -982,8 +1001,9 @@
 				.accounts({
 					seller: $walletStore.publicKey as PublicKey,
 					escrow: $escrowStore.pda as anchor.web3.PublicKey,
-					escrowedXToken: $escrowStore.escrow?.escrowedXToken as anchor.web3.PublicKey,
-					sellerXToken: $sellerStore.xTokenATA as anchor.web3.PublicKey,
+					escrowedOutTokenAccount: $escrowStore.escrow
+						?.escrowedOutTokenAccount as anchor.web3.PublicKey,
+					sellerOutTokenAccount: $sellerStore.outTokenATA as anchor.web3.PublicKey,
 					tokenProgram: TOKEN_PROGRAM_ID
 				})
 				.signers([]) // NOTE seller is wallet, so don't need!
@@ -1261,7 +1281,7 @@
 								</select>
 							</div>
 						</div>
-						<label class="label">
+						<label class="label pb-0">
 							<span class="label-text-alt">{formState.outTokenMint}</span>
 						</label>
 					</div>
@@ -1301,8 +1321,9 @@
 						/>
 					</div>
 
-					<button class="btn btn-accent mt-2 w-full max-w-xs" on:click={resetAllStores}
-						>Initialize Escrow</button
+					<button
+						class="btn btn-accent mt-2 w-full max-w-xs"
+						on:click={handleInitializeEscrowAccount}>Initialize Escrow</button
 					>
 				</div>
 			</div>
@@ -1422,7 +1443,7 @@
 								type="text"
 								placeholder=""
 								class="input input-bordered"
-								bind:value={$escrowStore.escrow.escrowedXToken}
+								bind:value={$escrowStore.escrow.escrowedOutTokenAccount}
 								disabled
 							/>
 						</label>

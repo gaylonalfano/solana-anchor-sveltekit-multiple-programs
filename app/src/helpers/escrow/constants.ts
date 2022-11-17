@@ -28,3 +28,6 @@ export const BUYER_WALLET_ADDRESS = new anchor.web3.PublicKey(
   "HzgMBJvpsKgTRe84q7BgdYbf3w4hBCWoy384rZBF9viy"
 ) // Solflare Dev
 
+export const SOL_PUBLIC_KEY = new anchor.web3.PublicKey(
+  "So11111111111111111111111111111111111111111"
+)
