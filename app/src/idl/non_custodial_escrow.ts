@@ -11,17 +11,17 @@ export type NonCustodialEscrow = {
           "isSigner": true
         },
         {
-          "name": "xMint",
+          "name": "outMint",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "yMint",
+          "name": "inMint",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "sellerXToken",
+          "name": "sellerOutTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -31,7 +31,7 @@ export type NonCustodialEscrow = {
           "isSigner": false
         },
         {
-          "name": "escrowedXToken",
+          "name": "escrowedOutTokenAccount",
           "isMut": true,
           "isSigner": true
         },
@@ -53,11 +53,11 @@ export type NonCustodialEscrow = {
       ],
       "args": [
         {
-          "name": "xAmount",
+          "name": "outAmount",
           "type": "u64"
         },
         {
-          "name": "yAmount",
+          "name": "inAmount",
           "type": "u64"
         }
       ]
@@ -76,22 +76,22 @@ export type NonCustodialEscrow = {
           "isSigner": false
         },
         {
-          "name": "escrowedXToken",
+          "name": "escrowedOutTokenAccount",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "sellerYToken",
+          "name": "sellerInTokenAccount",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "buyerXToken",
+          "name": "buyerInTokenAccount",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "buyerYToken",
+          "name": "buyerOutTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -117,12 +117,12 @@ export type NonCustodialEscrow = {
           "isSigner": false
         },
         {
-          "name": "escrowedXToken",
+          "name": "escrowedOutTokenAccount",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "sellerXToken",
+          "name": "sellerOutTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -154,23 +154,23 @@ export type NonCustodialEscrow = {
             "type": "u8"
           },
           {
-            "name": "escrowedXToken",
+            "name": "escrowedOutTokenAccount",
             "type": "publicKey"
           },
           {
-            "name": "xMint",
+            "name": "outMint",
             "type": "publicKey"
           },
           {
-            "name": "xAmount",
+            "name": "outAmount",
             "type": "u64"
           },
           {
-            "name": "yMint",
+            "name": "inMint",
             "type": "publicKey"
           },
           {
-            "name": "yAmount",
+            "name": "inAmount",
             "type": "u64"
           },
           {
@@ -200,17 +200,17 @@ export const IDL: NonCustodialEscrow = {
           "isSigner": true
         },
         {
-          "name": "xMint",
+          "name": "outMint",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "yMint",
+          "name": "inMint",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "sellerXToken",
+          "name": "sellerOutTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -220,7 +220,7 @@ export const IDL: NonCustodialEscrow = {
           "isSigner": false
         },
         {
-          "name": "escrowedXToken",
+          "name": "escrowedOutTokenAccount",
           "isMut": true,
           "isSigner": true
         },
@@ -242,11 +242,11 @@ export const IDL: NonCustodialEscrow = {
       ],
       "args": [
         {
-          "name": "xAmount",
+          "name": "outAmount",
           "type": "u64"
         },
         {
-          "name": "yAmount",
+          "name": "inAmount",
           "type": "u64"
         }
       ]
@@ -265,22 +265,22 @@ export const IDL: NonCustodialEscrow = {
           "isSigner": false
         },
         {
-          "name": "escrowedXToken",
+          "name": "escrowedOutTokenAccount",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "sellerYToken",
+          "name": "sellerInTokenAccount",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "buyerXToken",
+          "name": "buyerInTokenAccount",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "buyerYToken",
+          "name": "buyerOutTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -306,12 +306,12 @@ export const IDL: NonCustodialEscrow = {
           "isSigner": false
         },
         {
-          "name": "escrowedXToken",
+          "name": "escrowedOutTokenAccount",
           "isMut": true,
           "isSigner": false
         },
         {
-          "name": "sellerXToken",
+          "name": "sellerOutTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -343,23 +343,23 @@ export const IDL: NonCustodialEscrow = {
             "type": "u8"
           },
           {
-            "name": "escrowedXToken",
+            "name": "escrowedOutTokenAccount",
             "type": "publicKey"
           },
           {
-            "name": "xMint",
+            "name": "outMint",
             "type": "publicKey"
           },
           {
-            "name": "xAmount",
+            "name": "outAmount",
             "type": "u64"
           },
           {
-            "name": "yMint",
+            "name": "inMint",
             "type": "publicKey"
           },
           {
-            "name": "yAmount",
+            "name": "inAmount",
             "type": "u64"
           },
           {

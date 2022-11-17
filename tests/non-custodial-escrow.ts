@@ -54,13 +54,13 @@ describe("non-custodial-escrow", () => {
   console.log(`buyer: ${buyer.publicKey}`);
   let x_mint;
   let y_mint;
-  let seller_x_token; // Associated Token Accounts
-  let seller_y_token;
-  let buyer_x_token;
-  let buyer_y_token;
+  let seller_out_token_account; // Associated Token Accounts
+  let seller_in_token_account;
+  let buyer_in_token_account;
+  let buyer_out_token_account;
   // NOTE This is just saving the Pubkey, since program creates actual account
-  let escrowed_x_token = anchor.web3.Keypair.generate();
-  console.log(`escrowed_x_token: ${escrowed_x_token.publicKey}`);
+  let escrowed_out_token_account = anchor.web3.Keypair.generate();
+  console.log(`escrowed_out_token_account: ${escrowed_out_token_account.publicKey}`);
   // NOTE This is a PDA that we'll get below
   let escrow: anchor.web3.PublicKey;
 
@@ -133,17 +133,17 @@ describe("non-custodial-escrow", () => {
     // await new Promise((resolve) => setTimeout(resolve, 500));
 
     // 4. Create associated token accounts for seller's and buyer's x and y tokens
-    // 4.1 Create seller_x_token ATA
-    seller_x_token = await createAssociatedTokenAccount(
+    // 4.1 Create seller_out_token_account ATA
+    seller_out_token_account = await createAssociatedTokenAccount(
       provider.connection, // connection
       seller.payer, // payer keypair,
       x_mint, // mint pubkey
       seller.publicKey // owner pubkey
     );
-    console.log(`seller_x_token: ${seller_x_token}`);
+    console.log(`seller_out_token_account: ${seller_out_token_account}`);
     // await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // 4.2 Mint new supply and transfer to seller_x_token account
+    // 4.2 Mint new supply and transfer to seller_out_token_account account
     await mintToChecked(
       provider.connection, //connection,
       // Q: How do I get type anchor.web3.Signer?
@@ -152,61 +152,61 @@ describe("non-custodial-escrow", () => {
       // A: Still don't know, BUT type Keypair seems to work...
       seller.payer, // payer, // NOTE need anchor.web3.Signer
       x_mint, // mint,
-      seller_x_token, // destination ata,
+      seller_out_token_account, // destination ata,
       seller.publicKey, // mint authority,
       1e8, // amount,
       8 // decimals
       // [signer1, signer2...], // only multisig account will use
     );
     console.log(
-      `seller_x_token balance: ${await provider.connection
-        .getTokenAccountBalance(seller_x_token)
+      `seller_out_token_account balance: ${await provider.connection
+        .getTokenAccountBalance(seller_out_token_account)
         .then((r) => r.value.amount)}`
     );
 
-    // 4.3 Create the seller_y_token ATA
-    seller_y_token = await createAssociatedTokenAccount(
+    // 4.3 Create the seller_in_token_account ATA
+    seller_in_token_account = await createAssociatedTokenAccount(
       provider.connection, // connection
       seller.payer, // payer keypair,
       y_mint, // mint pubkey
       seller.publicKey // owner pubkey
     );
-    console.log(`seller_y_token: ${seller_y_token}`);
+    console.log(`seller_in_token_account: ${seller_in_token_account}`);
 
-    // 4.4 Create buyer_x_token and buyer_y_token ATAs
-    buyer_x_token = await createAssociatedTokenAccount(
+    // 4.4 Create buyer_in_token_account and buyer_out_token_account ATAs
+    buyer_in_token_account = await createAssociatedTokenAccount(
       provider.connection,
       buyer, // seller.payer, // Q: Buyer or seller is the payer?
       x_mint,
       buyer.publicKey
     );
-    console.log(`buyer_x_token: ${buyer_x_token}`);
+    console.log(`buyer_in_token_account: ${buyer_in_token_account}`);
 
     // await new Promise((resolve) => setTimeout(resolve, 500));
 
-    buyer_y_token = await createAssociatedTokenAccount(
+    buyer_out_token_account = await createAssociatedTokenAccount(
       provider.connection,
       seller.payer,
       y_mint,
       buyer.publicKey
     );
-    console.log(`buyer_y_token: ${buyer_y_token}`);
+    console.log(`buyer_out_token_account: ${buyer_out_token_account}`);
     // await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // 4.5 Mint new y token supply and transfer to buyer_y_token account
+    // 4.5 Mint new y token supply and transfer to buyer_out_token_account account
     await mintToChecked(
       provider.connection,
       seller.payer, // payer
       y_mint, // mint
-      buyer_y_token, // destination
+      buyer_out_token_account, // destination
       seller.publicKey, // mint authority
       1e8, // amount. NOTE If decimals is 8, you mint 10^8 for 1 token
       8 // decimals
       // [signer1, signer2...], // only multisig account will use
     );
     console.log(
-      `buyer_y_token balance: ${await provider.connection
-        .getTokenAccountBalance(buyer_y_token)
+      `buyer_out_token_account balance: ${await provider.connection
+        .getTokenAccountBalance(buyer_out_token_account)
         .then((r) => r.value.amount)}`
     );
   });
@@ -216,13 +216,13 @@ describe("non-custodial-escrow", () => {
     // Create some associated token accounts for x and y tokens for buyer and seller
     // Call our on-chain program's initialize() method and set escrow properties values
     console.log("STARTED: Initialize escrow test...");
-    // NOTE Results in 0.0000004 in escrowed_x_token balance
-    const x_amount = new anchor.BN(40);
-    const y_amount = new anchor.BN(40); // number of token seller wants in exchange for x_amount
+    // NOTE Results in 0.0000004 in escrowed_out_token_account balance
+    const out_amount = new anchor.BN(40);
+    const in_amount = new anchor.BN(40); // number of token seller wants in exchange for out_amount
     let data: anchor.IdlTypes<anchor.Idl>["Escrow"];
 
     const tx = await program.methods
-      .initialize(x_amount, y_amount)
+      .initialize(out_amount, in_amount)
       // NOTE We only provide the PublicKeys for all the accounts.
       // We do NOT have to deal with isSigner, isWritable, etc. like in RAW
       // since we already declared that in the program Context struct.
@@ -235,20 +235,20 @@ describe("non-custodial-escrow", () => {
       // and the placeholder is: buyer: PublicKey { _bn: <BN: 0> },
       .accounts({
         seller: seller.publicKey,
-        xMint: x_mint,
-        yMint: y_mint,
-        sellerXToken: seller_x_token,
+        outMint: x_mint,
+        inMint: y_mint,
+        sellerOutTokenAccount: seller_out_token_account,
         escrow: escrow, // created in program
-        escrowedXToken: escrowed_x_token.publicKey, // created in program
+        escrowedOutTokenAccount: escrowed_out_token_account.publicKey, // created in program
         tokenProgram: TOKEN_PROGRAM_ID, // Q: Use 2022 version? A: TOKEN_PROGRAM_ID!
         rent: SYSVAR_RENT_PUBKEY,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       // Q: Which accounts are Signers?
-      // A: Check IDL! Wallet and escrowed_x_token!
-      // Q: Why is escrowed_x_token a Signer? It's just a type TokenAccount...
+      // A: Check IDL! Wallet and escrowed_out_token_account!
+      // Q: Why is escrowed_out_token_account a Signer? It's just a type TokenAccount...
       // I believe it's because it gets created and we set its props?
-      .signers([escrowed_x_token])
+      .signers([escrowed_out_token_account])
       .rpc({ skipPreflight: true });
 
     console.log("TxHash ::", tx);
@@ -258,7 +258,7 @@ describe("non-custodial-escrow", () => {
 
     const escrowedXTokenAccountBalance =
       await provider.connection.getTokenAccountBalance(
-        escrowed_x_token.publicKey
+        escrowed_out_token_account.publicKey
       );
     console.log(
       "INITIALIZE::escrowedXTokenAccountBalance: ",
@@ -275,7 +275,7 @@ describe("non-custodial-escrow", () => {
     // }
 
     // const escrowedXTokenAccountData = await provider.connection.getAccountInfo(
-    //   escrowed_x_token.publicKey
+    //   escrowed_out_token_account.publicKey
     // );
     // console.log(
     //   "INITIALIZE::escrowedXTokenAccountData: ",
@@ -292,7 +292,7 @@ describe("non-custodial-escrow", () => {
     //   rentEpoch: 0
     // }
 
-    // Q: Why is escrowed_x_token NOT initialized and has no 'amount'?
+    // Q: Why is escrowed_out_token_account NOT initialized and has no 'amount'?
     // UPDATE: May be a test-validator thing... If I shutdown, I was able to
     // find the account using spl-token account-info --address <ADDRESS>:
     // Address: E66iwqshxQgtvBLGueezLZEYGTviB12ecSJPWizbeszB  (Aux*)
@@ -310,9 +310,9 @@ describe("non-custodial-escrow", () => {
     console.log(`{
       data: ${data}
       authority: ${data.authority},
-      escrowedXToken.amount: ${data.escrowedXToken.amount},
-      escrowedXToken.state: ${data.escrowedXToken.state},
-      yMint: ${data.yMint},
+      escrowedOutTokenAccount.amount: ${data.escrowedOutTokenAccount.amount},
+      escrowedOutTokenAccount.state: ${data.escrowedOutTokenAccount.state},
+      inMint: ${data.inMint},
       yAmount: ${data.yAmount},
     }`);
     // NOTE spl_token::state::Account has the following struct:
@@ -340,8 +340,8 @@ describe("non-custodial-escrow", () => {
 
     // {
     //     authority: HCpmSRydSxpnybDDi51hNb9hjowvAqdpwprKL2ufh5PE,
-    //     escrowedXToken: Dcp4JVmrGncru1etSih5JFdooWK3BZDP8h5QK7qTgxA7,
-    //     yMint: GEkKTvAmnpkRhvftq6sbcKcDWnGXByky9Fbt1kBm99Qi,
+    //     escrowedOutTokenAccount: Dcp4JVmrGncru1etSih5JFdooWK3BZDP8h5QK7qTgxA7,
+    //     inMint: GEkKTvAmnpkRhvftq6sbcKcDWnGXByky9Fbt1kBm99Qi,
     //     yAmount: 40,
     //   }
 
@@ -351,10 +351,10 @@ describe("non-custodial-escrow", () => {
   });
 
   it("Accept the trade", async () => {
-    // Q: Why isn't escrowed_x_token NOT initialized?
-    // Program log: AnchorError caused by account: escrowed_x_token. Error Code: AccountNotInitialized. Error Number: 3012.
+    // Q: Why isn't escrowed_out_token_account NOT initialized?
+    // Program log: AnchorError caused by account: escrowed_out_token_account. Error Code: AccountNotInitialized. Error Number: 3012.
     // Error Message: The program expected this account to be already initialized.
-    // Shouldn't escrowed_x_token be a TokenAccount with an 'amount' property?
+    // Shouldn't escrowed_out_token_account be a TokenAccount with an 'amount' property?
     // A: Two reasons: wrong Program ID and need to restart validator before tests
 
     const tx = await program.methods
@@ -362,10 +362,10 @@ describe("non-custodial-escrow", () => {
       .accounts({
         buyer: buyer.publicKey,
         escrow: escrow,
-        escrowedXToken: escrowed_x_token.publicKey,
-        sellerYToken: seller_y_token,
-        buyerXToken: buyer_x_token,
-        buyerYToken: buyer_y_token,
+        escrowedOutTokenAccount: escrowed_out_token_account.publicKey,
+        sellerInTokenAccount: seller_in_token_account,
+        buyerInTokenAccount: buyer_in_token_account,
+        buyerOutTokenAccount: buyer_out_token_account,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .signers([buyer])
@@ -379,7 +379,7 @@ describe("non-custodial-escrow", () => {
 
     const escrowedXTokenAccountBalance =
       await provider.connection.getTokenAccountBalance(
-        escrowed_x_token.publicKey
+        escrowed_out_token_account.publicKey
       );
     console.log(
       "ACCEPT::escrowedXTokenAccountBalance: ",
@@ -391,7 +391,7 @@ describe("non-custodial-escrow", () => {
     // }
 
     // const escrowedXTokenAccountData = await provider.connection
-    //   .getAccountInfo(escrowed_x_token.publicKey)
+    //   .getAccountInfo(escrowed_out_token_account.publicKey)
     //   .then((res) => res.data.toJSON());
     // console.log(
     //   "ACCEPT::escrowedXTokenAccountData: ",
@@ -419,8 +419,8 @@ describe("non-custodial-escrow", () => {
       .accounts({
         seller: seller.publicKey,
         escrow: escrow,
-        escrowedXToken: escrowed_x_token.publicKey,
-        sellerXToken: seller_x_token,
+        escrowedOutTokenAccount: escrowed_out_token_account.publicKey,
+        sellerOutTokenAccount: seller_out_token_account,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
       .signers([seller.payer])
@@ -429,7 +429,7 @@ describe("non-custodial-escrow", () => {
     console.log("TxHash ::", tx);
 
     // Get the updated account data to verify is_active and has_exchanged updated
-    // Q: Is 'escrow' still available after closing 'escrowed_x_token'?
+    // Q: Is 'escrow' still available after closing 'escrowed_out_token_account'?
     // A: NOPE! It's completely closed so no need to update!
     // const data = await program.account.escrow.fetch(escrow);
     // console.log("data.isActive: ", data.isActive);
@@ -437,14 +437,14 @@ describe("non-custodial-escrow", () => {
 
     // const escrowedXTokenAccountBalance =
     //   await provider.connection.getTokenAccountBalance(
-    //     escrowed_x_token.publicKey
+    //     escrowed_out_token_account.publicKey
     //   );
     // console.log(
     //   "CANCEL::escrowedXTokenAccountBalance: ",
     //   escrowedXTokenAccountBalance
     // ); // Errors since the account no longer exists (closed)!
     // const escrowedXTokenAccountData = await provider.connection.getAccountInfo(
-    //   escrowed_x_token.publicKey
+    //   escrowed_out_token_account.publicKey
     // );
     // console.log(
     //   "CANCEL::escrowedXTokenAccountData: ",
