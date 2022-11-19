@@ -66,3 +66,9 @@ export const walletTokenAccountsStore = writable<
     pubkey: anchor.web3.PublicKey // ATA address in wallet
   }[]
 >()
+
+// Q: How can I keep trackk of selected token (from wallet) info AND the outTokenAmount
+// the user wishes to exchange? 
+// U: May use a derived Store on walletTokenAccountsStore. Could even consider turning formState obj
+// into a Store and then derive from BOTH stores. However, what if I just expand/revise the sellerStore
+// to include all this info?

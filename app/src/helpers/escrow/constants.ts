@@ -31,3 +31,7 @@ export const BUYER_WALLET_ADDRESS = new anchor.web3.PublicKey(
 export const SOL_PUBLIC_KEY = new anchor.web3.PublicKey(
   "So11111111111111111111111111111111111111111"
 )
+
+export const PUBKEY_MIN_CHARS = 32;
+export const PUBKEY_MAX_CHARS = 44;
+

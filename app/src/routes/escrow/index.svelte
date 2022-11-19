@@ -49,7 +49,10 @@
 	//    - Update x/yMintStores OR update buyer/SellerStores to store
 	//      token info and balance based on selected token mint address
 	//      - U: Ended up leaving x/yMintStores alone. Updated buyer/sellerStores instead
-	//    - Limit mint address input to 32-44 chars long (base58 pubkeys)
+	//    - DONE Limit mint address input to 32-44 chars long (base58 pubkeys)
+	//    - Fix BN/decimal issue. May need to create helper fn to calculate
+	//      the outTokenAmount / parsed.info.tokenAmount.amount (or sth)
+	//      - Limit amount to be <= outTokenBalance
 	// - DONE Create custom Store for escrow
 	//    - Implement the store into the code to replace local vars
 	//    - U: May need expand custom EscrowStoreObject to include
@@ -104,10 +107,9 @@
 	// A: Implementing escrowStore is enough! Can purge/remove lots of original vars
 	// U: Adding SwapUI. Could capture all the swapUI data inside this formState obj.
 	// U: Adding select menu for token options in wallet, so adding some vars to bind
-	// FIXME Fix the Type of selectedToken or come up with something else for SOL
-	let selectedToken: string; // Going to be the mint address for now
-	let selectedTokenBalance = 0;
-	let reactiveTokenBalance = 0;
+	// let selectedToken: string; // Going to be the mint address for now
+	// let selectedTokenBalance = 0;
+	// let reactiveTokenBalance = 0;
 
 	let formState = {
 		escrow: '',
@@ -123,11 +125,11 @@
 		// NOTE Adding out/inToken fields (see seller/buyerStores)
 		outTokenMint: 'SOL',
 		outTokenATA: '',
-		outTokenAmount: 0,
+		outTokenAmount: '',
 		outTokenBalance: 0,
 		inTokenMint: '',
 		inTokenATA: '',
-		inTokenAmount: 0,
+		inTokenAmount: '',
 		inTokenBalance: 0
 	};
 
@@ -217,8 +219,9 @@
 	// U: For now, I've added new out/inToken fields to the seller/buyerStores so
 	// I can start initializing Escrows with other tokens (not just X/Y only)
 	// U: Move the variables into formState object instead
-	// TODO need to update sellerStore outTokenATA and inTokenATA values when selected
-	// TODO Need to eventually allow SOL to be used for creating escrows as well
+	// U: Think I need to create an outTokenMintStore etc. so I can keep track of
+	// the selected token and reactively do the compute based on user's outTokenAmount
+  // U: Scratch that. Just going to expand sellerStore for now.
 	function setSelectedTokenBalance() {
 		// NOTE Check if the selectedToken === 'SOL' so return the SOL
 		// balance from balanceStore instead.
@@ -228,14 +231,12 @@
 			// U: Need to update sellerStore values as well to init escrow
 			$sellerStore.outTokenMint = constants.SOL_PUBLIC_KEY;
 			// Q: Should I set outTokenATA to wallet address for SOL? Or leave null?
-			// NOTE Still need to update my init escrow to allow SOL
+			// TODO Still need to update my init escrow to allow SOL
 			$sellerStore.outTokenATA = $walletStore.publicKey;
 			$sellerStore.outTokenBalance = $balanceStore.balance;
 		}
 
 		let matchingToken = $walletTokenAccountsStore.find((tokenAccount) => {
-			// return tokenAccount.account.data.parsed.info.mint === token.account.data.parsed.info.mint;
-			// return tokenAccount.account.data.parsed.info.mint === token;
 			return tokenAccount.account.data.parsed.info.mint === formState.outTokenMint;
 		});
 		console.log('matchingToken: ', matchingToken);
@@ -244,16 +245,152 @@
 			formState.outTokenBalance = matchingToken.account.data.parsed.info.tokenAmount.uiAmount;
 			console.log('outTokenBalance: ', formState.outTokenBalance);
 			// U: Need to update sellerStore values as well to init escrow
+			// NOTE Here's the current type structure:
+
+//       {
+//   walletAddress: anchor.web3.PublicKey | null,
+//   outTokenMint: anchor.web3.PublicKey | null,
+//   outTokenATA: anchor.web3.PublicKey | null,
+//   outTokenRawBalance: number | null, // 30000000
+//   outTokenBalance: number | null,
+//   outTokenRawAmount: number | null, // 12000000
+//   outTokenAmount: number | null, // 1.2
+//   outTokenDecimals: number | null,
+//   inTokenMint: anchor.web3.PublicKey | null,
+//   inTokenATA: anchor.web3.PublicKey | null,
+//   inTokenAmount: number | null,
+//   inTokenBalance: number | null,
+//   // NOTE Keeping x/y fields for now while developing
+//   xTokenMint: anchor.web3.PublicKey | null,
+//   xTokenATA: anchor.web3.PublicKey | null,
+//   xTokenBalance: number | null,
+//   yTokenMint: anchor.web3.PublicKey | null,
+//   yTokenATA: anchor.web3.PublicKey | null,
+//   yTokenBalance: number | null,
+// }
+
+
+
 			$sellerStore.outTokenMint = matchingToken.account.data.parsed.info.mint;
 			$sellerStore.outTokenATA = matchingToken.pubkey;
-			$sellerStore.outTokenBalance = matchingToken.account.data.parsed.info.tokenAmount.uiAmount;
+			$sellerStore.outTokenRawBalance = parseInt(
+				matchingToken.account.data.parsed.info.tokenAmount.amount
+			); // 30000000
+			$sellerStore.outTokenBalance =
+				matchingToken.account.data.parsed.info.tokenAmount.uiAmount; // 3
+			$sellerStore.outTokenDecimals = matchingToken.account.data.parsed.info.tokenAmount.decimals;
 		}
 	}
 
 	function handleOnChange() {
-		// Get the selected token's details and balance
+    // Clear the formState.outTokenAmount input
+    formState.outTokenAmount = '';
+    $sellerStore.outTokenAmount = null;
+    $sellerStore.outTokenRawAmount = null;
+		// Get the selected token's details and balance and update UI
 		setSelectedTokenBalance();
-		// Update the UI
+	}
+
+  function handleOutTokenAmountInput() {
+    // Clear any existing input
+    $sellerStore.outTokenAmount = null;
+    $sellerStore.outTokenRawAmount = null;
+
+
+    try {
+      // Handle the outTokenAmount
+      if (formState.outTokenAmount && $sellerStore.outTokenRawBalance && $sellerStore.outTokenDecimals) {
+        // NOTE 10 ** 8 => 100000000
+        let rawTokenAmount = parseFloat(formState.outTokenAmount) * (10 ** $sellerStore.outTokenDecimals);
+
+        // TODO Add some validation to outTokenAmount
+        // NOTE outTokenRawBalance - rawOutTokenAmount >= 0
+        if (rawTokenAmount > $sellerStore.outTokenRawBalance) {
+          console.log("rawTokenAmount > balance!");
+          return
+        }
+
+        // Update sellerStore values
+        $sellerStore.outTokenRawAmount = rawTokenAmount;
+        $sellerStore.outTokenAmount = parseFloat(formState.outTokenAmount);
+      }
+
+    } catch (e) {
+      console.log(e);
+    }
+
+  }
+
+  function handleInTokenMintAddressInput() {
+    // Clear any existing input
+    $sellerStore.inTokenMint = null;
+
+    try {
+      if (formState.inTokenMint) {
+
+        // TODO Add validation and toggle for UI
+        if (formState.inTokenMint.length > constants.PUBKEY_MAX_CHARS || formState.inTokenMint.length < constants.PUBKEY_MIN_CHARS) {
+          console.log(`inTokenMint has invalid length of ${formState.inTokenMint.length} chars!`);
+          return
+        }
+        // Update state
+        // Q: Do I need to see if wallet already has inTokenMint? And then update
+        // inTokenATA, inTokenBalance?
+        // A: I don't think it's worth it since this Store doesn't persists anyway,
+        // and we'll have to do a fresh fetch on the mint address to accept from
+        // the buyer's side.
+        $sellerStore.inTokenMint = new anchor.web3.PublicKey(formState.inTokenMint);
+
+      }
+
+    } catch (e) {
+      console.log(e);
+    }
+
+  }
+
+  function handleInTokenAmountInput() {
+    // Clear any existing input
+    $sellerStore.inTokenAmount = null;
+
+    try {
+
+      if (formState.inTokenAmount.trim().length > 0) {
+        // TODO Ensure it's a valid number
+        // Q: Do I need to know the decimals for the inTokenMint in order
+        // to compute the rawAmount? Currently I'll just pass a decimal from the
+        // initialization side (seller), but when accepting need to make sure the
+        // amounts align. I won't be able to know all the details until I have
+        // the mint, decimals, and amounts.
+        let inTokenAmount = parseFloat(formState.inTokenAmount);
+        $sellerStore.inTokenAmount = inTokenAmount;
+      }
+
+    } catch (e) {
+      console.log(e);
+    }
+
+  }
+
+	function calculateTokenAmountConversion(transferAmount: string, tokenInfo: Record<string, any>) {
+		// NOTE Need a BN.toNumber() for out/in amounts to init Escrow.
+		// However, want to allow decimals for user input. BN doesn't support decimals,
+		// so need to manually compute/convert - Eg ".3" of "100000000" balance -> "30000000"
+    // NOTE 10 ** 8 => 100000000
+		// tokenInfo Object has following shape after getTokenAccountsByOwner:
+		// {
+		//    amount: string, // "100000000"
+		//    decimals: number, // 8
+		//    uiAmount: number, // 1
+		//    uiAmountString: string, // "1"
+		// }
+		// 1. Take string decimal or int input to get big number
+		let transferAmountOfTokenInfoAmount: number =
+			parseFloat(transferAmount) * parseInt(tokenInfo.amount);
+		console.log(transferAmountOfTokenInfoAmount);
+		// 2. Create new BN
+		let transferAmountAsBN = new anchor.BN(transferAmountOfTokenInfoAmount);
+		console.log('transferAmountAsBN: ', transferAmountAsBN);
 	}
 
 	async function createTokenX() {
@@ -689,7 +826,7 @@
 				$xMintStore.address as anchor.web3.PublicKey, // mint
 				$sellerStore.xTokenATA as anchor.web3.PublicKey, // destination ata
 				$walletStore.publicKey as anchor.web3.PublicKey, // mint authority
-				1e8, // amount // U: Could add this as arg if needed
+				3e8, // amount // U: Could add this as arg if needed
 				$xMintStore.mint?.decimals as number // decimals 8 // U: Could maybe reference $xMintStore.mint.decimals
 			)
 		);
@@ -736,7 +873,7 @@
 				$yMintStore.address as anchor.web3.PublicKey, // mint
 				$buyerStore.yTokenATA as anchor.web3.PublicKey, // destination ata
 				$walletStore.publicKey as anchor.web3.PublicKey, // mint authority
-				1e8, // amount
+				3e8, // amount
 				8 // decimals 8
 			)
 		);
@@ -825,12 +962,30 @@
 		console.log('escrow PDA: ', escrowPDA);
 
 		// U: Added swapUI fields to formState
-		const outAmount = new anchor.BN(formState.outTokenAmount);
-		const inAmount = new anchor.BN(formState.inTokenAmount); // number of token seller wants in exchange for xAmount
-		// const xAmount = new anchor.BN(formState.xAmountFromSeller);
-		// const yAmount = new anchor.BN(formState.yAmountFromBuyer); // number of token seller wants in exchange for xAmount
-		// xAmountFromSeller = xAmount.toNumber();
-		// yAmountFromBuyer = yAmount.toNumber();
+		// U: If you're displaying decimals, then BN is NOT the solution!
+		// NOTE BN doesn't support decimals!
+		// const outAmount = parseFloat(formState.outTokenAmount); // ERROR BN
+		// const inAmount = parseFloat(formState.inTokenAmount); // ERROR
+		// const outAmount = parseInt(formState.outTokenAmount); // ERROR w/ BN
+		// const inAmount = parseInt(formState.inTokenAmount); // ERROR w/ BN
+		// TODO Add support for decimal user inputs
+		// Q: Need some reactive var?
+		// const outAmount = new anchor.BN(formState.outTokenAmount); // Errors if passed directly!
+		// const inAmount = new anchor.BN(formState.inTokenAmount); // Must convert BN.toNumber()!
+		// // NOTE Must convert BN to number! And don't use decimals!
+		// outAmount.toNumber();
+		// inAmount.toNumber();
+
+    // U: Okay, I am now converting the amounts and storing inside sellerStore
+    // Need to figure out how to pass these values into my createEscrow() instruction
+    // NOTE I have the outTokenAmount as a number and outTokenRawAmount based on decimals
+    // However, I only have inTokenAmount as a number with possible decimals
+    // Q: Can I just pass numbers or BN needed?
+    // A: Nope! Must use BN!
+    // FIXME I can pass a BN direc†ly to program method, BUT it removes the
+    // DECIMAL value! E.g., 2.4 => 2. So, need to somehow get/pass RAW amounts
+    const outAmount = new anchor.BN($sellerStore.outTokenAmount as number);
+    const inAmount = new anchor.BN($sellerStore.inTokenAmount as number);
 
 		// Check whether escrow account already has data
 		let data: EscrowObject;
@@ -903,6 +1058,17 @@
 
 		// Update/double-check Escrow State
 		console.log('INITIALIZE::$escrowStore: ', $escrowStore);
+
+    // Clear/reset the sellerStore!
+    $sellerStore.inTokenMint = null;
+    $sellerStore.inTokenAmount = null;
+    $sellerStore.outTokenMint = null;
+    $sellerStore.outTokenATA = null;
+    $sellerStore.outTokenBalance = null;
+    $sellerStore.outTokenRawBalance = null;
+    $sellerStore.outTokenAmount = null;
+    $sellerStore.outTokenRawAmount = null;
+    $sellerStore.outTokenDecimals = null;
 	}
 
 	async function handleAcceptTrade() {
@@ -1258,6 +1424,7 @@
 								type="text"
 								placeholder="0.00"
 								class="input input-bordered w-full max-w-xs pl-7 pr-12"
+                on:input={handleOutTokenAmountInput}
 							/>
 							<div class="absolute inset-y-0 right-0 flex items-center">
 								<label for="token" class="sr-only">Token</label>
@@ -1305,6 +1472,7 @@
 				<div class="form-control w-full max-w-xs pb-4">
 					<input
 						bind:value={formState.inTokenMint}
+            on:input={handleInTokenMintAddressInput}
 						type="text"
 						placeholder="Mint address"
 						class="input input-bordered w-full max-w-xs mb-2"
@@ -1315,6 +1483,7 @@
 						</div>
 						<input
 							bind:value={formState.inTokenAmount}
+              on:input={handleInTokenAmountInput}
 							type="text"
 							placeholder="0.00"
 							class="input input-bordered w-full max-w-xs pl-7 pr-12"
