@@ -217,6 +217,7 @@ describe("non-custodial-escrow", () => {
     // Call our on-chain program's initialize() method and set escrow properties values
     console.log("STARTED: Initialize escrow test...");
     // NOTE Results in 0.0000004 in escrowed_out_token_account balance
+    // NOTE BN doesn't accept decimals! Must be whole numbers!
     const out_amount = new anchor.BN(40);
     const in_amount = new anchor.BN(40); // number of token seller wants in exchange for out_amount
     let data: anchor.IdlTypes<anchor.Idl>["Escrow"];
@@ -256,15 +257,15 @@ describe("non-custodial-escrow", () => {
     data = await program.account.escrow.fetch(escrow);
 
 
-    const escrowedXTokenAccountBalance =
+    const escrowedOutTokenAccountBalance =
       await provider.connection.getTokenAccountBalance(
         escrowed_out_token_account.publicKey
       );
     console.log(
-      "INITIALIZE::escrowedXTokenAccountBalance: ",
-      escrowedXTokenAccountBalance
+      "INITIALIZE::escrowedOutTokenAccountBalance: ",
+      escrowedOutTokenAccountBalance
     );
-    // INITIALIZE::escrowedXTokenAccountBalance:  {
+    // INITIALIZE::escrowedOutTokenAccountBalance:  {
     //   context: { apiVersion: '1.10.38', slot: 80 },
     //   value: {
     //     amount: '40',
@@ -306,15 +307,6 @@ describe("non-custodial-escrow", () => {
     // before running the tests.
 
     console.log('escrow account: ', data);
-    console.log("Our Escrow PDA has account with data:\n");
-    console.log(`{
-      data: ${data}
-      authority: ${data.authority},
-      escrowedOutTokenAccount.amount: ${data.escrowedOutTokenAccount.amount},
-      escrowedOutTokenAccount.state: ${data.escrowedOutTokenAccount.state},
-      inMint: ${data.inMint},
-      yAmount: ${data.yAmount},
-    }`);
     // NOTE spl_token::state::Account has the following struct:
     // pub struct Account {
     // /// The mint associated with this account
@@ -348,6 +340,13 @@ describe("non-custodial-escrow", () => {
     expect(data.authority.toString()).to.equal(seller.publicKey.toString());
     expect(data.isActive).to.equal(true);
     expect(data.hasExchanged).to.equal(false);
+    // U: Confirm that out/in amounts are correct
+    // NOTE out/inAmounts are BN and BN doesn't support decimals!
+    // Q: How to compare BN values?
+    // A: Use BN.toNumber() or .toString()!
+    expect(data.outAmount.toNumber()).to.equal(40);
+    expect(data.inAmount.toNumber()).to.equal(40);
+    expect(parseInt(escrowedOutTokenAccountBalance.value.amount)).to.equal(40);
   });
 
   it("Accept the trade", async () => {
@@ -377,15 +376,15 @@ describe("non-custodial-escrow", () => {
     const data = await program.account.escrow.fetch(escrow);
     console.log('escrow account: ', data);
 
-    const escrowedXTokenAccountBalance =
+    const escrowedOutTokenAccountBalance =
       await provider.connection.getTokenAccountBalance(
         escrowed_out_token_account.publicKey
       );
     console.log(
-      "ACCEPT::escrowedXTokenAccountBalance: ",
-      escrowedXTokenAccountBalance
+      "ACCEPT::escrowedOutTokenAccountBalance: ",
+      escrowedOutTokenAccountBalance
     );
-    // ACCEPT::escrowedXTokenAccountBalance:  {
+    // ACCEPT::escrowedOutTokenAccountBalance:  {
     //   context: { apiVersion: '1.10.38', slot: 81 },
     //   value: { amount: '0', decimals: 8, uiAmount: 0, uiAmountString: '0' }
     // }
@@ -411,6 +410,7 @@ describe("non-custodial-escrow", () => {
     expect(data.buyer.toString()).to.equal(buyer.publicKey.toString());
     expect(data.isActive).to.equal(false);
     expect(data.hasExchanged).to.equal(true);
+    expect(parseInt(escrowedOutTokenAccountBalance.value.amount)).to.equal(0);
   });
 
   it("Cancel the trade", async () => {
@@ -435,13 +435,13 @@ describe("non-custodial-escrow", () => {
     // console.log("data.isActive: ", data.isActive);
     // console.log("data.hasExchanged: ", data.hasExchanged);
 
-    // const escrowedXTokenAccountBalance =
+    // const escrowedOutTokenAccountBalance =
     //   await provider.connection.getTokenAccountBalance(
     //     escrowed_out_token_account.publicKey
     //   );
     // console.log(
-    //   "CANCEL::escrowedXTokenAccountBalance: ",
-    //   escrowedXTokenAccountBalance
+    //   "CANCEL::escrowedOutTokenAccountBalance: ",
+    //   escrowedOutTokenAccountBalance
     // ); // Errors since the account no longer exists (closed)!
     // const escrowedXTokenAccountData = await provider.connection.getAccountInfo(
     //   escrowed_out_token_account.publicKey

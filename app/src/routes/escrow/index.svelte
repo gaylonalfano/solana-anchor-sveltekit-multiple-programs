@@ -362,6 +362,10 @@
         // initialization side (seller), but when accepting need to make sure the
         // amounts align. I won't be able to know all the details until I have
         // the mint, decimals, and amounts.
+        // U: I actually may need to getMint(inTokenMint) or something bc I think
+        // I need to pass a RAW amount (no decimals!) for BN. However, the user
+        // enters a decimal. Therefore, may need to do a getMint() to get Mint
+        // decimals, so I can convert to RAW again... Sigh.
         let inTokenAmount = parseFloat(formState.inTokenAmount);
         $sellerStore.inTokenAmount = inTokenAmount;
       }
