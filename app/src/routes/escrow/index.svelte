@@ -53,6 +53,8 @@
 	//    - Fix BN/decimal issue. May need to create helper fn to calculate
 	//      the outTokenAmount / parsed.info.tokenAmount.amount (or sth)
 	//      - Limit amount to be <= outTokenBalance
+  //      - Add validation inside create escrow handler for raw amounts
+  //      - Reset sellerStore on refresh/disconnect
 	// - DONE Create custom Store for escrow
 	//    - Implement the store into the code to replace local vars
 	//    - U: May need expand custom EscrowStoreObject to include
@@ -133,6 +135,19 @@
 		inTokenBalance: 0
 	};
 
+  let formErrors = {
+    outTokenMint: '',
+    outTokenATA: '',
+    outTokenAmount: '',
+    outTokenBalance: '',
+    inTokenMint: '',
+    inTokenATA: '',
+    inTokenAmount: '',
+    inTokenBalance: ''
+  }
+
+  let escrowInputsAreValid = false;
+
 	// $: hasCreatedTokens = if(yMint != null && xMint != null) return true;
 
 	$: hasWorkspaceProgramReady =
@@ -146,6 +161,17 @@
 	// $: if ($walletTokenAccountsStore && $walletTokenAccountsStore.length > 0) {
 	// 	reactiveTokenBalance = setSelectedTokenBalance(selectedToken) as number;
 	// }
+
+  $: hasRequiredEscrowInputs = 
+    $sellerStore.outTokenMint !== null
+    && $sellerStore.outTokenATA !== null
+    && $sellerStore.outTokenDecimals !== null
+    && $sellerStore.outTokenAmount !== null
+    && $sellerStore.outTokenRawAmount !== null
+    && $sellerStore.inTokenMint !== null
+    && $sellerStore.inTokenAmount !== null
+ 
+  // TODO hasValidEscrowInputs
 
 	$: if (hasWalletReadyForFetch && hasWorkspaceProgramReady) {
 		console.log('REFETCH!');
@@ -198,14 +224,15 @@
 		// console.log('xMintStore: ', $xMintStore);
 		// console.log('yMintStore: ', $yMintStore);
 		console.log('walletTokenAccountsStore: ', $walletTokenAccountsStore);
-		console.log('balanceStore: ', $balanceStore);
+		// console.log('balanceStore: ', $balanceStore);
 		// console.log('selectedToken: ', selectedToken);
 		// console.log('selectedTokenBalance: ', selectedTokenBalance);
 		// console.log('reactiveTokenBalance: ', reactiveTokenBalance);
 		console.log('sellerStore: ', $sellerStore);
 		// console.log('buyerStore: ', $buyerStore);
-		// console.log('escrowStore: ', $escrowStore);
+		console.log('escrowStore: ', $escrowStore);
 		console.log('formState: ', formState);
+    console.log('hasRequiredEscrowInputs: ', hasRequiredEscrowInputs);
 	}
 
 	// Q: How could I use X/Y tokens from wallets or mint addresses?
@@ -245,32 +272,6 @@
 			formState.outTokenBalance = matchingToken.account.data.parsed.info.tokenAmount.uiAmount;
 			console.log('outTokenBalance: ', formState.outTokenBalance);
 			// U: Need to update sellerStore values as well to init escrow
-			// NOTE Here's the current type structure:
-
-//       {
-//   walletAddress: anchor.web3.PublicKey | null,
-//   outTokenMint: anchor.web3.PublicKey | null,
-//   outTokenATA: anchor.web3.PublicKey | null,
-//   outTokenRawBalance: number | null, // 30000000
-//   outTokenBalance: number | null,
-//   outTokenRawAmount: number | null, // 12000000
-//   outTokenAmount: number | null, // 1.2
-//   outTokenDecimals: number | null,
-//   inTokenMint: anchor.web3.PublicKey | null,
-//   inTokenATA: anchor.web3.PublicKey | null,
-//   inTokenAmount: number | null,
-//   inTokenBalance: number | null,
-//   // NOTE Keeping x/y fields for now while developing
-//   xTokenMint: anchor.web3.PublicKey | null,
-//   xTokenATA: anchor.web3.PublicKey | null,
-//   xTokenBalance: number | null,
-//   yTokenMint: anchor.web3.PublicKey | null,
-//   yTokenATA: anchor.web3.PublicKey | null,
-//   yTokenBalance: number | null,
-// }
-
-
-
 			$sellerStore.outTokenMint = matchingToken.account.data.parsed.info.mint;
 			$sellerStore.outTokenATA = matchingToken.pubkey;
 			$sellerStore.outTokenRawBalance = parseInt(
@@ -321,26 +322,69 @@
 
   }
 
-  function handleInTokenMintAddressInput() {
+  async function handleInTokenMintAddressInput() {
     // Clear any existing input
     $sellerStore.inTokenMint = null;
+    $sellerStore.inTokenATA = null;
+    $sellerStore.inTokenDecimals = null;
 
     try {
-      if (formState.inTokenMint) {
+      // TODO Add validation and toggle for UI
+      if (formState.inTokenMint.length > constants.PUBKEY_MAX_CHARS || formState.inTokenMint.length < constants.PUBKEY_MIN_CHARS) {
+        console.log(`inTokenMint has invalid length of ${formState.inTokenMint.length} chars!`);
+        return
+      }
+      // Update state
+      $sellerStore.inTokenMint = new anchor.web3.PublicKey(formState.inTokenMint);
+      // Q: Do I need to see if wallet already has inTokenMint? And then update
+      // inTokenATA, inTokenBalance?
+      // U: I don't think it's worth it since this Store doesn't persists anyway,
+      // and we'll have to do a fresh fetch on the mint address to accept from
+      // the buyer's side.
+      // U: Well, I need the mint's decimals to compute raw amount, so may be
+      // worth a pass through $walletTokenAccountsStore first before doing a
+      // fresh getMint() fetch...
+      let matchingToken = $walletTokenAccountsStore.find((tokenAccount) => {
+        return tokenAccount.account.data.parsed.info.mint === formState.outTokenMint;
+      });
+      console.log('matchingToken: ', matchingToken);
 
-        // TODO Add validation and toggle for UI
-        if (formState.inTokenMint.length > constants.PUBKEY_MAX_CHARS || formState.inTokenMint.length < constants.PUBKEY_MIN_CHARS) {
-          console.log(`inTokenMint has invalid length of ${formState.inTokenMint.length} chars!`);
-          return
-        }
-        // Update state
-        // Q: Do I need to see if wallet already has inTokenMint? And then update
-        // inTokenATA, inTokenBalance?
-        // A: I don't think it's worth it since this Store doesn't persists anyway,
-        // and we'll have to do a fresh fetch on the mint address to accept from
-        // the buyer's side.
-        $sellerStore.inTokenMint = new anchor.web3.PublicKey(formState.inTokenMint);
+      if (matchingToken !== undefined) {
+        // User already has the token in wallet
+        // Set sellerStore.inToken values so we can later convert to raw amount
+        $sellerStore.inTokenATA = matchingToken.pubkey;
+        $sellerStore.inTokenDecimals = matchingToken.account.data.parsed.info.tokenAmount.decimals;
 
+      } else {
+        // Use getMint() to capture token details so we can convert amount for BN/init
+        console.log('inTokenMint not found in wallet. Fetching mint details...')
+        const inTokenMintData = await getMint($workspaceStore.connection, $sellerStore.inTokenMint);
+        console.log('inTokenMintData: ', inTokenMintData);
+
+        // Update Store decimals so I can compute the raw amount based on inTokenAmount (later)
+        $sellerStore.inTokenDecimals = inTokenMintData.decimals;
+        // Q: Is there an SPL type to use for TS?
+        // A: Yes, it's called 'Mint' with the following:
+        // export interface Mint {
+        //     /** Address of the mint */
+        //     address: PublicKey;
+        //     /**
+        //      * Optional authority used to mint new tokens. The mint authority may only be provided during mint creation.
+        //      * If no mint authority is present then the mint has a fixed supply and no further tokens may be minted.
+        //      */
+        //     mintAuthority: PublicKey | null;
+        //     /** Total supply of tokens */
+        //     supply: bigint;
+        //     /** Number of base 10 digits to the right of the decimal place */
+        //     decimals: number;
+        //     /** Is this mint initialized */
+        //     isInitialized: boolean;
+        //     /** Optional authority to freeze token accounts */
+        //     freezeAuthority: PublicKey | null;
+        //     /** Additional data for extension */
+        //     tlvData: Buffer;
+        // }
+        
       }
 
     } catch (e) {
@@ -366,6 +410,14 @@
         // I need to pass a RAW amount (no decimals!) for BN. However, the user
         // enters a decimal. Therefore, may need to do a getMint() to get Mint
         // decimals, so I can convert to RAW again... Sigh.
+        // U: IMPORTANT: After testing more, I MUST pass a BN(integer) value as the
+        // inTokenAmount. This means I need to convert to a raw amount, which means
+        // I need the inTokenMint's decimals, which means I need to getMint().
+        // It probably makes sense to getMint() in the handleInTokenMintAddressInput(),
+        // so it's not trying to fetch on each keystroke, then I can use its decimals
+        // value to compute the raw amount.
+        // A: Yes! I need inTokenDecimals to compute raw amount. Added a getMint() 
+        // inside the handleInTokenMintAddressInput() function. 
         let inTokenAmount = parseFloat(formState.inTokenAmount);
         $sellerStore.inTokenAmount = inTokenAmount;
       }
@@ -956,6 +1008,44 @@
 			return;
 		}
 
+    // TODO Add validation for out/in token details and raw amounts
+    // NOTE Currently storing all the details in sellerStore
+    if (!hasRequiredEscrowInputs) {
+      notificationStore.add({
+        type: 'error',
+        message: 'Escrow inputs are invalid!'
+      });
+      console.log('error', 'Escrow inputs are invalid!');
+      return
+    }
+
+
+    // escrowInputsAreValid = true;
+    // if (hasRequiredEscrowInputs) {
+
+    //   if ($sellerStore.outTokenAmount > $sellerStore.outTokenBalance) {
+    //     escrowInputsAreValid = false;
+    //     formErrors.outTokenAmount = "Amount exceeds balance!";
+    //   } else {
+    //     formErrors.outTokenAmount = '';
+    //   }
+
+    //   if ($sellerStore.outTokenAmount > $sellerStore.outTokenBalance) {
+    //     escrowInputsAreValid = false;
+    //     formErrors.outTokenAmount = "Amount exceeds balance!";
+    //   } else {
+    //     formErrors.outTokenAmount = '';
+    //   }
+
+    // }
+
+    if ($sellerStore.inTokenAmount && $sellerStore.inTokenDecimals) {
+      let inTokenRawAmount = $sellerStore.inTokenAmount * (10 ** $sellerStore.inTokenDecimals);
+      console.log('inTokenRawAmount: ', inTokenRawAmount);
+      $sellerStore.inTokenRawAmount = inTokenRawAmount;
+    }
+
+
 		const [escrowPDA, escrowBump] = await anchor.web3.PublicKey.findProgramAddress(
 			[
 				Buffer.from(constants.ESCROW_SEED_PREFIX),
@@ -988,8 +1078,8 @@
     // A: Nope! Must use BN!
     // FIXME I can pass a BN direc†ly to program method, BUT it removes the
     // DECIMAL value! E.g., 2.4 => 2. So, need to somehow get/pass RAW amounts
-    const outAmount = new anchor.BN($sellerStore.outTokenAmount as number);
-    const inAmount = new anchor.BN($sellerStore.inTokenAmount as number);
+    const outAmount = new anchor.BN($sellerStore.outTokenRawAmount as number);
+    const inAmount = new anchor.BN($sellerStore.inTokenRawAmount as number);
 
 		// Check whether escrow account already has data
 		let data: EscrowObject;
@@ -1064,15 +1154,8 @@
 		console.log('INITIALIZE::$escrowStore: ', $escrowStore);
 
     // Clear/reset the sellerStore!
-    $sellerStore.inTokenMint = null;
-    $sellerStore.inTokenAmount = null;
-    $sellerStore.outTokenMint = null;
-    $sellerStore.outTokenATA = null;
-    $sellerStore.outTokenBalance = null;
-    $sellerStore.outTokenRawBalance = null;
-    $sellerStore.outTokenAmount = null;
-    $sellerStore.outTokenRawAmount = null;
-    $sellerStore.outTokenDecimals = null;
+    // FIXME Careful! This will make outTokenATA null, which breaks cancelEscrow()!
+    // sellerStore.reset();
 	}
 
 	async function handleAcceptTrade() {

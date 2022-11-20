@@ -15,23 +15,23 @@ import * as constants from '../../helpers/escrow/constants';
 // decimals as the outTokenAmount. Thought about adding another token Store to
 // derive from walletTokenAccountsStore, but going to first try revising
 // the sellerStore to see if that's good enough.
+// U: I may end up moving all this out/inToken info to separate Stores later.
 export type SellerStoreObject = {
   walletAddress: anchor.web3.PublicKey | null,
   outTokenMint: anchor.web3.PublicKey | null,
   outTokenATA: anchor.web3.PublicKey | null,
   outTokenRawBalance: number | null, // 30000000
-  // outTokenRawBalanceString: string | null, // "30000000"
-  // outTokenUiBalance: number | null,
   outTokenBalance: number | null,
-  // outTokenUiBalanceString: string | null,
   outTokenRawAmount: number | null, // 12000000
   outTokenAmount: number | null, // 1.2
-  // outTokenUiAmountString: string | null, // "3"
   outTokenDecimals: number | null,
   inTokenMint: anchor.web3.PublicKey | null,
   inTokenATA: anchor.web3.PublicKey | null,
-  inTokenAmount: number | null,
+  inTokenRawBalance: number | null,
   inTokenBalance: number | null,
+  inTokenRawAmount: number | null,
+  inTokenAmount: number | null,
+  inTokenDecimals: number | null,
   // NOTE Keeping x/y fields for now while developing
   xTokenMint: anchor.web3.PublicKey | null,
   xTokenATA: anchor.web3.PublicKey | null,
@@ -55,8 +55,11 @@ function createSellerStore() {
       outTokenDecimals: null,
       inTokenMint: null,
       inTokenATA: null,
-      inTokenAmount: null,
+      inTokenRawBalance: null,
       inTokenBalance: null,
+      inTokenRawAmount: null,
+      inTokenAmount: null,
+      inTokenDecimals: null,
       xTokenMint: null,
       xTokenATA: null,
       xTokenBalance: null,
@@ -81,8 +84,11 @@ function createSellerStore() {
       outTokenDecimals: null,
       inTokenMint: null,
       inTokenATA: null,
-      inTokenAmount: null,
+      inTokenRawBalance: null,
       inTokenBalance: null,
+      inTokenRawAmount: null,
+      inTokenAmount: null,
+      inTokenDecimals: null,
       xTokenMint: null,
       xTokenATA: null,
       xTokenBalance: null,

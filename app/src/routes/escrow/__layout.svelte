@@ -8,6 +8,7 @@
 	import { get } from 'svelte/store';
 	import { balanceStore } from '$stores/balance';
 	import { walletTokenAccountsStore } from '$stores/escrow/tokens-store';
+	import { sellerStore } from '$stores/escrow/seller-store';
 	import * as constants from '../../helpers/escrow/constants';
 
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
@@ -64,6 +65,9 @@
 		$walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting;
 
 	$: if (hasWalletReadyForFetch && hasWorkspaceProgramReady) {
+    // U: Need to reset my stores on wallet connect/disconnect
+    sellerStore.reset()
+
 		// Q: getTokenAccountsByOwner and update/set Store?
 		// Challenge is that I don't know if the connected wallet is a buyer or seller
 		// until they access a specific Escrow account
@@ -71,6 +75,7 @@
 		// Or, should I only bother with this if they are initiating, i.e., sellerStore?
 		// However, theoretically ALL connected users will need to access their tokens
 		// if they want to either sell or buy, right? Maybe I can derive from walletStore?
+    // A: Yes, this is a good spot to fetch existing tokens in connected wallet
 		getParsedTokenAccountsByOwner(
 			$workspaceStore.connection,
 			$walletStore.publicKey as anchor.web3.PublicKey
