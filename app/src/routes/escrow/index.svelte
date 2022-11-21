@@ -42,6 +42,7 @@
 	// import type { EscrowObject, EscrowStoreObject } from 'src/models/escrow-types';
 
 	// TODOS:
+  // - FIXME - sellerStore.inTokenATA's Mint is causing errors! Need to debug
 	// - Fetch all active Escrows involving wallet and display
 	//    - First, simply display active Escrows on page load
 	// - WIP Add a Token select menu rather than hardcoding X/Y
@@ -223,16 +224,20 @@
 		// console.log('walletStore: ', $walletStore);
 		// console.log('xMintStore: ', $xMintStore);
 		// console.log('yMintStore: ', $yMintStore);
-		console.log('walletTokenAccountsStore: ', $walletTokenAccountsStore);
+		// console.log('walletTokenAccountsStore: ', $walletTokenAccountsStore);
 		// console.log('balanceStore: ', $balanceStore);
 		// console.log('selectedToken: ', selectedToken);
 		// console.log('selectedTokenBalance: ', selectedTokenBalance);
 		// console.log('reactiveTokenBalance: ', reactiveTokenBalance);
 		console.log('sellerStore: ', $sellerStore);
-		// console.log('buyerStore: ', $buyerStore);
+    console.log('sellerStore.inTokenATA: ', $sellerStore.inTokenATA?.toBase58())
+    console.log('sellerStore.inTokenMint: ', $sellerStore.inTokenMint?.toBase58())
+    console.log('sellerStore.outTokenATA: ', $sellerStore.outTokenATA?.toBase58())
+    console.log('sellerStore.outTokenMint: ', $sellerStore.outTokenMint?.toBase58())
+		console.log('buyerStore: ', $buyerStore);
 		console.log('escrowStore: ', $escrowStore);
-		console.log('formState: ', formState);
-    console.log('hasRequiredEscrowInputs: ', hasRequiredEscrowInputs);
+		// console.log('formState: ', formState);
+    // console.log('hasRequiredEscrowInputs: ', hasRequiredEscrowInputs);
 	}
 
 	// Q: How could I use X/Y tokens from wallets or mint addresses?
@@ -272,7 +277,7 @@
 			formState.outTokenBalance = matchingToken.account.data.parsed.info.tokenAmount.uiAmount;
 			console.log('outTokenBalance: ', formState.outTokenBalance);
 			// U: Need to update sellerStore values as well to init escrow
-			$sellerStore.outTokenMint = matchingToken.account.data.parsed.info.mint;
+			$sellerStore.outTokenMint = new anchor.web3.PublicKey(matchingToken.account.data.parsed.info.mint);
 			$sellerStore.outTokenATA = matchingToken.pubkey;
 			$sellerStore.outTokenRawBalance = parseInt(
 				matchingToken.account.data.parsed.info.tokenAmount.amount
@@ -345,9 +350,9 @@
       // worth a pass through $walletTokenAccountsStore first before doing a
       // fresh getMint() fetch...
       let matchingToken = $walletTokenAccountsStore.find((tokenAccount) => {
-        return tokenAccount.account.data.parsed.info.mint === formState.outTokenMint;
+        return tokenAccount.account.data.parsed.info.mint === formState.inTokenMint;
       });
-      console.log('matchingToken: ', matchingToken);
+      console.log('matchingToken.pubkey: ', matchingToken?.pubkey.toBase58());
 
       if (matchingToken !== undefined) {
         // User already has the token in wallet
@@ -356,6 +361,8 @@
         $sellerStore.inTokenDecimals = matchingToken.account.data.parsed.info.tokenAmount.decimals;
 
       } else {
+        // Clear the inTokenATA if present
+        $sellerStore.inTokenATA = null;
         // Use getMint() to capture token details so we can convert amount for BN/init
         console.log('inTokenMint not found in wallet. Fetching mint details...')
         const inTokenMintData = await getMint($workspaceStore.connection, $sellerStore.inTokenMint);
@@ -363,27 +370,8 @@
 
         // Update Store decimals so I can compute the raw amount based on inTokenAmount (later)
         $sellerStore.inTokenDecimals = inTokenMintData.decimals;
-        // Q: Is there an SPL type to use for TS?
-        // A: Yes, it's called 'Mint' with the following:
-        // export interface Mint {
-        //     /** Address of the mint */
-        //     address: PublicKey;
-        //     /**
-        //      * Optional authority used to mint new tokens. The mint authority may only be provided during mint creation.
-        //      * If no mint authority is present then the mint has a fixed supply and no further tokens may be minted.
-        //      */
-        //     mintAuthority: PublicKey | null;
-        //     /** Total supply of tokens */
-        //     supply: bigint;
-        //     /** Number of base 10 digits to the right of the decimal place */
-        //     decimals: number;
-        //     /** Is this mint initialized */
-        //     isInitialized: boolean;
-        //     /** Optional authority to freeze token accounts */
-        //     freezeAuthority: PublicKey | null;
-        //     /** Additional data for extension */
-        //     tlvData: Buffer;
-        // }
+
+        // Q: What if seller doesn't have inTokenATA? Need to create it here or where?
         
       }
 
@@ -400,7 +388,7 @@
     try {
 
       if (formState.inTokenAmount.trim().length > 0) {
-        // TODO Ensure it's a valid number
+        // TODO Ensure it's a valid number with set precision
         // Q: Do I need to know the decimals for the inTokenMint in order
         // to compute the rawAmount? Currently I'll just pass a decimal from the
         // initialization side (seller), but when accepting need to make sure the
@@ -691,13 +679,13 @@
 	}
 
 	async function getSellerXTokenAccountBalance() {
-		// FIXME
 		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
 			$sellerStore.xTokenATA as anchor.web3.PublicKey
 		);
 
 		$sellerStore.xTokenBalance = tokenAmount?.value.uiAmount as number;
 	}
+
 
 	async function getBuyerYTokenAccountBalance() {
 		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
@@ -706,6 +694,25 @@
 
 		$buyerStore.yTokenBalance = tokenAmount?.value.uiAmount as number;
 	}
+  
+
+  async function getSellerOutTokenAccountBalance() {
+		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
+			$sellerStore.outTokenATA as anchor.web3.PublicKey
+		);
+
+		$sellerStore.outTokenBalance = tokenAmount?.value.uiAmount as number;
+	}
+
+
+  async function getBuyerOutTokenAccountBalance() {
+		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
+			$buyerStore.outTokenATA as anchor.web3.PublicKey
+		);
+
+    $buyerStore.outTokenBalance = tokenAmount?.value.uiAmount as number;
+	}
+
 
 	async function createSellerTokenXAssociatedTokenAccount() {
 		// NOTE Again, can't use the handy built-in methods using spl-token w/ Anchor.
@@ -782,6 +789,8 @@
 		);
 		console.log(`buyerXToken: ${buyerXToken.toBase58()}`);
 		$buyerStore.xTokenATA = buyerXToken;
+    // U: Temporarily hardcoding inTokenATA
+    $buyerStore.inTokenATA = buyerXToken;
 
 		const tx = new Transaction().add(
 			createAssociatedTokenAccountInstruction(
@@ -816,6 +825,8 @@
 		);
 		console.log(`buyerYToken: ${buyerYToken.toBase58()}`);
 		$buyerStore.yTokenATA = buyerYToken;
+    // U: Temporarily hardcoding outTokenATA
+    $buyerStore.outTokenATA = buyerYToken;
 
 		const tx = new Transaction().add(
 			createAssociatedTokenAccountInstruction(
@@ -1152,6 +1163,20 @@
 
 		// Update/double-check Escrow State
 		console.log('INITIALIZE::$escrowStore: ', $escrowStore);
+
+    // U: Could refetch sellerStore.outTokenBalance after successfully
+    // creating the escrow
+    await getSellerOutTokenAccountBalance();
+    console.log("sellerStore.outTokenBalance AFTER initializing escrow: ", $sellerStore.outTokenBalance);
+
+    // U: Temporarily set buyerStore values so can simulate accept
+    console.log("buyerStore AFTER initializing escrow: ", $buyerStore);
+    $buyerStore.inTokenMint = $sellerStore.outTokenMint;
+    // $buyerStore.inTokenATA = // TODO When minting Y tokens need to set!
+    $buyerStore.inTokenAmount = $sellerStore.outTokenAmount;
+    $buyerStore.outTokenMint = $sellerStore.inTokenMint;
+    $buyerStore.outTokenAmount = $sellerStore.inTokenAmount;
+    // $buyerStore.outTokenATA = // TODO
 
     // Clear/reset the sellerStore!
     // FIXME Careful! This will make outTokenATA null, which breaks cancelEscrow()!
@@ -1603,6 +1628,16 @@
 							/>
 						</label>
 						<label class="input-group input-group-vertical pt-1">
+							<span class="bg-info">Seller Out Account</span>
+							<input
+								type="text"
+								placeholder=""
+								class="input input-bordered"
+								bind:value={$sellerStore.outTokenATA}
+								disabled
+							/>
+						</label>
+						<label class="input-group input-group-vertical pt-1">
 							<span class="bg-info">Buyer Y Account</span>
 							<input
 								type="text"
@@ -1612,6 +1647,37 @@
 								disabled
 							/>
 						</label>
+						<label class="input-group input-group-vertical pt-1">
+							<span class="bg-info">Buyer Out Account</span>
+							<input
+								type="text"
+								placeholder=""
+								class="input input-bordered"
+								bind:value={$buyerStore.outTokenATA}
+								disabled
+							/>
+						</label>
+            <label class="input-group input-group-vertical pt-1">
+							<span class="bg-info">Seller Out Amount</span>
+							<input
+								type="text"
+								placeholder=""
+								class="input input-bordered"
+								bind:value={$sellerStore.outTokenAmount}
+                disabled
+							/>
+						</label>
+						<label class="input-group input-group-vertical pt-1">
+							<span class="bg-info">Seller In Amount</span>
+							<input
+								type="text"
+								placeholder=""
+								class="input input-bordered"
+								bind:value={$sellerStore.inTokenAmount}
+                disabled
+							/>
+						</label>
+
 						<label class="input-group input-group-vertical pt-1">
 							<span class="bg-info">X Amount From Seller</span>
 							<input
@@ -1654,47 +1720,47 @@
 							/>
 						</label>
 						<label class="input-group input-group-vertical pt-1">
-							<span>Seller X Account</span>
+							<span>Seller Out Account</span>
 							<input
 								type="text"
 								placeholder=""
 								class="input input-bordered"
-								bind:value={$sellerStore.xTokenATA}
+								bind:value={$sellerStore.outTokenATA}
 								disabled
 							/>
 						</label>
 						<label class="input-group input-group-vertical pt-1">
-							<span>Buyer Y Account</span>
+							<span>Buyer Out Account</span>
 							<input
 								type="text"
 								placeholder=""
 								class="input input-bordered"
-								bind:value={$buyerStore.yTokenATA}
+								bind:value={$buyerStore.outTokenATA}
 								disabled
 							/>
 						</label>
 						<label class="input-group input-group-vertical pt-1">
-							<span>X Amount</span>
+							<span>Out Amount</span>
 							<input
 								type="text"
 								placeholder=""
 								class="input input-bordered"
-								bind:value={$escrowStore.escrow.xAmount}
+								bind:value={$escrowStore.escrow.outAmount}
 								disabled
 							/>
 						</label>
 						<label class="input-group input-group-vertical pt-1">
-							<span>Y Amount</span>
+							<span>In Amount</span>
 							<input
 								type="text"
 								placeholder=""
 								class="input input-bordered"
-								bind:value={$escrowStore.escrow.yAmount}
+								bind:value={$escrowStore.escrow.inAmount}
 								disabled
 							/>
 						</label>
 						<label class="input-group input-group-vertical pt-1">
-							<span>Escrowed X Account</span>
+							<span>Escrowed Out Account</span>
 							<input
 								type="text"
 								placeholder=""

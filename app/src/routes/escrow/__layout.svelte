@@ -66,7 +66,9 @@
 
 	$: if (hasWalletReadyForFetch && hasWorkspaceProgramReady) {
     // U: Need to reset my stores on wallet connect/disconnect
-    sellerStore.reset()
+    // U: WAIT! I need sellerStore.inTokenATA for ACCEPT, or 
+    // I need sellerStore.outTokenATA for CANCEL!
+    // sellerStore.reset()
 
 		// Q: getTokenAccountsByOwner and update/set Store?
 		// Challenge is that I don't know if the connected wallet is a buyer or seller
