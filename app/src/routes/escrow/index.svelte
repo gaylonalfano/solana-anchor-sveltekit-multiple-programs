@@ -1087,8 +1087,9 @@
     // However, I only have inTokenAmount as a number with possible decimals
     // Q: Can I just pass numbers or BN needed?
     // A: Nope! Must use BN!
-    // FIXME I can pass a BN direc†ly to program method, BUT it removes the
+    // NOTE I can pass a BN direc†ly to program method, BUT it removes the
     // DECIMAL value! E.g., 2.4 => 2. So, need to somehow get/pass RAW amounts
+    // A: Fixed! Must pass in RAW amounts and it seems to be working!
     const outAmount = new anchor.BN($sellerStore.outTokenRawAmount as number);
     const inAmount = new anchor.BN($sellerStore.inTokenRawAmount as number);
 
@@ -1171,12 +1172,12 @@
 
     // U: Temporarily set buyerStore values so can simulate accept
     console.log("buyerStore AFTER initializing escrow: ", $buyerStore);
+    // NOTE buyerStore.inTokenATA and outTokenATA are set when first creating ATAs for X/Y
+    // This is a temp solution while I dev.
     $buyerStore.inTokenMint = $sellerStore.outTokenMint;
-    // $buyerStore.inTokenATA = // TODO When minting Y tokens need to set!
     $buyerStore.inTokenAmount = $sellerStore.outTokenAmount;
     $buyerStore.outTokenMint = $sellerStore.inTokenMint;
     $buyerStore.outTokenAmount = $sellerStore.inTokenAmount;
-    // $buyerStore.outTokenATA = // TODO
 
     // Clear/reset the sellerStore!
     // FIXME Careful! This will make outTokenATA null, which breaks cancelEscrow()!
