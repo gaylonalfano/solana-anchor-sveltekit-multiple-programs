@@ -15,9 +15,24 @@ declare_id!("2StMWoVSWWjefwhoFsvjXVcaFABDBeMaFH2pKarQGjdW");
 pub mod non_custodial_escrow {
     use super::*;
 
+    pub fn create_custom_program(ctx: Context<CreateCustomProgram>) -> Result<()> {
+        let custom_program = CustomProgram::new(
+            ctx.accounts.authority.key(),         
+            // NOTE bumps.get("account_name"), NOT seed!
+            *ctx.bumps.get("custom_program").expect("Bump not found.")
+        );
+
+        ctx.accounts.custom_program.set_inner(custom_program.clone());
+
+        Ok(())
+    }
+
+
     pub fn initialize(ctx: Context<Initialize>, out_amount: u64, in_amount: u64) -> Result<()> {
+        let custom_program = &mut ctx.accounts.custom_program;
         let escrow = &mut ctx.accounts.escrow;
         escrow.authority = ctx.accounts.seller.key();
+        escrow.escrow_number = custom_program.total_escrow_count + 1;
         // Q: How to add a placeholder Pubkey until accept() ix? Can it be left empty?
         // U: Pubkey::new_unique() that may work
         // U: I don't think this will work at this point since 'buyer' account
@@ -49,6 +64,9 @@ pub mod non_custodial_escrow {
             ),
             out_amount,
         )?;
+
+        // U: Increment the custom_program.total_escrow_count
+        custom_program.total_escrow_count += 1;
 
         Ok(())
     }
@@ -170,7 +188,38 @@ pub mod non_custodial_escrow {
 
 // === INSTRUCTIONS ===
 #[derive(Accounts)]
+pub struct CreateCustomProgram<'info> {
+    // Q: Do I need authority.key() for a seed?
+    // Should I use my program's ID or something as a Seed?
+    #[account(
+        init, 
+        payer = authority, 
+        space = CustomProgram::ACCOUNT_SPACE, 
+        seeds = [
+            CustomProgram::SEED_PREFIX.as_ref(), 
+        ], 
+        bump
+    )]
+    pub custom_program: Account<'info, CustomProgram>,
+
+    // Q: Do I need user to be mutable? It is the payer....
+    // A: Yes, if I remove this trait then it breaks
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    // NOTE When creating an account with init, the payer needs to sign the tx
+    // NOTE However, if we're dealing with PDAs then it could be different...
+    // At the very least, PDAs can't technically sign since they are not Keypairs
+    // Only via CPI can PDAs do some pseudo signing (read Anchor docs on this)
+    pub system_program: Program<'info, System>,
+}
+
+
+#[derive(Accounts)]
 pub struct Initialize<'info> {
+    // U: Need custom_program for escrow_number (seed)
+    #[account(mut)]
+    custom_program: Account<'info, CustomProgram>,
+
     // Q: Need 'pub' or no?
     #[account(mut)]
     seller: Signer<'info>,
@@ -192,7 +241,11 @@ pub struct Initialize<'info> {
         space = Escrow::ACCOUNT_SPACE,
         // Q: If I want to create MULTIPLE escrow accounts, then do I need
         // to rethink the seed with only seller.key()? 
-        seeds = [Escrow::SEED_PREFIX.as_bytes(), seller.key().as_ref()],
+        seeds = [
+            Escrow::SEED_PREFIX.as_bytes(),
+            seller.key().as_ref(),
+            (custom_program.total_escrow_count + 1).to_string().as_ref(),
+        ],
         bump,
     )]
     pub escrow: Account<'info, Escrow>,
@@ -322,6 +375,8 @@ pub struct Cancel<'info> {
 #[account]
 pub struct Escrow {
     authority: Pubkey, // The seller (initiator of exchange)
+    // U: Adding escrow_number to enable multiple escrows
+    escrow_number: u64,
     // Q: How can I init buyer field with a placeholder until accept()?
     // A: Don't have to! I can be empty until accept() ix updates the field!
     buyer: Pubkey, 
@@ -339,15 +394,57 @@ pub struct Escrow {
 impl Escrow {
     // 8 Discrimator
     // 32 Authority
-    // 32 Buyer // new
+    // 8 Escrow number
+    // 32 Buyer 
     // 1 Bump
     // 32 X Token Account Address
-    // 32 X Mint Address // new
-    // 8 X Amount // new
+    // 32 X Mint Address 
+    // 8 X Amount
     // 32 Y Mint Address
     // 8 Y Amount
     // 1 Is Active
     // 1 Has Exchanged
-    pub const ACCOUNT_SPACE: usize = 8 + 32 + 32 + 1 + 32 + 32 + 8 + 32 + 8 + 1 + 1;
+    pub const ACCOUNT_SPACE: usize = 8 + 8 + 32 + 32 + 1 + 32 + 32 + 8 + 32 + 8 + 1 + 1;
     pub const SEED_PREFIX: &'static str = "escrow";
 }
+
+// U: Adding another high-level account to enable multiple escrows created by same/single wallet
+#[account]
+pub struct CustomProgram {
+    // 8 bytes for Discrimator
+    pub authority: Pubkey, // 32 bytes Initializer/Payer
+    pub total_escrow_count: u64, // 8 bytes 
+    pub bump: u8, // 1 byte
+}
+
+// Adding useful constants for sizing properties to better target memcmp offsets
+// REF: https://lorisleiva.com/create-a-solana-dapp-from-scratch/structuring-our-tweet-account#final-code
+const DISCRIMINATOR_LENGTH: usize = 8;
+const AUTHORITY_LENGTH: usize = 32; // Pubkey
+const TOTAL_ESCROW_COUNT_LENGTH: usize = 8;
+const BUMP_LENGTH: usize = 1;
+
+
+impl CustomProgram {
+
+    pub const ACCOUNT_SPACE: usize = DISCRIMINATOR_LENGTH
+        + AUTHORITY_LENGTH
+        + TOTAL_ESCROW_COUNT_LENGTH
+        + BUMP_LENGTH;
+
+    pub const SEED_PREFIX: &'static str = "custom-program";
+
+    pub fn new(authority: Pubkey, bump: u8) -> Self {
+
+        CustomProgram {
+            authority, 
+            total_escrow_count: 0,
+            bump,
+        }
+    }
+}
+
+
+
+
+

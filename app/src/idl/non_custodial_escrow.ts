@@ -3,8 +3,34 @@ export type NonCustodialEscrow = {
   "name": "non_custodial_escrow",
   "instructions": [
     {
+      "name": "createCustomProgram",
+      "accounts": [
+        {
+          "name": "customProgram",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initialize",
       "accounts": [
+        {
+          "name": "customProgram",
+          "isMut": true,
+          "isSigner": false
+        },
         {
           "name": "seller",
           "isMut": true,
@@ -144,6 +170,10 @@ export type NonCustodialEscrow = {
           {
             "name": "authority",
             "type": "publicKey"
+          },
+          {
+            "name": "escrowNumber",
+            "type": "u64"
           },
           {
             "name": "buyer",
@@ -183,6 +213,26 @@ export type NonCustodialEscrow = {
           }
         ]
       }
+    },
+    {
+      "name": "customProgram",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "totalEscrowCount",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
     }
   ]
 };
@@ -192,8 +242,34 @@ export const IDL: NonCustodialEscrow = {
   "name": "non_custodial_escrow",
   "instructions": [
     {
+      "name": "createCustomProgram",
+      "accounts": [
+        {
+          "name": "customProgram",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initialize",
       "accounts": [
+        {
+          "name": "customProgram",
+          "isMut": true,
+          "isSigner": false
+        },
         {
           "name": "seller",
           "isMut": true,
@@ -335,6 +411,10 @@ export const IDL: NonCustodialEscrow = {
             "type": "publicKey"
           },
           {
+            "name": "escrowNumber",
+            "type": "u64"
+          },
+          {
             "name": "buyer",
             "type": "publicKey"
           },
@@ -369,6 +449,26 @@ export const IDL: NonCustodialEscrow = {
           {
             "name": "hasExchanged",
             "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "customProgram",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "totalEscrowCount",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
           }
         ]
       }
