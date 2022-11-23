@@ -213,7 +213,7 @@ describe("non-custodial-escrow", () => {
       [Buffer.from(CUSTOM_PROGRAM_PREFIX)],
       program.programId
     );
-    
+
     customProgramPda = pda;
     console.log(`customProgramPda: ${customProgramPda}`);
 
@@ -223,13 +223,15 @@ describe("non-custodial-escrow", () => {
         authority: seller.publicKey,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
-      .signers([])
+      .signers([]) // NOTE wallet isn't needed w/ Anchor
       .rpc();
 
     console.log("TxHash ::", tx);
 
     const data = await program.account.customProgram.fetch(customProgramPda);
-    console.log("data: ", data);
+    console.log("currentCustomProgram: ", data);
+    // Update global
+    customProgram = data;
 
     expect(data.authority.toBase58()).to.equal(seller.publicKey.toBase58());
     expect(data.totalEscrowCount.toNumber()).to.equal(0);
@@ -239,12 +241,19 @@ describe("non-custodial-escrow", () => {
 
 
 
-  xit("Initialize escrow", async () => {
+  it("Initialize escrow", async () => {
+    // Get the customProgram.totalEscrowCount to use as a seed
+    // Q: How to pass a type u64 into seeds array? Uint8Array
+    const escrowNumber: string = (
+      customProgram.totalEscrowCount.toNumber() + 1
+    ).toString();
+    console.log("escrowNumber: ", escrowNumber);
+
     // Find a PDA for our escrow account to be located at
     // U: Added a new CustomProgram account with totalEscrowCount field as a seed
     const [pda, bump] = await PublicKey.findProgramAddress(
       // [anchor.utils.bytes.utf8.encode("escrow"), seller.publicKey.toBuffer()],
-      [Buffer.from(ESCROW_SEED_PREFIX), seller.publicKey.toBuffer(), customProgram.totalEscrowCount],
+      [Buffer.from(ESCROW_SEED_PREFIX), seller.publicKey.toBuffer(), anchor.utils.bytes.utf8.encode(escrowNumber)],
       program.programId
     );
 
@@ -265,7 +274,6 @@ describe("non-custodial-escrow", () => {
     // NOTE BN doesn't accept decimals! Must be whole numbers!
     const out_amount = new anchor.BN(40);
     const in_amount = new anchor.BN(40); // number of token seller wants in exchange for out_amount
-    let data: anchor.IdlTypes<anchor.Idl>["Escrow"];
 
     const tx = await program.methods
       .initialize(out_amount, in_amount)
@@ -281,6 +289,7 @@ describe("non-custodial-escrow", () => {
       // and the placeholder is: buyer: PublicKey { _bn: <BN: 0> },
       .accounts({
         seller: seller.publicKey,
+        customProgram: customProgramPda,
         outMint: x_mint,
         inMint: y_mint,
         sellerOutTokenAccount: seller_out_token_account,
@@ -299,7 +308,13 @@ describe("non-custodial-escrow", () => {
 
     console.log("TxHash ::", tx);
 
-    data = await program.account.escrow.fetch(escrowPda);
+    const currentCustomProgram = await program.account.customProgram.fetch(customProgramPda);
+    customProgram = currentCustomProgram;
+
+    const currentEscrow = await program.account.escrow.fetch(escrowPda);
+    console.log("currentEscrow: ", currentEscrow);
+    // Update global state
+    escrow = currentEscrow;
 
 
     const escrowedOutTokenAccountBalance =
@@ -351,7 +366,7 @@ describe("non-custodial-escrow", () => {
     // A: YEP! test-validator issue! Need to hard restart the validator
     // before running the tests.
 
-    console.log('escrow account: ', data);
+    console.log('escrow account: ', currentEscrow);
     // NOTE spl_token::state::Account has the following struct:
     // pub struct Account {
     // /// The mint associated with this account
@@ -382,16 +397,19 @@ describe("non-custodial-escrow", () => {
     //     yAmount: 40,
     //   }
 
-    expect(data.authority.toString()).to.equal(seller.publicKey.toString());
-    expect(data.isActive).to.equal(true);
-    expect(data.hasExchanged).to.equal(false);
+    expect(currentEscrow.authority.toString()).to.equal(seller.publicKey.toString());
+    expect(currentEscrow.isActive).to.equal(true);
+    expect(currentEscrow.hasExchanged).to.equal(false);
     // U: Confirm that out/in amounts are correct
     // NOTE out/inAmounts are BN and BN doesn't support decimals!
     // Q: How to compare BN values?
     // A: Use BN.toNumber() or .toString()!
-    expect(data.outAmount.toNumber()).to.equal(40);
-    expect(data.inAmount.toNumber()).to.equal(40);
+    expect(currentEscrow.outAmount.toNumber()).to.equal(40);
+    expect(currentEscrow.inAmount.toNumber()).to.equal(40);
     expect(parseInt(escrowedOutTokenAccountBalance.value.amount)).to.equal(40);
+    expect(currentEscrow.bump).to.equal(bump);
+    expect(customProgram.totalEscrowCount.toNumber()).to.equal(parseInt(escrowNumber)); // Error!
+    // expect(customProgram.totalEscrowCount.toNumber()).to.equal(1); // 1
   });
 
   xit("Accept the trade", async () => {

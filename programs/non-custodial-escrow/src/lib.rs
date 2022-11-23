@@ -217,7 +217,13 @@ pub struct CreateCustomProgram<'info> {
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     // U: Need custom_program for escrow_number (seed)
-    #[account(mut)]
+    // Q: Add any constraints?
+    // A: We need the seeds and bump to derive/find the PDA!
+    #[account(
+        mut,
+        seeds = [CustomProgram::SEED_PREFIX.as_ref()],
+        bump = custom_program.bump,
+    )]
     custom_program: Account<'info, CustomProgram>,
 
     // Q: Need 'pub' or no?
