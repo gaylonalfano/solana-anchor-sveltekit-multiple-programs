@@ -412,7 +412,7 @@ describe("non-custodial-escrow", () => {
     // expect(customProgram.totalEscrowCount.toNumber()).to.equal(1); // 1
   });
 
-  xit("Accept the trade", async () => {
+  it("Accept the trade", async () => {
     // Q: Why isn't escrowed_out_token_account NOT initialized?
     // Program log: AnchorError caused by account: escrowed_out_token_account. Error Code: AccountNotInitialized. Error Number: 3012.
     // Error Message: The program expected this account to be already initialized.

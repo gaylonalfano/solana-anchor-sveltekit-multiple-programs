@@ -98,7 +98,13 @@ pub mod non_custodial_escrow {
                 // signer_seeds
                 // Q: Do we need our program Id as a seed?
                 // A: Nope! But we need the bump!
-                &[&[Escrow::SEED_PREFIX.as_bytes(), ctx.accounts.escrow.authority.as_ref(), &[ctx.accounts.escrow.bump]]]
+                &[&[
+                    Escrow::SEED_PREFIX.as_bytes(), 
+                    ctx.accounts.escrow.authority.as_ref(),
+                    // U: Add escrow_number seed
+                    ctx.accounts.escrow.escrow_number.to_string().as_ref(),
+                    &[ctx.accounts.escrow.bump]
+                ]]
             ),
             ctx.accounts.escrowed_out_token_account.amount,
         )?;
@@ -291,11 +297,32 @@ pub struct Accept<'info> {
     // A: No! Just verifying token match up/align.
     // Q: What about Token Program for transfers?
     // A: Yes, need Token Program for transfers
+    // U: Need custom_program for escrow_number (seed)
+    // Q: Add any constraints?
+    // A: We need the seeds and bump to derive/find the PDA!
+    // // Q: Do I need access
+    // #[account(
+    //     mut,
+    //     seeds = [CustomProgram::SEED_PREFIX.as_ref()],
+    //     bump = custom_program.bump,
+    // )]
+    // custom_program: Account<'info, CustomProgram>,
+
     #[account(mut)]
     pub buyer: Signer<'info>,
 
     // NOTE 'seeds' are &[u8], so need to use as_bytes(), as_ref(), etc.
-    #[account(mut, seeds = [Escrow::SEED_PREFIX.as_bytes(), escrow.authority.key().as_ref()], bump = escrow.bump)]
+    #[account(
+        mut, 
+        seeds = [
+            Escrow::SEED_PREFIX.as_bytes(),
+            escrow.authority.key().as_ref(),
+            // Q: How to handle u64 values as a seed?
+            // A: Convert using .to_string().as_ref()
+            escrow.escrow_number.to_string().as_ref(),
+        ],
+        bump = escrow.bump
+    )]
     pub escrow: Account<'info, Escrow>,
     // Q: Do we need to create a escrowed_in_token_account account inside escrow?
     // A: NO! But we DO need buyer and seller's out and in token accounts data
