@@ -14,6 +14,9 @@ import { expect } from "chai";
 import NodeWallet from "@project-serum/anchor/dist/cjs/nodewallet";
 
 
+// TODO - Consider adding a new mint with different ATAs for a third
+// escrow created by the Seller.
+
 // U: 11/22 - Added a new CustomProgram account to track total_escrow_count,
 // in order to allow wallets to create multiple escrow PDAs.
 // U: 11/5 - Added a few more fields to Escrow account struct to better track more
@@ -68,12 +71,16 @@ describe("non-custodial-escrow", () => {
   let seller_in_token_account;
   let buyer_in_token_account;
   let buyer_out_token_account;
+  // U: Adding multiple tokenAccounts and escrows after implementing customProgram
   // NOTE This is just saving the Pubkey, since program creates actual account
-  let escrowed_out_token_account = anchor.web3.Keypair.generate();
-  console.log(`escrowed_out_token_account: ${escrowed_out_token_account.publicKey}`);
+  let escrowedOutTokenAccount1 = anchor.web3.Keypair.generate();
+  let escrowedOutTokenAccount2 = anchor.web3.Keypair.generate();
+  console.log(`escrowedOutTokenAccount1: ${escrowedOutTokenAccount1.publicKey}`);
   // NOTE This is a PDA that we'll get below
-  let escrow: anchor.IdlTypes<anchor.Idl>["Escrow"];
-  let escrowPda: anchor.web3.PublicKey;
+  let escrow1: anchor.IdlTypes<anchor.Idl>["Escrow"];
+  let escrow1Pda: anchor.web3.PublicKey;
+  let escrow2: anchor.IdlTypes<anchor.Idl>["Escrow"];
+  let escrowPda2: anchor.web3.PublicKey;
 
   // Use the before() hook to create our mints, find our escrow PDA, etc.
   before(async () => {
@@ -257,20 +264,20 @@ describe("non-custodial-escrow", () => {
       program.programId
     );
 
-    escrowPda = pda;
-    console.log(`escrowPda: ${escrowPda}`);
+    escrow1Pda = pda;
+    console.log(`escrow1Pda: ${escrow1Pda}`);
 
     // console.log(
     //   "PDA for program",
     //   program.programId.toBase58(),
     //   "is generated :\n    ",
-    //   escrow.toBase58()
+    //   escrow1.toBase58()
     // );
 
     // Create some associated token accounts for x and y tokens for buyer and seller
     // Call our on-chain program's initialize() method and set escrow properties values
     console.log("STARTED: Initialize escrow test...");
-    // NOTE Results in 0.0000004 in escrowed_out_token_account balance
+    // NOTE Results in 0.0000004 in escrowedOutTokenAccount1 balance
     // NOTE BN doesn't accept decimals! Must be whole numbers!
     const out_amount = new anchor.BN(40);
     const in_amount = new anchor.BN(40); // number of token seller wants in exchange for out_amount
@@ -293,17 +300,17 @@ describe("non-custodial-escrow", () => {
         outMint: x_mint,
         inMint: y_mint,
         sellerOutTokenAccount: seller_out_token_account,
-        escrow: escrowPda, // created in program
-        escrowedOutTokenAccount: escrowed_out_token_account.publicKey, // created in program
+        escrow: escrow1Pda, // created in program
+        escrowedOutTokenAccount: escrowedOutTokenAccount1.publicKey, // created in program
         tokenProgram: TOKEN_PROGRAM_ID, // Q: Use 2022 version? A: TOKEN_PROGRAM_ID!
         rent: SYSVAR_RENT_PUBKEY,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       // Q: Which accounts are Signers?
-      // A: Check IDL! Wallet and escrowed_out_token_account!
-      // Q: Why is escrowed_out_token_account a Signer? It's just a type TokenAccount...
+      // A: Check IDL! Wallet and escrowedOutTokenAccount1!
+      // Q: Why is escrowedOutTokenAccount1 a Signer? It's just a type TokenAccount...
       // I believe it's because it gets created and we set its props?
-      .signers([escrowed_out_token_account])
+      .signers([escrowedOutTokenAccount1])
       .rpc({ skipPreflight: true });
 
     console.log("TxHash ::", tx);
@@ -311,15 +318,15 @@ describe("non-custodial-escrow", () => {
     const currentCustomProgram = await program.account.customProgram.fetch(customProgramPda);
     customProgram = currentCustomProgram;
 
-    const currentEscrow = await program.account.escrow.fetch(escrowPda);
+    const currentEscrow = await program.account.escrow.fetch(escrow1Pda);
     console.log("currentEscrow: ", currentEscrow);
     // Update global state
-    escrow = currentEscrow;
+    escrow1 = currentEscrow;
 
 
     const escrowedOutTokenAccountBalance =
       await provider.connection.getTokenAccountBalance(
-        escrowed_out_token_account.publicKey
+        escrowedOutTokenAccount1.publicKey
       );
     console.log(
       "INITIALIZE::escrowedOutTokenAccountBalance: ",
@@ -336,7 +343,7 @@ describe("non-custodial-escrow", () => {
     // }
 
     // const escrowedXTokenAccountData = await provider.connection.getAccountInfo(
-    //   escrowed_out_token_account.publicKey
+    //   escrowedOutTokenAccount1.publicKey
     // );
     // console.log(
     //   "INITIALIZE::escrowedXTokenAccountData: ",
@@ -353,7 +360,7 @@ describe("non-custodial-escrow", () => {
     //   rentEpoch: 0
     // }
 
-    // Q: Why is escrowed_out_token_account NOT initialized and has no 'amount'?
+    // Q: Why is escrowedOutTokenAccount1 NOT initialized and has no 'amount'?
     // UPDATE: May be a test-validator thing... If I shutdown, I was able to
     // find the account using spl-token account-info --address <ADDRESS>:
     // Address: E66iwqshxQgtvBLGueezLZEYGTviB12ecSJPWizbeszB  (Aux*)
@@ -413,18 +420,18 @@ describe("non-custodial-escrow", () => {
   });
 
   it("Accept the trade", async () => {
-    // Q: Why isn't escrowed_out_token_account NOT initialized?
-    // Program log: AnchorError caused by account: escrowed_out_token_account. Error Code: AccountNotInitialized. Error Number: 3012.
+    // Q: Why isn't escrowedOutTokenAccount1 NOT initialized?
+    // Program log: AnchorError caused by account: escrowedOutTokenAccount1. Error Code: AccountNotInitialized. Error Number: 3012.
     // Error Message: The program expected this account to be already initialized.
-    // Shouldn't escrowed_out_token_account be a TokenAccount with an 'amount' property?
+    // Shouldn't escrowedOutTokenAccount1 be a TokenAccount with an 'amount' property?
     // A: Two reasons: wrong Program ID and need to restart validator before tests
 
     const tx = await program.methods
       .accept()
       .accounts({
         buyer: buyer.publicKey,
-        escrow: escrowPda,
-        escrowedOutTokenAccount: escrowed_out_token_account.publicKey,
+        escrow: escrow1Pda,
+        escrowedOutTokenAccount: escrowedOutTokenAccount1.publicKey,
         sellerInTokenAccount: seller_in_token_account,
         buyerInTokenAccount: buyer_in_token_account,
         buyerOutTokenAccount: buyer_out_token_account,
@@ -436,12 +443,12 @@ describe("non-custodial-escrow", () => {
     console.log("TxHash ::", tx);
 
     // Get account data to verify is_active and has_exchanged values
-    const data = await program.account.escrow.fetch(escrowPda);
+    const data = await program.account.escrow.fetch(escrow1Pda);
     console.log('escrow account: ', data);
 
     const escrowedOutTokenAccountBalance =
       await provider.connection.getTokenAccountBalance(
-        escrowed_out_token_account.publicKey
+        escrowedOutTokenAccount1.publicKey
       );
     console.log(
       "ACCEPT::escrowedOutTokenAccountBalance: ",
@@ -453,7 +460,7 @@ describe("non-custodial-escrow", () => {
     // }
 
     // const escrowedXTokenAccountData = await provider.connection
-    //   .getAccountInfo(escrowed_out_token_account.publicKey)
+    //   .getAccountInfo(escrowedOutTokenAccount1.publicKey)
     //   .then((res) => res.data.toJSON());
     // console.log(
     //   "ACCEPT::escrowedXTokenAccountData: ",
@@ -481,8 +488,8 @@ describe("non-custodial-escrow", () => {
       .cancel()
       .accounts({
         seller: seller.publicKey,
-        escrow: escrowPda,
-        escrowedOutTokenAccount: escrowed_out_token_account.publicKey,
+        escrow: escrow1Pda,
+        escrowedOutTokenAccount: escrowedOutTokenAccount1.publicKey,
         sellerOutTokenAccount: seller_out_token_account,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
@@ -492,7 +499,7 @@ describe("non-custodial-escrow", () => {
     console.log("TxHash ::", tx);
 
     // Get the updated account data to verify is_active and has_exchanged updated
-    // Q: Is 'escrow' still available after closing 'escrowed_out_token_account'?
+    // Q: Is 'escrow' still available after closing 'escrowedOutTokenAccount1'?
     // A: NOPE! It's completely closed so no need to update!
     // const data = await program.account.escrow.fetch(escrow);
     // console.log("data.isActive: ", data.isActive);
@@ -500,19 +507,91 @@ describe("non-custodial-escrow", () => {
 
     // const escrowedOutTokenAccountBalance =
     //   await provider.connection.getTokenAccountBalance(
-    //     escrowed_out_token_account.publicKey
+    //     escrowedOutTokenAccount1.publicKey
     //   );
     // console.log(
     //   "CANCEL::escrowedOutTokenAccountBalance: ",
     //   escrowedOutTokenAccountBalance
     // ); // Errors since the account no longer exists (closed)!
     // const escrowedXTokenAccountData = await provider.connection.getAccountInfo(
-    //   escrowed_out_token_account.publicKey
+    //   escrowedOutTokenAccount1.publicKey
     // );
     // console.log(
     //   "CANCEL::escrowedXTokenAccountData: ",
     //   escrowedXTokenAccountData
     // );
     // CANCEL::escrowedXTokenAccountData:  null
+    });
+
+
+    it("Initialize escrow2 with same wallet", async () => {
+      const escrowNumber: string = (
+        customProgram.totalEscrowCount.toNumber() + 1
+      ).toString();
+      console.log("escrowNumber: ", escrowNumber);
+
+      const [pda, bump] = await PublicKey.findProgramAddress(
+        // [anchor.utils.bytes.utf8.encode("escrow"), seller.publicKey.toBuffer()],
+        [Buffer.from(ESCROW_SEED_PREFIX), seller.publicKey.toBuffer(), anchor.utils.bytes.utf8.encode(escrowNumber)],
+        program.programId
+      );
+
+      escrowPda2 = pda;
+      console.log(`escrowPda2: ${escrowPda2}`);
+      console.log("STARTED: Initialize escrow test...");
+
+      const out_amount = new anchor.BN(20);
+      const in_amount = new anchor.BN(80); // number of token seller wants in exchange for out_amount
+
+      const tx = await program.methods
+        .initialize(out_amount, in_amount)
+        .accounts({
+          seller: seller.publicKey,
+          customProgram: customProgramPda,
+          outMint: x_mint,
+          inMint: y_mint,
+          sellerOutTokenAccount: seller_out_token_account,
+          escrow: escrowPda2, // created in program
+          escrowedOutTokenAccount: escrowedOutTokenAccount2.publicKey, // created in program
+          tokenProgram: TOKEN_PROGRAM_ID, // Q: Use 2022 version? A: TOKEN_PROGRAM_ID!
+          rent: SYSVAR_RENT_PUBKEY,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([escrowedOutTokenAccount2])
+        .rpc({ skipPreflight: true });
+
+      console.log("TxHash ::", tx);
+
+      const currentCustomProgram = await program.account.customProgram.fetch(customProgramPda);
+      customProgram = currentCustomProgram;
+
+      const currentEscrow = await program.account.escrow.fetch(escrowPda2);
+      console.log("currentEscrow: ", currentEscrow);
+      // Update global state
+      escrow2 = currentEscrow;
+
+
+      const escrowedOutTokenAccountBalance =
+        await provider.connection.getTokenAccountBalance(
+          escrowedOutTokenAccount2.publicKey
+        );
+      console.log(
+        "INITIALIZE::escrowedOutTokenAccountBalance: ",
+        escrowedOutTokenAccountBalance
+      );
+
+      console.log('escrow account: ', currentEscrow);
+
+      expect(currentEscrow.authority.toString()).to.equal(seller.publicKey.toString());
+      expect(currentEscrow.isActive).to.equal(true);
+      expect(currentEscrow.hasExchanged).to.equal(false);
+      expect(currentEscrow.outAmount.toNumber()).to.equal(20);
+      expect(currentEscrow.inAmount.toNumber()).to.equal(80);
+      expect(parseInt(escrowedOutTokenAccountBalance.value.amount)).to.equal(20);
+      expect(currentEscrow.bump).to.equal(bump);
+      expect(customProgram.totalEscrowCount.toNumber()).to.equal(parseInt(escrowNumber)); //
   });
+
 });
+
+

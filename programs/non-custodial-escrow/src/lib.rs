@@ -181,7 +181,12 @@ pub mod non_custodial_escrow {
                 // NOTE signer_seeds is a bunch of &[u8] types, so use .as_bytes(), as_ref(), etc.
                 // NOTE escrow.authority = seller since the seller paid to create the PDA account
                 // Q: When do I use escrow.authority versus seller? Either okay?
-                &[&[Escrow::SEED_PREFIX.as_bytes(), ctx.accounts.escrow.authority.as_ref(), ctx.accounts.escrow.escrow_number.to_string().as_ref(), &[ctx.accounts.escrow.bump]]]
+                &[&[
+                    Escrow::SEED_PREFIX.as_bytes(),
+                    ctx.accounts.escrow.authority.as_ref(),
+                    ctx.accounts.escrow.escrow_number.to_string().as_ref(),
+                    &[ctx.accounts.escrow.bump]
+                ]]
                 // &[&["escrow".as_bytes(), ctx.accounts.seller.as_ref()], &[ctx.accounts.escrow.bump]]
             )
         )?;
