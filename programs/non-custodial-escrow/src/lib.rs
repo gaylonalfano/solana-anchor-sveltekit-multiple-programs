@@ -153,7 +153,12 @@ pub mod non_custodial_escrow {
                     authority: ctx.accounts.escrow.to_account_info(),
                 }, 
                 // signer_seeds since escrow is authority and is PDA
-                &[&[Escrow::SEED_PREFIX.as_bytes(), ctx.accounts.escrow.authority.as_ref(), &[ctx.accounts.escrow.bump]]]
+                &[&[
+                    Escrow::SEED_PREFIX.as_bytes(),
+                    ctx.accounts.escrow.authority.as_ref(),
+                    ctx.accounts.escrow.escrow_number.to_string().as_ref(),
+                    &[ctx.accounts.escrow.bump]
+                ]]
             ),
             // amount of x token
             ctx.accounts.escrowed_out_token_account.amount,
@@ -176,7 +181,7 @@ pub mod non_custodial_escrow {
                 // NOTE signer_seeds is a bunch of &[u8] types, so use .as_bytes(), as_ref(), etc.
                 // NOTE escrow.authority = seller since the seller paid to create the PDA account
                 // Q: When do I use escrow.authority versus seller? Either okay?
-                &[&[Escrow::SEED_PREFIX.as_bytes(), ctx.accounts.escrow.authority.as_ref(), &[ctx.accounts.escrow.bump]]]
+                &[&[Escrow::SEED_PREFIX.as_bytes(), ctx.accounts.escrow.authority.as_ref(), ctx.accounts.escrow.escrow_number.to_string().as_ref(), &[ctx.accounts.escrow.bump]]]
                 // &[&["escrow".as_bytes(), ctx.accounts.seller.as_ref()], &[ctx.accounts.escrow.bump]]
             )
         )?;
@@ -365,7 +370,11 @@ pub struct Cancel<'info> {
         mut, 
         close = seller, 
         constraint = escrow.authority == seller.key(), 
-        seeds = [Escrow::SEED_PREFIX.as_bytes(), escrow.authority.as_ref()], 
+        seeds = [
+            Escrow::SEED_PREFIX.as_bytes(),
+            escrow.authority.as_ref(),
+            escrow.escrow_number.to_string().as_ref(),
+        ], 
         bump = escrow.bump,
     )]
     pub escrow: Account<'info, Escrow>,

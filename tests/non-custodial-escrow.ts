@@ -476,7 +476,7 @@ describe("non-custodial-escrow", () => {
     expect(parseInt(escrowedOutTokenAccountBalance.value.amount)).to.equal(0);
   });
 
-  xit("Cancel the trade", async () => {
+  it("Cancel the trade", async () => {
     const tx = await program.methods
       .cancel()
       .accounts({
