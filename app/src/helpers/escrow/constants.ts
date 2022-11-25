@@ -15,6 +15,9 @@ export const NON_CUSTODIAL_ESCROW_PROGRAM_ID = new anchor.web3.PublicKey(
 
 // Prefixes for seeds
 export const ESCROW_SEED_PREFIX = "escrow";
+export const CUSTOM_PROGRAM_SEED_PREFIX = "custom-program";
+
+
 
 // Data Buffer sizes/Account space
 export const ESCROW_ACCOUNT_SPACE = 115;

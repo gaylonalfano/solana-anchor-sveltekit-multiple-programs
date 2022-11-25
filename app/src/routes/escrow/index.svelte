@@ -56,6 +56,7 @@
 	//      - Limit amount to be <= outTokenBalance
   //      - Add validation inside create escrow handler for raw amounts
   //      - Reset sellerStore on refresh/disconnect
+  // - Clean up UI now that customProgram is available
 	// - DONE Create custom Store for escrow
 	//    - Implement the store into the code to replace local vars
 	//    - U: May need expand custom EscrowStoreObject to include
@@ -1009,6 +1010,60 @@
 		// }
 	}
 
+
+  async function handleCreateCustomProgramAccount() {
+
+		if (!$walletStore.publicKey) {
+			notificationStore.add({ type: 'error', message: `Wallet not connected!` });
+			console.log('error', 'Create custom program failed!');
+			return;
+		}
+      
+    let tx: anchor.web3.TransactionSignature = '';
+
+    try {
+
+      const [pda, bump] = await PublicKey.findProgramAddress(
+        [Buffer.from(constants.CUSTOM_PROGRAM_SEED_PREFIX)],
+        $workspaceStore.program?.programId as anchor.web3.PublicKey
+      );
+
+
+      tx = await $workspaceStore.program?.methods
+        .createCustomProgram()
+        .accounts({
+          customProgram: pda,
+          authority: constants.SELLER_WALLET_ADDRESS,
+          systemProgram: anchor.web3.SystemProgram.programId
+        })
+        .signers([])
+        .rpc() as string;
+
+			console.log('TxHash ::', tx);
+
+      // Add to notificationStore
+			notificationStore.add({
+				type: 'success',
+				message: 'Transaction successful!',
+				txid: tx
+			});
+
+    } catch (error: any) {
+			// Add to notificationStore
+			notificationStore.add({
+				type: 'error',
+				message: 'Transaction failed!',
+				description: error?.message,
+				txid: tx
+			});
+			console.log('error', `Transaction failed! ${error?.message}`, tx);
+      
+    }
+
+  }
+
+
+
 	async function handleInitializeEscrowAccount() {
 		if ($escrowStore.pda !== null) {
 			notificationStore.add({
@@ -1333,6 +1388,7 @@
 
 <div class="md:hero mx-auto p-4">
 	<div class="md:hero-content flex flex-col">
+    <button on:click={handleCreateCustomProgramAccount}>Create Custom Program</button>
 		<h1
 			class="text-center text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-tr from-[#9945FF] to-[#14F195]"
 		>
