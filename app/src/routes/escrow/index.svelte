@@ -32,6 +32,7 @@
 	import { xMintStore, yMintStore, walletTokenAccountsStore } from '$stores/escrow/tokens-store';
 	import { sellerStore } from '$stores/escrow/seller-store';
 	import { buyerStore } from '$stores/escrow/buyer-store';
+  import { customProgramStore } from '$stores/escrow/custom-program-store';
 	import {
 		escrowStore,
 		type EscrowObject,
@@ -230,15 +231,17 @@
 		// console.log('selectedToken: ', selectedToken);
 		// console.log('selectedTokenBalance: ', selectedTokenBalance);
 		// console.log('reactiveTokenBalance: ', reactiveTokenBalance);
-		console.log('sellerStore: ', $sellerStore);
-    console.log('sellerStore.inTokenATA: ', $sellerStore.inTokenATA?.toBase58())
-    console.log('sellerStore.inTokenMint: ', $sellerStore.inTokenMint?.toBase58())
-    console.log('sellerStore.outTokenATA: ', $sellerStore.outTokenATA?.toBase58())
-    console.log('sellerStore.outTokenMint: ', $sellerStore.outTokenMint?.toBase58())
-		console.log('buyerStore: ', $buyerStore);
-		console.log('escrowStore: ', $escrowStore);
+		// console.log('sellerStore: ', $sellerStore);
+  //   console.log('sellerStore.inTokenATA: ', $sellerStore.inTokenATA?.toBase58())
+  //   console.log('sellerStore.inTokenMint: ', $sellerStore.inTokenMint?.toBase58())
+  //   console.log('sellerStore.outTokenATA: ', $sellerStore.outTokenATA?.toBase58())
+  //   console.log('sellerStore.outTokenMint: ', $sellerStore.outTokenMint?.toBase58())
+		// console.log('buyerStore: ', $buyerStore);
+		// console.log('escrowStore: ', $escrowStore);
 		// console.log('formState: ', formState);
     // console.log('hasRequiredEscrowInputs: ', hasRequiredEscrowInputs);
+    console.log('customProgramStore: ', $customProgramStore);
+
 	}
 
 	// Q: How could I use X/Y tokens from wallets or mint addresses?
@@ -1013,8 +1016,8 @@
 
   async function handleCreateCustomProgramAccount() {
 
-		if (!$walletStore.publicKey) {
-			notificationStore.add({ type: 'error', message: `Wallet not connected!` });
+		if ($customProgramStore.pda !== null) {
+			notificationStore.add({ type: 'error', message: `Data account already exists!` });
 			console.log('error', 'Create custom program failed!');
 			return;
 		}
@@ -1040,6 +1043,9 @@
         .rpc() as string;
 
 			console.log('TxHash ::', tx);
+
+      // Update state
+      customProgramStore.getCustomProgramAccount(pda);
 
       // Add to notificationStore
 			notificationStore.add({
@@ -1388,12 +1394,16 @@
 
 <div class="md:hero mx-auto p-4">
 	<div class="md:hero-content flex flex-col">
-    <button on:click={handleCreateCustomProgramAccount}>Create Custom Program</button>
 		<h1
 			class="text-center text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-tr from-[#9945FF] to-[#14F195]"
 		>
 			Escrow
 		</h1>
+    {#if $customProgramStore.pda !== null}
+      <p>Exists</p>
+    {:else}
+      <button on:click={handleCreateCustomProgramAccount}>Create Custom Program</button>
+    {/if}
 		<ul class="steps">
 			<li class="step" class:step-accent={$xMintStore.address && $yMintStore.address}>
 				Create Tokens

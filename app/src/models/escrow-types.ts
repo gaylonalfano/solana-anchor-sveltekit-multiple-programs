@@ -1,3 +1,4 @@
 import type anchor from '@project-serum/anchor';
 
-// Moved back to escrow-store.ts until I sort it out
+export type CustomProgramObject = anchor.IdlTypes<anchor.Idl>['CustomProgram'];
+export type EscrowObject = anchor.IdlTypes<anchor.Idl>["Escrow"];
