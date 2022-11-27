@@ -481,6 +481,7 @@ describe("non-custodial-escrow", () => {
     expect(data.isActive).to.equal(false);
     expect(data.hasExchanged).to.equal(true);
     expect(parseInt(escrowedOutTokenAccountBalance.value.amount)).to.equal(0);
+    // TODO Check that buyer and seller ATA balances are accurately updated.
   });
 
   it("Cancel the trade", async () => {

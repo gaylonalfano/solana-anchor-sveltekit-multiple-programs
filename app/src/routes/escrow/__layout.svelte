@@ -45,6 +45,7 @@
 		console.log('getParsedTokenAccountsByOwner::accounts: ', accounts);
 
 		// Update Store
+    // NOTE This is the connected user's wallet SPL tokens
 		walletTokenAccountsStore.set(accounts);
 	}
 

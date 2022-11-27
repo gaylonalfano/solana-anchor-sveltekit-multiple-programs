@@ -5,10 +5,20 @@ import * as constants from '../../helpers/escrow/constants';
 
 export type UserStoreObject = {
   walletAddress: anchor.web3.PublicKey | null,
-  xTokenATA: anchor.web3.PublicKey | null,
-  xTokenBalance: number | null,
-  yTokenATA: anchor.web3.PublicKey | null,
-  yTokenBalance: number | null,
+  outTokenMint: anchor.web3.PublicKey | null,
+  outTokenATA: anchor.web3.PublicKey | null,
+  outTokenRawBalance: number | null, // 30000000
+  outTokenBalance: number | null,
+  outTokenRawAmount: number | null, // 12000000
+  outTokenAmount: number | null, // 1.2
+  outTokenDecimals: number | null,
+  inTokenMint: anchor.web3.PublicKey | null,
+  inTokenATA: anchor.web3.PublicKey | null,
+  inTokenRawBalance: number | null,
+  inTokenBalance: number | null,
+  inTokenRawAmount: number | null,
+  inTokenAmount: number | null,
+  inTokenDecimals: number | null,
 }
 
 // U: Creating a function to build the Store so I can add a reset() method
@@ -16,10 +26,20 @@ function createUserStore() {
   const { subscribe, set, update } = writable<UserStoreObject>(
     {
       walletAddress: null, // Phantom Dev
-      xTokenATA: null,
-      xTokenBalance: null,
-      yTokenATA: null,
-      yTokenBalance: null,
+      outTokenMint: null, // Q: Default to SOL?
+      outTokenATA: null,
+      outTokenRawBalance: null,
+      outTokenBalance: null,
+      outTokenRawAmount: null,
+      outTokenAmount: null,
+      outTokenDecimals: null,
+      inTokenMint: null,
+      inTokenATA: null,
+      inTokenRawBalance: null,
+      inTokenBalance: null,
+      inTokenRawAmount: null,
+      inTokenAmount: null,
+      inTokenDecimals: null,
     }
   );
 
@@ -28,11 +48,21 @@ function createUserStore() {
     set,
     update,
     reset: () => set({
-      walletAddress: constants.SELLER_WALLET_ADDRESS, // Phantom Dev
-      xTokenATA: null,
-      xTokenBalance: null,
-      yTokenATA: null,
-      yTokenBalance: null,
+      walletAddress: null, // Phantom Dev
+      outTokenMint: null, // Q: Default to SOL?
+      outTokenATA: null,
+      outTokenRawBalance: null,
+      outTokenBalance: null,
+      outTokenRawAmount: null,
+      outTokenAmount: null,
+      outTokenDecimals: null,
+      inTokenMint: null,
+      inTokenATA: null,
+      inTokenRawBalance: null,
+      inTokenBalance: null,
+      inTokenRawAmount: null,
+      inTokenAmount: null,
+      inTokenDecimals: null,
     })
   }
 }

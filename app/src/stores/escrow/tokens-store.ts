@@ -33,7 +33,6 @@ import type { Mint } from '@solana/spl-token';
 export type TokenMintStoreObject = {
   address: anchor.web3.PublicKey | null,
   mint: Mint | null,
-
 }
 // U: Or, use the SPL Token's 'Mint' type
 // REF Check out the spl-token library for details

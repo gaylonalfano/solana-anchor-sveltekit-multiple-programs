@@ -16,22 +16,10 @@ import * as constants from '../../helpers/escrow/constants';
 // derive from walletTokenAccountsStore, but going to first try revising
 // the sellerStore to see if that's good enough.
 // U: I may end up moving all this out/inToken info to separate Stores later.
+// U: Removing all the in/out fields. Moved to a userStore object
+// NOTE This store is for setting up my testing on localhost
 export type SellerStoreObject = {
   walletAddress: anchor.web3.PublicKey | null,
-  outTokenMint: anchor.web3.PublicKey | null,
-  outTokenATA: anchor.web3.PublicKey | null,
-  outTokenRawBalance: number | null, // 30000000
-  outTokenBalance: number | null,
-  outTokenRawAmount: number | null, // 12000000
-  outTokenAmount: number | null, // 1.2
-  outTokenDecimals: number | null,
-  inTokenMint: anchor.web3.PublicKey | null,
-  inTokenATA: anchor.web3.PublicKey | null,
-  inTokenRawBalance: number | null,
-  inTokenBalance: number | null,
-  inTokenRawAmount: number | null,
-  inTokenAmount: number | null,
-  inTokenDecimals: number | null,
   // NOTE Keeping x/y fields for now while developing
   xTokenMint: anchor.web3.PublicKey | null,
   xTokenATA: anchor.web3.PublicKey | null,
@@ -46,20 +34,6 @@ function createSellerStore() {
   const { subscribe, set, update } = writable<SellerStoreObject>(
     {
       walletAddress: constants.SELLER_WALLET_ADDRESS, // Phantom Dev
-      outTokenMint: null, // Q: Default to SOL?
-      outTokenATA: null,
-      outTokenRawBalance: null,
-      outTokenBalance: null,
-      outTokenRawAmount: null,
-      outTokenAmount: null,
-      outTokenDecimals: null,
-      inTokenMint: null,
-      inTokenATA: null,
-      inTokenRawBalance: null,
-      inTokenBalance: null,
-      inTokenRawAmount: null,
-      inTokenAmount: null,
-      inTokenDecimals: null,
       xTokenMint: null,
       xTokenATA: null,
       xTokenBalance: null,
@@ -75,20 +49,6 @@ function createSellerStore() {
     update,
     reset: () => set({
       walletAddress: constants.SELLER_WALLET_ADDRESS, // Phantom Dev
-      outTokenMint: null, // Q: Default to SOL?
-      outTokenATA: null,
-      outTokenRawBalance: null,
-      outTokenBalance: null,
-      outTokenRawAmount: null,
-      outTokenAmount: null,
-      outTokenDecimals: null,
-      inTokenMint: null,
-      inTokenATA: null,
-      inTokenRawBalance: null,
-      inTokenBalance: null,
-      inTokenRawAmount: null,
-      inTokenAmount: null,
-      inTokenDecimals: null,
       xTokenMint: null,
       xTokenATA: null,
       xTokenBalance: null,

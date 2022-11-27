@@ -13,16 +13,10 @@ import * as constants from '../../helpers/escrow/constants';
 // but store the token details on the buyer/sellerStores
 // U: Can't remove x/yToken fields just yet as they're needed to mint and transfer
 // the X & Y tokens for testing/dev.
+// U: Removing all the in/out fields. Moved to a userStore object
+// NOTE This store is for setting up my testing on localhost
 export type BuyerStoreObject = {
   walletAddress: anchor.web3.PublicKey | null,
-  outTokenMint: anchor.web3.PublicKey | null,
-  outTokenATA: anchor.web3.PublicKey | null,
-  outTokenAmount: number | null,
-  outTokenBalance: number | null,
-  inTokenMint: anchor.web3.PublicKey | null,
-  inTokenATA: anchor.web3.PublicKey | null,
-  inTokenAmount: number | null,
-  inTokenBalance: number | null,
   // NOTE Keeping x/y fields for now while developing
   xTokenMint: anchor.web3.PublicKey | null,
   xTokenATA: anchor.web3.PublicKey | null,
@@ -37,14 +31,6 @@ function createBuyerStore() {
   const { subscribe, set, update } = writable<BuyerStoreObject>(
     {
       walletAddress: constants.BUYER_WALLET_ADDRESS, // Solflare Dev
-      outTokenMint: null, // Q: Default to SOL?
-      outTokenATA: null,
-      outTokenAmount: null,
-      outTokenBalance: null,
-      inTokenMint: null,
-      inTokenATA: null,
-      inTokenAmount: null,
-      inTokenBalance: null,
       xTokenMint: null,
       xTokenATA: null,
       xTokenBalance: null,
@@ -60,14 +46,6 @@ function createBuyerStore() {
     update,
     reset: () => set({
       walletAddress: constants.BUYER_WALLET_ADDRESS, // Solflare Dev
-      outTokenMint: null, // Q: Default to SOL?
-      outTokenATA: null,
-      outTokenAmount: null,
-      outTokenBalance: null,
-      inTokenMint: null,
-      inTokenATA: null,
-      inTokenAmount: null,
-      inTokenBalance: null,
       xTokenMint: null,
       xTokenATA: null,
       xTokenBalance: null,

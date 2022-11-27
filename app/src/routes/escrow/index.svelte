@@ -6,7 +6,8 @@
 		LAMPORTS_PER_SOL,
 		PublicKey,
 		SystemProgram,
-		Transaction
+		Transaction,
+		type GetAccountInfoConfig
 	} from '@solana/web3.js';
 	import * as anchor from '@project-serum/anchor';
 	import {
@@ -18,7 +19,8 @@
 		getAssociatedTokenAddress,
 		createAssociatedTokenAccountInstruction,
 		createMintToCheckedInstruction,
-		type Mint
+		type Mint,
+		getAccount
 	} from '@solana/spl-token';
 
 	import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
@@ -29,21 +31,26 @@
 
 	import { notificationStore } from '../../stores/notification';
 	import { balanceStore } from '$stores/balance';
+	import { setupStore } from '$stores/escrow/setup-store';
+  import { sellerStore } from '$stores/escrow/seller-store';
+  import { buyerStore } from '$stores/escrow/buyer-store';
 	import { xMintStore, yMintStore, walletTokenAccountsStore } from '$stores/escrow/tokens-store';
-	import { sellerStore } from '$stores/escrow/seller-store';
-	import { buyerStore } from '$stores/escrow/buyer-store';
   import { customProgramStore } from '$stores/escrow/custom-program-store';
+  import { userStore } from '$stores/escrow/user-store';
 	import {
 		escrowStore,
 		type EscrowObject,
 		type EscrowStoreObject
 	} from '$stores/escrow/escrow-store';
+  import { escrowsStore } from '$stores/escrow/escrows-store';
 	import * as constants from '../../helpers/escrow/constants';
 	import { get } from 'svelte/store';
+	import { each } from 'svelte/internal';
 	// import type { EscrowObject, EscrowStoreObject } from 'src/models/escrow-types';
 
+
+
 	// TODOS:
-  // - FIXME - sellerStore.inTokenATA's Mint is causing errors! Need to debug
 	// - Fetch all active Escrows involving wallet and display
 	//    - First, simply display active Escrows on page load
 	// - WIP Add a Token select menu rather than hardcoding X/Y
@@ -74,6 +81,12 @@
 	// - DONE Add ability to cancel Escrow by authority (wallet)
 	// - DONE Add helper resetStores() method for successful accept or cancel
 	// - DONE Rename Escrow struct fields to out/in instead of x/y
+  // - Add tests for if buyer/seller don't have the ATA for their inTokenATA
+  // - Add tests for confirming token balances are accurately credited/debited
+
+
+
+
 
 	// Q: Losing reactivity in UI. Not sure why. Just seems like after I sendTransaction(),
 	// no other async/awaits really work unless I add to button onclick handler...
@@ -166,13 +179,13 @@
 	// }
 
   $: hasRequiredEscrowInputs = 
-    $sellerStore.outTokenMint !== null
-    && $sellerStore.outTokenATA !== null
-    && $sellerStore.outTokenDecimals !== null
-    && $sellerStore.outTokenAmount !== null
-    && $sellerStore.outTokenRawAmount !== null
-    && $sellerStore.inTokenMint !== null
-    && $sellerStore.inTokenAmount !== null
+    $userStore.outTokenMint !== null
+    && $userStore.outTokenATA !== null
+    && $userStore.outTokenDecimals !== null
+    && $userStore.outTokenAmount !== null
+    && $userStore.outTokenRawAmount !== null
+    && $userStore.inTokenMint !== null
+    && $userStore.inTokenAmount !== null
  
   // TODO hasValidEscrowInputs
 
@@ -224,8 +237,8 @@
 	$: {
 		// console.log('workspaceStore: ', $workspaceStore);
 		// console.log('walletStore: ', $walletStore);
-		// console.log('xMintStore: ', $xMintStore);
-		// console.log('yMintStore: ', $yMintStore);
+		console.log('xMintStore: ', $xMintStore);
+		console.log('yMintStore: ', $yMintStore);
 		// console.log('walletTokenAccountsStore: ', $walletTokenAccountsStore);
 		// console.log('balanceStore: ', $balanceStore);
 		// console.log('selectedToken: ', selectedToken);
@@ -240,6 +253,8 @@
 		// console.log('escrowStore: ', $escrowStore);
 		// console.log('formState: ', formState);
     // console.log('hasRequiredEscrowInputs: ', hasRequiredEscrowInputs);
+    console.log('userStore: ', $userStore);
+    console.log('setupStore: ', $setupStore);
     console.log('customProgramStore: ', $customProgramStore);
 
 	}
@@ -265,11 +280,11 @@
 		if (formState.outTokenMint === 'SOL') {
 			formState.outTokenBalance = $balanceStore.balance;
 			// U: Need to update sellerStore values as well to init escrow
-			$sellerStore.outTokenMint = constants.SOL_PUBLIC_KEY;
+			$userStore.outTokenMint = constants.SOL_PUBLIC_KEY;
 			// Q: Should I set outTokenATA to wallet address for SOL? Or leave null?
 			// TODO Still need to update my init escrow to allow SOL
-			$sellerStore.outTokenATA = $walletStore.publicKey;
-			$sellerStore.outTokenBalance = $balanceStore.balance;
+			$userStore.outTokenATA = $walletStore.publicKey;
+			$userStore.outTokenBalance = $balanceStore.balance;
 		}
 
 		let matchingToken = $walletTokenAccountsStore.find((tokenAccount) => {
@@ -281,48 +296,48 @@
 			formState.outTokenBalance = matchingToken.account.data.parsed.info.tokenAmount.uiAmount;
 			console.log('outTokenBalance: ', formState.outTokenBalance);
 			// U: Need to update sellerStore values as well to init escrow
-			$sellerStore.outTokenMint = new anchor.web3.PublicKey(matchingToken.account.data.parsed.info.mint);
-			$sellerStore.outTokenATA = matchingToken.pubkey;
-			$sellerStore.outTokenRawBalance = parseInt(
+			$userStore.outTokenMint = new anchor.web3.PublicKey(matchingToken.account.data.parsed.info.mint);
+			$userStore.outTokenATA = matchingToken.pubkey;
+			$userStore.outTokenRawBalance = parseInt(
 				matchingToken.account.data.parsed.info.tokenAmount.amount
 			); // 30000000
-			$sellerStore.outTokenBalance =
+			$userStore.outTokenBalance =
 				matchingToken.account.data.parsed.info.tokenAmount.uiAmount; // 3
-			$sellerStore.outTokenDecimals = matchingToken.account.data.parsed.info.tokenAmount.decimals;
+			$userStore.outTokenDecimals = matchingToken.account.data.parsed.info.tokenAmount.decimals;
 		}
 	}
 
 	function handleOnChange() {
     // Clear the formState.outTokenAmount input
     formState.outTokenAmount = '';
-    $sellerStore.outTokenAmount = null;
-    $sellerStore.outTokenRawAmount = null;
+    $userStore.outTokenAmount = null;
+    $userStore.outTokenRawAmount = null;
 		// Get the selected token's details and balance and update UI
 		setSelectedTokenBalance();
 	}
 
   function handleOutTokenAmountInput() {
     // Clear any existing input
-    $sellerStore.outTokenAmount = null;
-    $sellerStore.outTokenRawAmount = null;
+    $userStore.outTokenAmount = null;
+    $userStore.outTokenRawAmount = null;
 
 
     try {
       // Handle the outTokenAmount
-      if (formState.outTokenAmount && $sellerStore.outTokenRawBalance && $sellerStore.outTokenDecimals) {
+      if (formState.outTokenAmount && $userStore.outTokenRawBalance && $userStore.outTokenDecimals) {
         // NOTE 10 ** 8 => 100000000
-        let rawTokenAmount = parseFloat(formState.outTokenAmount) * (10 ** $sellerStore.outTokenDecimals);
+        let rawTokenAmount = parseFloat(formState.outTokenAmount) * (10 ** $userStore.outTokenDecimals);
 
         // TODO Add some validation to outTokenAmount
         // NOTE outTokenRawBalance - rawOutTokenAmount >= 0
-        if (rawTokenAmount > $sellerStore.outTokenRawBalance) {
+        if (rawTokenAmount > $userStore.outTokenRawBalance) {
           console.log("rawTokenAmount > balance!");
           return
         }
 
         // Update sellerStore values
-        $sellerStore.outTokenRawAmount = rawTokenAmount;
-        $sellerStore.outTokenAmount = parseFloat(formState.outTokenAmount);
+        $userStore.outTokenRawAmount = rawTokenAmount;
+        $userStore.outTokenAmount = parseFloat(formState.outTokenAmount);
       }
 
     } catch (e) {
@@ -333,9 +348,9 @@
 
   async function handleInTokenMintAddressInput() {
     // Clear any existing input
-    $sellerStore.inTokenMint = null;
-    $sellerStore.inTokenATA = null;
-    $sellerStore.inTokenDecimals = null;
+    $userStore.inTokenMint = null;
+    $userStore.inTokenATA = null;
+    $userStore.inTokenDecimals = null;
 
     try {
       // TODO Add validation and toggle for UI
@@ -344,7 +359,7 @@
         return
       }
       // Update state
-      $sellerStore.inTokenMint = new anchor.web3.PublicKey(formState.inTokenMint);
+      $userStore.inTokenMint = new anchor.web3.PublicKey(formState.inTokenMint);
       // Q: Do I need to see if wallet already has inTokenMint? And then update
       // inTokenATA, inTokenBalance?
       // U: I don't think it's worth it since this Store doesn't persists anyway,
@@ -361,19 +376,19 @@
       if (matchingToken !== undefined) {
         // User already has the token in wallet
         // Set sellerStore.inToken values so we can later convert to raw amount
-        $sellerStore.inTokenATA = matchingToken.pubkey;
-        $sellerStore.inTokenDecimals = matchingToken.account.data.parsed.info.tokenAmount.decimals;
+        $userStore.inTokenATA = matchingToken.pubkey;
+        $userStore.inTokenDecimals = matchingToken.account.data.parsed.info.tokenAmount.decimals;
 
       } else {
         // Clear the inTokenATA if present
-        $sellerStore.inTokenATA = null;
+        $userStore.inTokenATA = null;
         // Use getMint() to capture token details so we can convert amount for BN/init
         console.log('inTokenMint not found in wallet. Fetching mint details...')
-        const inTokenMintData = await getMint($workspaceStore.connection, $sellerStore.inTokenMint);
+        const inTokenMintData = await getMint($workspaceStore.connection, $userStore.inTokenMint);
         console.log('inTokenMintData: ', inTokenMintData);
 
         // Update Store decimals so I can compute the raw amount based on inTokenAmount (later)
-        $sellerStore.inTokenDecimals = inTokenMintData.decimals;
+        $userStore.inTokenDecimals = inTokenMintData.decimals;
 
         // Q: What if seller doesn't have inTokenATA? Need to create it here or where?
         
@@ -387,7 +402,7 @@
 
   function handleInTokenAmountInput() {
     // Clear any existing input
-    $sellerStore.inTokenAmount = null;
+    $userStore.inTokenAmount = null;
 
     try {
 
@@ -411,7 +426,7 @@
         // A: Yes! I need inTokenDecimals to compute raw amount. Added a getMint() 
         // inside the handleInTokenMintAddressInput() function. 
         let inTokenAmount = parseFloat(formState.inTokenAmount);
-        $sellerStore.inTokenAmount = inTokenAmount;
+        $userStore.inTokenAmount = inTokenAmount;
       }
 
     } catch (e) {
@@ -485,8 +500,8 @@
 			createInitializeMintInstruction(
 				xMintPubkey, // mint publicKey
 				8, // decimals
-				$walletStore.publicKey as anchor.web3.PublicKey, // seller.publicKey, // mint authority
-				$walletStore.publicKey as anchor.web3.PublicKey // seller.publicKey // freeze authority
+				$walletStore.publicKey as anchor.web3.PublicKey, // mint authority
+				$walletStore.publicKey as anchor.web3.PublicKey // freeze authority
 			)
 		);
 
@@ -684,39 +699,21 @@
 
 	async function getSellerXTokenAccountBalance() {
 		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
-			$sellerStore.xTokenATA as anchor.web3.PublicKey
+			$setupStore.sellerXTokenATA as anchor.web3.PublicKey
 		);
 
-		$sellerStore.xTokenBalance = tokenAmount?.value.uiAmount as number;
+		$setupStore.sellerXTokenBalance = tokenAmount?.value.uiAmount as number;
 	}
 
 
 	async function getBuyerYTokenAccountBalance() {
 		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
-			$buyerStore.yTokenATA as anchor.web3.PublicKey
+			$setupStore.buyerYTokenATA as anchor.web3.PublicKey
 		);
 
-		$buyerStore.yTokenBalance = tokenAmount?.value.uiAmount as number;
+		$setupStore.buyerYTokenBalance = tokenAmount?.value.uiAmount as number;
 	}
   
-
-  async function getSellerOutTokenAccountBalance() {
-		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
-			$sellerStore.outTokenATA as anchor.web3.PublicKey
-		);
-
-		$sellerStore.outTokenBalance = tokenAmount?.value.uiAmount as number;
-	}
-
-
-  async function getBuyerOutTokenAccountBalance() {
-		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
-			$buyerStore.outTokenATA as anchor.web3.PublicKey
-		);
-
-    $buyerStore.outTokenBalance = tokenAmount?.value.uiAmount as number;
-	}
-
 
 	async function createSellerTokenXAssociatedTokenAccount() {
 		// NOTE Again, can't use the handy built-in methods using spl-token w/ Anchor.
@@ -734,23 +731,30 @@
 			$walletStore.publicKey as anchor.web3.PublicKey // seller.publicKey // owner
 		);
 		console.log(`sellerXToken: ${sellerXToken.toBase58()}`);
-		$sellerStore.xTokenATA = sellerXToken;
+		$setupStore.sellerXTokenATA = sellerXToken;
+    $setupStore.sellerXTokenMint = $xMintStore.address;
 
 		const tx = new Transaction().add(
 			createAssociatedTokenAccountInstruction(
 				$walletStore.publicKey as anchor.web3.PublicKey, // payer
-				$sellerStore.xTokenATA, // ata
-				$sellerStore.walletAddress as anchor.web3.PublicKey, // seller.publicKey, // owner
-				$xMintStore.address as anchor.web3.PublicKey // mint
+				$setupStore.sellerXTokenATA, // ata
+				$setupStore.sellerWallet as anchor.web3.PublicKey, // seller.publicKey, // owner
+				$setupStore.sellerXTokenMint as anchor.web3.PublicKey // mint
 			)
 		);
 
-		// TODO Save sendTransaction() to signature var
-		console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
+    const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection)
+    console.log('signature: ', signature);
 
-		// Update UI
-		formState.sellerXToken = $sellerStore.xTokenATA.toBase58();
+    const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+    const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+      blockhash: latestBlockhash.blockhash,
+      lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+      signature: signature
+    });
+    console.log('confirmedTx: ', confirmedTx)
 	}
+
 
 	async function createSellerTokenYAssociatedTokenAccount() {
 		const sellerYToken = await getAssociatedTokenAddress(
@@ -758,14 +762,15 @@
 			$walletStore.publicKey as anchor.web3.PublicKey // seller.publicKey // owner
 		);
 		console.log(`sellerYToken: ${sellerYToken.toBase58()}`);
-		$sellerStore.yTokenATA = sellerYToken;
+		$setupStore.sellerYTokenATA = sellerYToken;
+    $setupStore.sellerYTokenMint = $yMintStore.address;
 
 		const tx = new Transaction().add(
 			createAssociatedTokenAccountInstruction(
 				$walletStore.publicKey as anchor.web3.PublicKey, // payer
-				$sellerStore.yTokenATA, // ata
-				$sellerStore.walletAddress as anchor.web3.PublicKey, // seller.publicKey, // owner
-				$yMintStore.address as anchor.web3.PublicKey // mint
+				$setupStore.sellerYTokenATA, // ata
+				$setupStore.sellerWallet as anchor.web3.PublicKey, // seller.publicKey, // owner
+				$setupStore.sellerYTokenMint as anchor.web3.PublicKey // mint
 			)
 		);
 
@@ -789,19 +794,19 @@
 			$xMintStore.address as anchor.web3.PublicKey, // mint
 			// Q: Use global or buyerStore.walletAddress?
 			// A: NOTE I have default walletAddress set to BUYER_WALLET_ADDRESS in Store!
-			$buyerStore.walletAddress as anchor.web3.PublicKey //buyer.publicKey // owner
+      // U: Replacing with setupStore values
+			$setupStore.buyerWallet as anchor.web3.PublicKey //buyer.publicKey // owner
 		);
 		console.log(`buyerXToken: ${buyerXToken.toBase58()}`);
-		$buyerStore.xTokenATA = buyerXToken;
-    // U: Temporarily hardcoding inTokenATA
-    $buyerStore.inTokenATA = buyerXToken;
+		$setupStore.buyerXTokenATA = buyerXToken;
+    $setupStore.buyerXTokenMint = $xMintStore.address;
 
 		const tx = new Transaction().add(
 			createAssociatedTokenAccountInstruction(
 				$walletStore.publicKey as anchor.web3.PublicKey, // payer
-				$buyerStore.xTokenATA, // ata
-				$buyerStore.walletAddress as anchor.web3.PublicKey, //  buyer.publicKey, // owner
-				$xMintStore.address as anchor.web3.PublicKey // mint
+				$setupStore.buyerXTokenATA, // ata
+				$setupStore.buyerWallet as anchor.web3.PublicKey, //  buyer.publicKey, // owner
+				$setupStore.buyerXTokenMint as anchor.web3.PublicKey // mint
 			)
 		);
 
@@ -820,24 +825,25 @@
 		console.log('confirmedTx: ', confirmedTx);
 	}
 
+
 	async function createBuyerTokenYAssociatedTokenAccount() {
 		const buyerYToken = await getAssociatedTokenAddress(
 			$yMintStore.address as anchor.web3.PublicKey, // mint
 			// Q: Use global or buyerStore.walletAddress?
 			// A: NOTE I have default walletAddress set to BUYER_WALLET_ADDRESS in Store!
-			$buyerStore.walletAddress as anchor.web3.PublicKey // buyer.publicKey // owner
+      // U: Replacing with setupStore values
+			$setupStore.buyerWallet as anchor.web3.PublicKey // buyer.publicKey // owner
 		);
 		console.log(`buyerYToken: ${buyerYToken.toBase58()}`);
-		$buyerStore.yTokenATA = buyerYToken;
-    // U: Temporarily hardcoding outTokenATA
-    $buyerStore.outTokenATA = buyerYToken;
+    $setupStore.buyerYTokenATA = buyerYToken;
+    $setupStore.buyerYTokenMint = $yMintStore.address;
 
 		const tx = new Transaction().add(
 			createAssociatedTokenAccountInstruction(
 				$walletStore.publicKey as anchor.web3.PublicKey, // payer
-				$buyerStore.yTokenATA, // ata
-				$buyerStore.walletAddress as anchor.web3.PublicKey, // buyer.publicKey, // owner
-				$yMintStore.address as anchor.web3.PublicKey // mint
+				$setupStore.buyerYTokenATA, // ata
+				$setupStore.buyerWallet as anchor.web3.PublicKey, // buyer.publicKey, // owner
+				$setupStore.buyerYTokenMint as anchor.web3.PublicKey // mint
 			)
 		);
 
@@ -854,9 +860,6 @@
 			signature: signature
 		});
 		console.log('confirmedTx: ', confirmedTx);
-
-		// Update UI
-		formState.buyerYToken = $buyerStore.yTokenATA.toBase58();
 	}
 
 	async function createAllBuyerAndSellerAssociatedTokenAccounts() {
@@ -894,8 +897,8 @@
 
 		const tx = new Transaction().add(
 			createMintToCheckedInstruction(
-				$xMintStore.address as anchor.web3.PublicKey, // mint
-				$sellerStore.xTokenATA as anchor.web3.PublicKey, // destination ata
+				$setupStore.sellerXTokenMint as anchor.web3.PublicKey, // mint
+				$setupStore.sellerXTokenATA as anchor.web3.PublicKey, // destination ata
 				$walletStore.publicKey as anchor.web3.PublicKey, // mint authority
 				3e8, // amount // U: Could add this as arg if needed
 				$xMintStore.mint?.decimals as number // decimals 8 // U: Could maybe reference $xMintStore.mint.decimals
@@ -941,11 +944,11 @@
 	async function mintTokenYAndTransferToBuyerTokenYAssociatedTokenAccount() {
 		const tx = new Transaction().add(
 			createMintToCheckedInstruction(
-				$yMintStore.address as anchor.web3.PublicKey, // mint
-				$buyerStore.yTokenATA as anchor.web3.PublicKey, // destination ata
+				$setupStore.buyerYTokenMint as anchor.web3.PublicKey, // mint
+				$setupStore.buyerYTokenATA as anchor.web3.PublicKey, // destination ata
 				$walletStore.publicKey as anchor.web3.PublicKey, // mint authority
 				3e8, // amount
-				8 // decimals 8
+				$yMintStore.mint?.decimals as number // decimals 8 // U: Could maybe reference $yMintStore.mint.decimals
 			)
 		);
 		// console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
@@ -966,6 +969,7 @@
 		// A: NOPE! Just saving the signature (above) seems to resolve!
 		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection);
 		console.log('signature: ', signature);
+
 		const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
 		const confirmedTx = await $workspaceStore.connection.confirmTransaction({
 			blockhash: latestBlockhash.blockhash,
@@ -1091,18 +1095,17 @@
       return
     }
 
-
     // escrowInputsAreValid = true;
     // if (hasRequiredEscrowInputs) {
 
-    //   if ($sellerStore.outTokenAmount > $sellerStore.outTokenBalance) {
+    //   if ($userStore.outTokenAmount > $userStore.outTokenBalance) {
     //     escrowInputsAreValid = false;
     //     formErrors.outTokenAmount = "Amount exceeds balance!";
     //   } else {
     //     formErrors.outTokenAmount = '';
     //   }
 
-    //   if ($sellerStore.outTokenAmount > $sellerStore.outTokenBalance) {
+    //   if ($userStore.outTokenAmount > $userStore.outTokenBalance) {
     //     escrowInputsAreValid = false;
     //     formErrors.outTokenAmount = "Amount exceeds balance!";
     //   } else {
@@ -1111,21 +1114,30 @@
 
     // }
 
-    if ($sellerStore.inTokenAmount && $sellerStore.inTokenDecimals) {
-      let inTokenRawAmount = $sellerStore.inTokenAmount * (10 ** $sellerStore.inTokenDecimals);
+    if ($userStore.inTokenAmount && $userStore.inTokenDecimals) {
+      let inTokenRawAmount = $userStore.inTokenAmount * (10 ** $userStore.inTokenDecimals);
       console.log('inTokenRawAmount: ', inTokenRawAmount);
-      $sellerStore.inTokenRawAmount = inTokenRawAmount;
+      $userStore.inTokenRawAmount = inTokenRawAmount;
     }
 
+    // Get the customProgram.totalEscrowCount to use as a seed
+    // Q: How to pass a type u64 into seeds array? Uint8Array
+    const escrowNumber: string = (
+      $customProgramStore.customProgram?.totalEscrowCount.toNumber() + 1
+    ).toString();
+    console.log("INITIALIZE::escrowNumber: ", escrowNumber);
 
-		const [escrowPDA, escrowBump] = await anchor.web3.PublicKey.findProgramAddress(
+
+		const [escrowPda, escrowBump] = await anchor.web3.PublicKey.findProgramAddress(
 			[
 				Buffer.from(constants.ESCROW_SEED_PREFIX),
-				($walletStore.publicKey as anchor.web3.PublicKey).toBuffer()
+				($walletStore.publicKey as anchor.web3.PublicKey).toBuffer(),
+        // U: Need to add the escrowNumber as a seed!
+        anchor.utils.bytes.utf8.encode(escrowNumber),
 			],
 			$workspaceStore.program?.programId as anchor.web3.PublicKey
 		);
-		console.log('escrow PDA: ', escrowPDA);
+		console.log('escrow Pda: ', escrowPda);
 
 		// U: Added swapUI fields to formState
 		// U: If you're displaying decimals, then BN is NOT the solution!
@@ -1151,8 +1163,8 @@
     // NOTE I can pass a BN direc†ly to program method, BUT it removes the
     // DECIMAL value! E.g., 2.4 => 2. So, need to somehow get/pass RAW amounts
     // A: Fixed! Must pass in RAW amounts and it seems to be working!
-    const outAmount = new anchor.BN($sellerStore.outTokenRawAmount as number);
-    const inAmount = new anchor.BN($sellerStore.inTokenRawAmount as number);
+    const outAmount = new anchor.BN($userStore.outTokenRawAmount as number);
+    const inAmount = new anchor.BN($userStore.inTokenRawAmount as number);
 
 		// Check whether escrow account already has data
 		let data: EscrowObject;
@@ -1180,10 +1192,11 @@
 			// my x/yMintStores...
 			.accounts({
 				seller: ($workspaceStore.provider as anchor.AnchorProvider).wallet.publicKey,
+        customProgram: $customProgramStore.pda as anchor.web3.PublicKey,
 				outMint: new PublicKey(formState.outTokenMint),
 				inMint: new PublicKey(formState.inTokenMint),
-				sellerOutTokenAccount: $sellerStore.outTokenATA as anchor.web3.PublicKey, // ATA
-				escrow: escrowPDA, // created in program
+				sellerOutTokenAccount: $userStore.outTokenATA as anchor.web3.PublicKey, // ATA
+				escrow: escrowPda, // created in program
 				escrowedOutTokenAccount: escrowedOutTokenAccount.publicKey, // created in program
 				// tokenProgram: TOKEN_PROGRAM_ID, // Q: Use 2022 version? A: TOKEN_PROGRAM_ID!
 				// rent: SYSVAR_RENT_PUBKEY,
@@ -1198,10 +1211,12 @@
 		console.log('TxHash ::', tx);
 
 		// After tx success, get updated account data and update Store state
-		data = (await $workspaceStore.program?.account.escrow.fetch(escrowPDA)) as EscrowObject;
+		data = (await $workspaceStore.program?.account.escrow.fetch(escrowPda)) as EscrowObject;
 		// Q: Can I ...spread data of IDL 'Escrow' into ANOTHER custom type
 		// that has additional fields? Like partially fill whatever fields match
-		escrowStore.set({ escrow: data, pda: escrowPDA } as EscrowStoreObject);
+		escrowStore.set({ escrow: data, pda: escrowPda } as EscrowStoreObject);
+    // U: Update the escrowsStore array
+    escrowsStore.addEscrow(data, escrowPda);
 
 		const escrowedOutTokenAccountBalance =
 			await $workspaceStore.provider?.connection.getTokenAccountBalance(
@@ -1216,7 +1231,7 @@
 		//Address: H4v4RYzNqVPAV88Zus9j1GYYiUf64hsFFBScTYvmdYQh  (Aux*)
 		//Balance: 0.0000004  // After transferring 40 for xAmountFromSeller
 		//Mint: BxJkZJY5waBqE2CafUYSrTRne5UHkGBTzBcxzfZNXMde
-		//Owner: ADncSp91geB71DgSVF6QjQKFQBAtVt4gH7B2mEZjspby // Escrow PDA
+		//Owner: ADncSp91geB71DgSVF6QjQKFQBAtVt4gH7B2mEZjspby // Escrow Pda
 		//State: Initialized
 		//Delegation: (not set)
 		//Close authority: (not set)
@@ -1226,103 +1241,192 @@
 		// Update/double-check Escrow State
 		console.log('INITIALIZE::$escrowStore: ', $escrowStore);
 
-    // U: Could refetch sellerStore.outTokenBalance after successfully
-    // creating the escrow
-    await getSellerOutTokenAccountBalance();
-    console.log("sellerStore.outTokenBalance AFTER initializing escrow: ", $sellerStore.outTokenBalance);
+    // Get updated account data
+    customProgramStore.getCustomProgramAccount($customProgramStore.pda as anchor.web3.PublicKey);
 
-    // U: Temporarily set buyerStore values so can simulate accept
-    console.log("buyerStore AFTER initializing escrow: ", $buyerStore);
-    // NOTE buyerStore.inTokenATA and outTokenATA are set when first creating ATAs for X/Y
-    // This is a temp solution while I dev.
-    $buyerStore.inTokenMint = $sellerStore.outTokenMint;
-    $buyerStore.inTokenAmount = $sellerStore.outTokenAmount;
-    $buyerStore.outTokenMint = $sellerStore.inTokenMint;
-    $buyerStore.outTokenAmount = $sellerStore.inTokenAmount;
-
-    // Clear/reset the sellerStore!
-    // FIXME Careful! This will make outTokenATA null, which breaks cancelEscrow()!
-    // sellerStore.reset();
+    // TODO Reset the escrowStore so that multiple escrows can be created
 	}
 
 	async function handleAcceptTrade() {
-		const tx = await $workspaceStore.program?.methods
-			.accept()
-			.accounts({
-				buyer: $walletStore.publicKey as anchor.web3.PublicKey,
-				escrow: $escrowStore.pda as anchor.web3.PublicKey,
-				escrowedOutTokenAccount: $escrowStore.escrow
-					?.escrowedOutTokenAccount as anchor.web3.PublicKey,
-				sellerInTokenAccount: $sellerStore.inTokenATA as anchor.web3.PublicKey,
-				buyerInTokenAccount: $buyerStore.inTokenATA as anchor.web3.PublicKey,
-				buyerOutTokenAccount: $buyerStore.outTokenATA as anchor.web3.PublicKey,
-				tokenProgram: TOKEN_PROGRAM_ID
-			})
-			.signers([]) // NOTE buyer is wallet, so don't need!
-			.rpc({ skipPreflight: true });
 
-		console.log('TxHash ::', tx);
+		if ($escrowStore.escrow === null) {
+			notificationStore.add({
+				type: 'error',
+				message: 'Escrow account data is null!'
+			});
+			console.log('error', 'Escrow account data is null!');
+			return;
+		}
 
-		const escrowedOutTokenAccountBalance =
-			await $workspaceStore.provider?.connection.getTokenAccountBalance(
-				$escrowStore.escrow?.escrowedOutTokenAccount as anchor.web3.PublicKey
-			);
-		console.log('ACCEPT::escrowedOutTokenAccountBalance: ', escrowedOutTokenAccountBalance);
-		// ACCEPT::escrowedOutTokenAccountBalance:  {
-		//   context: { apiVersion: '1.10.38', slot: 81 },
-		//   value: { amount: '0', decimals: 8, uiAmount: 0, uiAmountString: '0' }
-		// }
 
-		// Fetch data after tx confirms & update global state
-		// REF: Here's how I did it with Polls program:
-		// const currentPoll = (await $workspaceStore.program?.account.poll.fetch(pda)) as PollObject;
-		// pollsStore.addPoll(currentPoll, pda);
-		// const currentProfile = (await $workspaceStore.program?.account.profile.fetch(
-		// 	$profileStore.pda as anchor.web3.PublicKey
-		// )) as ProfileObject;
-		// profileStore.set({ profile: currentProfile, pda: $profileStore.pda });
-		// Fetch data after tx confirms & update global state
-		const currentEscrow = (await $workspaceStore.program?.account.escrow.fetch(
-			$escrowStore.pda as anchor.web3.PublicKey
-		)) as EscrowObject;
-		escrowStore.set({
-			escrow: currentEscrow,
-			pda: $escrowStore.pda as anchor.web3.PublicKey
-		} as EscrowStoreObject);
-		console.log('ACCEPT::$escrowStore: ', $escrowStore);
-		// Confirm that seller/buyer ATAs also updated correctly
-		// TODO Need to also account for SOL token exchanges (not just SPL)
-		const currentSellerOutTokenBalance =
-			await $workspaceStore.provider?.connection.getTokenAccountBalance(
-				$sellerStore.outTokenATA as anchor.web3.PublicKey
-			);
-		$sellerStore.outTokenBalance = currentSellerOutTokenBalance?.value.uiAmount as number;
 
-		const currentSellerInTokenBalance =
-			await $workspaceStore.provider?.connection.getTokenAccountBalance(
-				$sellerStore.inTokenATA as anchor.web3.PublicKey
-			);
-		$sellerStore.inTokenBalance = currentSellerInTokenBalance?.value.uiAmount as number;
+    try {
+      // U: Trying to see if a single userStore would suffice from both sides
+      // and/or both instructions (create, accept)
+      // NOTE Assuming $escrowStore has been pre-populated based on fetching
+      // the $escrowStore.pda (probably via the route), then let's try to update
+      // the userStore (from BUYER's perspective).
+      // walletAddress: null, // Phantom Dev
+      // outTokenMint: null, // Q: Default to SOL?
+      // outTokenATA: null,
+      // outTokenRawBalance: null,
+      // outTokenBalance: null,
+      // outTokenRawAmount: null,
+      // outTokenAmount: null,
+      // outTokenDecimals: null,
+      // inTokenMint: null,
+      // inTokenATA: null,
+      // inTokenRawBalance: null,
+      // inTokenBalance: null,
+      // inTokenRawAmount: null,
+      // inTokenAmount: null,
+      // inTokenDecimals: null,
 
-		const currentBuyerInTokenBalance =
-			await $workspaceStore.provider?.connection.getTokenAccountBalance(
-				$buyerStore.inTokenATA as anchor.web3.PublicKey
-			);
-		$buyerStore.inTokenBalance = currentBuyerInTokenBalance?.value.uiAmount as number;
+      // 1. First set userStore values that exist in escrowStore:
+      $userStore.walletAddress = $walletStore.publicKey as anchor.web3.PublicKey;
+      $userStore.outTokenMint = $escrowStore.escrow.inMint as anchor.web3.PublicKey;
+      $userStore.outTokenAmount = $escrowStore.escrow.inAmount // E.g. 2.5 or 12.2
+      $userStore.inTokenMint = $escrowStore.escrow.outMint as anchor.web3.PublicKey;
+      $userStore.inTokenAmount = $escrowStore.escrow.outAmount;
 
-		const currentBuyerOutTokenBalance =
-			await $workspaceStore.provider?.connection.getTokenAccountBalance(
-				$buyerStore.outTokenATA as anchor.web3.PublicKey
-			);
-		$buyerStore.outTokenBalance = currentBuyerOutTokenBalance?.value.uiAmount as number;
+      // 2. Update the user's OUT TOKEN details
+      // Q: How to get the BUYER ATA address with only a mint and wallet?
+      // A: Filter/find on $walletTokenAccountsStore!
+      let buyerOutTokenAccountInfo = $walletTokenAccountsStore.find((tokenAccount) => {
+        return tokenAccount.account.data.parsed.info.mint === $userStore.outTokenMint;
+      });
 
-		// Add to notificationStore
-		notificationStore.add({
-			type: 'success',
-			message: 'Transaction successful!',
-			txid: tx
-		});
+      if (buyerOutTokenAccountInfo) {
+        $userStore.outTokenATA = buyerOutTokenAccountInfo.pubkey;
+        $userStore.outTokenRawBalance = parseInt(buyerOutTokenAccountInfo.account.data.parsed.info.tokenAmount.amount); // "30000000"
+        $userStore.outTokenBalance = buyerOutTokenAccountInfo.account.data.parsed.info.tokenAmount.uiAmount; // 3
+        $userStore.outTokenDecimals = buyerOutTokenAccountInfo.account.data.parsed.info.tokenAmount.decimals;
+        // Compute the raw amount now that we have amount & decimals
+        // FIXME TS Object possibly null
+        // @ts-ignore
+        $userStore.outTokenRawAmount = $userStore.outTokenAmount * (10 ** $userStore.outTokenDecimals);
+      }
+
+      // 3. Update the user's IN TOKEN details
+      // Q: FIXME What if the buyer doesn't have an existing inTokenATA?
+      // Eg. First time the buyer will have this token in their wallet.
+      // NOTE For now I'm going to assume they have the ATA
+      let buyerInTokenAccountInfo = $walletTokenAccountsStore.find((tokenAccount) => {
+        return tokenAccount.account.data.parsed.info.mint === $userStore.inTokenMint;
+      });
+
+      if (buyerInTokenAccountInfo) {
+        $userStore.inTokenATA = buyerInTokenAccountInfo.pubkey;
+        $userStore.inTokenRawBalance = parseInt(buyerInTokenAccountInfo.account.data.parsed.info.tokenAmount.amount); // "30000000"
+        $userStore.inTokenBalance = buyerInTokenAccountInfo.account.data.parsed.info.tokenAmount.uiAmount; // 3
+        $userStore.inTokenDecimals = buyerInTokenAccountInfo.account.data.parsed.info.tokenAmount.decimals;
+        // Compute the raw amount now that we have amount & decimals
+        // FIXME TS Object possibly null
+        // @ts-ignore
+        $userStore.inTokenRawAmount = $userStore.inTokenAmount * (10 ** $userStore.inTokenDecimals);
+      }
+
+      console.log('ACCEPT::$userStore: ', $userStore);
+
+      // Q: How to get the SELLER ATA addresses? 
+      // A: Use getParsedTokenAccountsByOwner + filter on mint!
+      // REF: https://solanacookbook.com/references/token.html#how-to-get-all-token-accounts-by-owner
+      let sellerInTokenAccountInfo = await $workspaceStore.connection.getParsedTokenAccountsByOwner(
+        $escrowStore.escrow.authority,
+        {
+          mint: $escrowStore.escrow.inMint
+        }
+      );
+
+      // Q: This a good place to check if ATA exists?
+      // Q: FIXME What if the buyer doesn't have an existing inTokenATA?
+      // Eg. First time the buyer will have this token in their wallet.
+      // NOTE For now I'm going to assume they have the ATA
+      const sellerInTokenATA = sellerInTokenAccountInfo.value[0].pubkey;
+      // Q: Do I need to double-check the token balances after the tx?
+      // TODO Look into adding this to the tests
+      // const sellerInTokenBalance = sellerInTokenAccountInfo.value[0].account.data.parsed.info.tokenAmount.uiAmount;
+      
+      const tx = await $workspaceStore.program?.methods
+        .accept()
+        .accounts({
+          buyer: $walletStore.publicKey as anchor.web3.PublicKey,
+          escrow: $escrowStore.pda as anchor.web3.PublicKey,
+          escrowedOutTokenAccount: $escrowStore.escrow
+            ?.escrowedOutTokenAccount as anchor.web3.PublicKey,
+          // Q: How would I get the seller's inTokenATA with only a userStore?
+          // The buyer's info would be in the userStore
+          // A: Use getParsedTokenAccountsByOwner! (see above)
+          sellerInTokenAccount: sellerInTokenATA,
+          buyerInTokenAccount: $userStore.inTokenATA as anchor.web3.PublicKey,
+          buyerOutTokenAccount: $userStore.outTokenATA as anchor.web3.PublicKey,
+          tokenProgram: TOKEN_PROGRAM_ID
+        })
+        .signers([]) // NOTE buyer is wallet, so don't need!
+        .rpc({ skipPreflight: true });
+
+      console.log('TxHash ::', tx);
+
+      const escrowedOutTokenAccountBalance =
+        await $workspaceStore.provider?.connection.getTokenAccountBalance(
+          $escrowStore.escrow?.escrowedOutTokenAccount as anchor.web3.PublicKey
+        );
+      console.log('ACCEPT::escrowedOutTokenAccountBalance: ', escrowedOutTokenAccountBalance);
+      // ACCEPT::escrowedOutTokenAccountBalance:  {
+      //   context: { apiVersion: '1.10.38', slot: 81 },
+      //   value: { amount: '0', decimals: 8, uiAmount: 0, uiAmountString: '0' }
+      // }
+
+      // Fetch data after tx confirms & update global state
+      const currentEscrow = (await $workspaceStore.program?.account.escrow.fetch(
+        $escrowStore.pda as anchor.web3.PublicKey
+      )) as EscrowObject;
+
+      escrowStore.set({
+        escrow: currentEscrow,
+        pda: $escrowStore.pda as anchor.web3.PublicKey
+      } as EscrowStoreObject);
+      console.log('ACCEPT::$escrowStore: ', $escrowStore);
+
+      // Confirm that seller/buyer ATAs also updated correctly
+      // TODO Need to also account for SOL token exchanges (not just SPL)
+      // const currentSellerOutTokenBalance =
+      // 	await $workspaceStore.provider?.connection.getTokenAccountBalance(
+      // 		$sellerStore.outTokenATA as anchor.web3.PublicKey
+      // 	);
+      // $sellerStore.outTokenBalance = currentSellerOutTokenBalance?.value.uiAmount as number;
+
+      // const currentSellerInTokenBalance =
+      // 	await $workspaceStore.provider?.connection.getTokenAccountBalance(
+      // 		$sellerStore.inTokenATA as anchor.web3.PublicKey
+      // 	);
+      // $sellerStore.inTokenBalance = currentSellerInTokenBalance?.value.uiAmount as number;
+
+      const currentBuyerInTokenBalance =
+      	await $workspaceStore.provider?.connection.getTokenAccountBalance(
+      		$userStore.inTokenATA as anchor.web3.PublicKey
+      	);
+      $userStore.inTokenBalance = currentBuyerInTokenBalance?.value.uiAmount as number;
+
+      const currentBuyerOutTokenBalance =
+      	await $workspaceStore.provider?.connection.getTokenAccountBalance(
+      		$userStore.outTokenATA as anchor.web3.PublicKey
+      	);
+      $userStore.outTokenBalance = currentBuyerOutTokenBalance?.value.uiAmount as number;
+
+      // Add to notificationStore
+      notificationStore.add({
+        type: 'success',
+        message: 'Transaction successful!',
+        txid: tx
+      });
+      
+    } catch (error) {
+      
+    }
+
 	}
+
 
 	async function handleCancelTrade() {
 		// U: Copying some of the code from SendTransaction.svelte to add
@@ -1343,7 +1447,7 @@
 					escrow: $escrowStore.pda as anchor.web3.PublicKey,
 					escrowedOutTokenAccount: $escrowStore.escrow
 						?.escrowedOutTokenAccount as anchor.web3.PublicKey,
-					sellerOutTokenAccount: $sellerStore.outTokenATA as anchor.web3.PublicKey,
+					sellerOutTokenAccount: $userStore.outTokenATA as anchor.web3.PublicKey,
 					tokenProgram: TOKEN_PROGRAM_ID
 				})
 				.signers([]) // NOTE seller is wallet, so don't need!
@@ -1399,30 +1503,30 @@
 		>
 			Escrow
 		</h1>
-    {#if $customProgramStore.pda !== null}
-      <p>Exists</p>
-    {:else}
-      <button on:click={handleCreateCustomProgramAccount}>Create Custom Program</button>
-    {/if}
 		<ul class="steps">
+			<li class="step" class:step-accent={$customProgramStore.customProgram !== null}>
+				Create Custom Program
+			</li>
 			<li class="step" class:step-accent={$xMintStore.address && $yMintStore.address}>
 				Create Tokens
 			</li>
 			<li
 				class="step"
-				class:step-accent={$buyerStore.xTokenATA &&
-					$buyerStore.yTokenATA &&
-					$sellerStore.xTokenATA &&
-					$sellerStore.yTokenATA}
+				class:step-accent={$setupStore.buyerXTokenATA &&
+					$setupStore.buyerYTokenATA &&
+					$setupStore.sellerXTokenATA &&
+					$setupStore.sellerYTokenATA}
 			>
 				Create ATAs
 			</li>
-			<li class="step" class:step-accent={$sellerStore.xTokenBalance && $buyerStore.yTokenBalance}>
+			<li class="step" class:step-accent={$setupStore.sellerXTokenBalance && $setupStore.buyerYTokenBalance}>
 				Mint Tokens
 			</li>
-			<li class="step" class:step-accent={$escrowStore.escrow !== null}>Create Escrow</li>
 		</ul>
 		<div class="grid grid-cols-4 gap-6 pt-2">
+			<div class="form-control">
+				<button class="btn btn-info" on:click={handleCreateCustomProgramAccount}>Create Custom Program</button>
+			</div>
 			<div class="form-control">
 				<button class="btn btn-info" on:click={createTokenXAndTokenY}>Create Tokens</button>
 			</div>
@@ -1436,150 +1540,8 @@
 					>Mint Tokens</button
 				>
 			</div>
-			<div class="form-control">
-				<button class="btn btn-info" on:click={handleInitializeEscrowAccount}>Create Escrow</button>
-			</div>
-			<div class="form-control">
-				<button class="btn mt-1" on:click={getXMintAccount}>Get X Mint</button>
-				{#if $xMintStore.address !== null && $xMintStore.mint !== null}
-					<label class="input-group input-group-vertical pt-1">
-						<span>Mint Address</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							disabled
-							bind:value={$xMintStore.address}
-						/>
-					</label>
-					<label class="input-group input-group-vertical pt-1">
-						<span>Mint Authority</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							disabled
-							bind:value={$xMintStore.mint.mintAuthority}
-						/>
-					</label>
-					<label class="input-group input-group-vertical pt-1">
-						<span>Freeze Authority</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							disabled
-							bind:value={$xMintStore.mint.freezeAuthority}
-						/>
-					</label>
-					<label class="input-group input-group-vertical pt-1">
-						<span>Supply</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							disabled
-							bind:value={$xMintStore.mint.supply}
-						/>
-					</label>
-					<label class="input-group input-group-vertical pt-1">
-						<span>Decimals</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							disabled
-							bind:value={$xMintStore.mint.decimals}
-						/>
-					</label>
-				{/if}
-			</div>
-			<div class="form-control">
-				<button class="btn mt-1" on:click={getYMintAccount}>Get Y Mint</button>
-				{#if $yMintStore.mint}
-					<label class="input-group input-group-vertical pt-1">
-						<span>Mint Address</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							disabled
-							bind:value={$yMintStore.address}
-						/>
-					</label>
-					<label class="input-group input-group-vertical pt-1">
-						<span>Mint Authority</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							disabled
-							value={$yMintStore.mint.mintAuthority}
-						/>
-					</label>
-					<label class="input-group input-group-vertical pt-1">
-						<span>Freeze Authority</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							disabled
-							bind:value={$yMintStore.mint.freezeAuthority}
-						/>
-					</label>
-					<label class="input-group input-group-vertical pt-1">
-						<span>Supply</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							disabled
-							bind:value={$yMintStore.mint.supply}
-						/>
-					</label>
-					<label class="input-group input-group-vertical pt-1">
-						<span>Decimals</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							disabled
-							bind:value={$yMintStore.mint.decimals}
-						/>
-					</label>
-				{/if}
-			</div>
-			<div class="form-control">
-				<button class="btn  mt-1" on:click={getSellerXTokenAccountBalance}>Get Seller X</button>
-				{#if $sellerStore.xTokenBalance}
-					<label class="input-group input-group-vertical pt-1">
-						<span>Balance</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							disabled
-							bind:value={$sellerStore.xTokenBalance}
-						/>
-					</label>
-				{/if}
-			</div>
-			<div class="form-control">
-				<button class="btn mt-1" on:click={getBuyerYTokenAccountBalance}>Get Buyer Y</button>
-				{#if $buyerStore.yTokenBalance}
-					<label class="input-group input-group-vertical pt-1">
-						<span>Balance</span>
-						<input
-							type="text"
-							placeholder=""
-							class="input input-bordered"
-							disabled
-							bind:value={$buyerStore.yTokenBalance}
-						/>
-					</label>
-				{/if}
-			</div>
-		</div>
+    </div>
+
 		<div class="divider" />
 
 		<div class="flex w-full justify-evenly">
@@ -1676,172 +1638,27 @@
 				</div>
 			</div>
 		</div>
-		<div class="divider" />
-		<div class="flex w-full justify-evenly">
-			{#if $escrowStore.escrow === null}
-				<div class="grid flex-grow card bg-base-300 rounded-box place-items-center">
-					<div class="form-control pb-4">
-						<div class="stat place-items-center">
-							<div class="stat-title">Initialize</div>
-						</div>
-						<label class="input-group input-group-vertical pt-1">
-							<span class="bg-info">Seller X Account</span>
-							<input
-								type="text"
-								placeholder=""
-								class="input input-bordered"
-								bind:value={$sellerStore.xTokenATA}
-								disabled
-							/>
-						</label>
-						<label class="input-group input-group-vertical pt-1">
-							<span class="bg-info">Seller Out Account</span>
-							<input
-								type="text"
-								placeholder=""
-								class="input input-bordered"
-								bind:value={$sellerStore.outTokenATA}
-								disabled
-							/>
-						</label>
-						<label class="input-group input-group-vertical pt-1">
-							<span class="bg-info">Buyer Y Account</span>
-							<input
-								type="text"
-								placeholder=""
-								class="input input-bordered"
-								bind:value={$buyerStore.yTokenATA}
-								disabled
-							/>
-						</label>
-						<label class="input-group input-group-vertical pt-1">
-							<span class="bg-info">Buyer Out Account</span>
-							<input
-								type="text"
-								placeholder=""
-								class="input input-bordered"
-								bind:value={$buyerStore.outTokenATA}
-								disabled
-							/>
-						</label>
-            <label class="input-group input-group-vertical pt-1">
-							<span class="bg-info">Seller Out Amount</span>
-							<input
-								type="text"
-								placeholder=""
-								class="input input-bordered"
-								bind:value={$sellerStore.outTokenAmount}
-                disabled
-							/>
-						</label>
-						<label class="input-group input-group-vertical pt-1">
-							<span class="bg-info">Seller In Amount</span>
-							<input
-								type="text"
-								placeholder=""
-								class="input input-bordered"
-								bind:value={$sellerStore.inTokenAmount}
-                disabled
-							/>
-						</label>
 
-						<label class="input-group input-group-vertical pt-1">
-							<span class="bg-info">X Amount From Seller</span>
-							<input
-								type="text"
-								placeholder=""
-								class="input input-bordered"
-								bind:value={formState.xAmountFromSeller}
-							/>
-						</label>
-						<label class="input-group input-group-vertical pt-1">
-							<span class="bg-info">Y Amount From Buyer</span>
-							<input
-								type="text"
-								placeholder=""
-								class="input input-bordered"
-								bind:value={formState.yAmountFromBuyer}
-							/>
-						</label>
-						<button
-							class="btn btn-accent mt-1"
-							on:click={handleInitializeEscrowAccount}
-							disabled={$escrowStore.escrow !== null}>Create Escrow</button
-						>
-					</div>
-				</div>
-			{:else}
-				<div class="grid flex-grow card bg-base-300 rounded-box place-items-center">
-					<div class="form-control mb-4">
-						<div class="stat place-items-center">
-							<div class="stat-title">Escrow</div>
-						</div>
-						<label class="input-group input-group-vertical pt-1">
-							<span>Escrow PDA</span>
-							<input
-								type="text"
-								placeholder=""
-								class="input input-bordered"
-								bind:value={$escrowStore.pda}
-								disabled
-							/>
-						</label>
-						<label class="input-group input-group-vertical pt-1">
-							<span>Seller Out Account</span>
-							<input
-								type="text"
-								placeholder=""
-								class="input input-bordered"
-								bind:value={$sellerStore.outTokenATA}
-								disabled
-							/>
-						</label>
-						<label class="input-group input-group-vertical pt-1">
-							<span>Buyer Out Account</span>
-							<input
-								type="text"
-								placeholder=""
-								class="input input-bordered"
-								bind:value={$buyerStore.outTokenATA}
-								disabled
-							/>
-						</label>
-						<label class="input-group input-group-vertical pt-1">
-							<span>Out Amount</span>
-							<input
-								type="text"
-								placeholder=""
-								class="input input-bordered"
-								bind:value={$escrowStore.escrow.outAmount}
-								disabled
-							/>
-						</label>
-						<label class="input-group input-group-vertical pt-1">
-							<span>In Amount</span>
-							<input
-								type="text"
-								placeholder=""
-								class="input input-bordered"
-								bind:value={$escrowStore.escrow.inAmount}
-								disabled
-							/>
-						</label>
-						<label class="input-group input-group-vertical pt-1">
-							<span>Escrowed Out Account</span>
-							<input
-								type="text"
-								placeholder=""
-								class="input input-bordered"
-								bind:value={$escrowStore.escrow.escrowedOutTokenAccount}
-								disabled
-							/>
-						</label>
-						<button class="btn btn-accent mt-1" on:click={handleAcceptTrade}>Accept Escrow</button>
-						<button class="btn btn-error mt-1" on:click={handleCancelTrade}>Cancel Escrow</button>
-					</div>
-				</div>
-			{/if}
-		</div>
+		<div class="divider" />
+    {#if $escrowsStore.length > 0}
+      {#each $escrowsStore as {escrow, pda} (pda)}
+        <a href="escrow/${pda}">Escrow: {pda}</a>
+      {/each}
+    {/if}
+
 		<button class="btn btn-secondary mt-1" on:click={resetAllStores}>Reset</button>
 	</div>
+
+    <pre>sellerStore: {JSON.stringify($sellerStore, null, 2)}</pre>
+    <br>
+    <pre>buyerStore: {JSON.stringify($buyerStore, null, 2)}</pre>
+    <br>
+    <pre>xMintStore: {JSON.stringify($xMintStore, (k, v) => typeof v === 'bigint' ? v.toString() : v
+    , 2)}
+    </pre>
+    <br>
+    <pre>yMintStore: {JSON.stringify($yMintStore, (k, v) => typeof v === 'bigint' ? v.toString() : v
+    , 2)}
+    </pre>
+    
 </div>
