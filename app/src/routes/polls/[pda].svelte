@@ -14,11 +14,6 @@
 	import { page } from '$app/stores';
 	import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 	import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
-	import { AnchorConnectionProvider } from '@svelte-on-solana/wallet-adapter-anchor';
-	import { clusterApiUrl, PublicKey } from '@solana/web3.js';
-	import idl from '../../../../target/idl/onchain_voting_multiple_polls.json';
-	import { onMount, beforeUpdate, afterUpdate, tick } from 'svelte';
-	import { get } from 'svelte/store';
 	import { notificationStore } from '$stores/notification';
 	import { customProgramStore } from '$stores/polls/custom-program-store';
 	import { profileStore } from '$stores/polls/profile-store';
@@ -34,8 +29,6 @@
 	} from '../../models/polls-types';
 	import { Button } from '$lib/index';
 	import * as constants from '../../helpers/polls/constants';
-	import { each } from 'svelte/internal';
-	import { stringify } from 'postcss';
 
 	// Q: How to match up types between pollNumber (BN) and pollNumberFromLoad?
 	// A: It's a Type mismatch! The IDL Poll.pollNumber.words[0] is 'number'!
@@ -64,7 +57,7 @@
 	// FIXED: Extra hasWorkspaceProgramReady condition is working! Not using tick().then()!
 	// Also, noticed from logs that fetches return asynchronously with profileStore last/slowest...
 	// TODO Consider making a polls/__layout.svelte component to set workspaceStore
-	// U: Done. Check out polls/__layout.svelte
+	// A: Done. Check out polls/__layout.svelte
 
 	let profileVoteOptionDisplay = '';
 

@@ -8,7 +8,9 @@
 	import { get } from 'svelte/store';
 	import { balanceStore } from '$stores/balance';
 	import { walletTokenAccountsStore } from '$stores/escrow/tokens-store';
-	import { sellerStore } from '$stores/escrow/seller-store';
+  import { escrowStore } from '$stores/escrow/escrow-store';
+  import { escrowsStore } from '$stores/escrow/escrows-store';
+  import { userStore } from '$stores/escrow/user-store';
 	import * as constants from '../../helpers/escrow/constants';
 
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
@@ -66,10 +68,20 @@
 		$walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting;
 
 	$: if (hasWalletReadyForFetch && hasWorkspaceProgramReady) {
-    // U: Need to reset my stores on wallet connect/disconnect
-    // U: WAIT! I need sellerStore.inTokenATA for ACCEPT, or 
-    // I need sellerStore.outTokenATA for CANCEL!
-    // sellerStore.reset()
+    // Q: How to handle if a connection happens on escrow/[pda] route?
+    // Need to get the corresponding Escrow account and update escrowStore
+    // TODO Need to reset my stores on wallet connect/disconnect
+    userStore.reset();
+    escrowStore.reset();
+    escrowsStore.reset();
+
+    // Refetch/update all the Stores
+    // U: Need to set/update $userStore.wallet value
+    $userStore.walletAddress = $walletStore.publicKey;
+    // NOTE Cannot access the $page Store for the page.params.pda
+    // escrowStore.getEscrowAccount()
+    // Q: Can I fetch all escrow accounts and update escrowsStore Array?
+    // escrowsStore
 
 		// Q: getTokenAccountsByOwner and update/set Store?
 		// Challenge is that I don't know if the connected wallet is a buyer or seller

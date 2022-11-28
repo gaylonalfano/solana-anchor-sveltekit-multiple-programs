@@ -43,9 +43,9 @@
 		type EscrowStoreObject
 	} from '$stores/escrow/escrow-store';
   import { escrowsStore } from '$stores/escrow/escrows-store';
+  import Escrow from '$lib/Escrow.svelte';
 	import * as constants from '../../helpers/escrow/constants';
 	import { get } from 'svelte/store';
-	import { each } from 'svelte/internal';
 	// import type { EscrowObject, EscrowStoreObject } from 'src/models/escrow-types';
 
 
@@ -1244,240 +1244,10 @@
     // Get updated account data
     customProgramStore.getCustomProgramAccount($customProgramStore.pda as anchor.web3.PublicKey);
 
-    // TODO Reset the escrowStore so that multiple escrows can be created
+    // U: Reset the escrowStore so that multiple escrows can be created
+    escrowStore.reset();
 	}
 
-	async function handleAcceptTrade() {
-
-		if ($escrowStore.escrow === null) {
-			notificationStore.add({
-				type: 'error',
-				message: 'Escrow account data is null!'
-			});
-			console.log('error', 'Escrow account data is null!');
-			return;
-		}
-
-
-
-    try {
-      // U: Trying to see if a single userStore would suffice from both sides
-      // and/or both instructions (create, accept)
-      // NOTE Assuming $escrowStore has been pre-populated based on fetching
-      // the $escrowStore.pda (probably via the route), then let's try to update
-      // the userStore (from BUYER's perspective).
-      // walletAddress: null, // Phantom Dev
-      // outTokenMint: null, // Q: Default to SOL?
-      // outTokenATA: null,
-      // outTokenRawBalance: null,
-      // outTokenBalance: null,
-      // outTokenRawAmount: null,
-      // outTokenAmount: null,
-      // outTokenDecimals: null,
-      // inTokenMint: null,
-      // inTokenATA: null,
-      // inTokenRawBalance: null,
-      // inTokenBalance: null,
-      // inTokenRawAmount: null,
-      // inTokenAmount: null,
-      // inTokenDecimals: null,
-
-      // 1. First set userStore values that exist in escrowStore:
-      $userStore.walletAddress = $walletStore.publicKey as anchor.web3.PublicKey;
-      $userStore.outTokenMint = $escrowStore.escrow.inMint as anchor.web3.PublicKey;
-      $userStore.outTokenAmount = $escrowStore.escrow.inAmount // E.g. 2.5 or 12.2
-      $userStore.inTokenMint = $escrowStore.escrow.outMint as anchor.web3.PublicKey;
-      $userStore.inTokenAmount = $escrowStore.escrow.outAmount;
-
-      // 2. Update the user's OUT TOKEN details
-      // Q: How to get the BUYER ATA address with only a mint and wallet?
-      // A: Filter/find on $walletTokenAccountsStore!
-      let buyerOutTokenAccountInfo = $walletTokenAccountsStore.find((tokenAccount) => {
-        return tokenAccount.account.data.parsed.info.mint === $userStore.outTokenMint;
-      });
-
-      if (buyerOutTokenAccountInfo) {
-        $userStore.outTokenATA = buyerOutTokenAccountInfo.pubkey;
-        $userStore.outTokenRawBalance = parseInt(buyerOutTokenAccountInfo.account.data.parsed.info.tokenAmount.amount); // "30000000"
-        $userStore.outTokenBalance = buyerOutTokenAccountInfo.account.data.parsed.info.tokenAmount.uiAmount; // 3
-        $userStore.outTokenDecimals = buyerOutTokenAccountInfo.account.data.parsed.info.tokenAmount.decimals;
-        // Compute the raw amount now that we have amount & decimals
-        // FIXME TS Object possibly null
-        // @ts-ignore
-        $userStore.outTokenRawAmount = $userStore.outTokenAmount * (10 ** $userStore.outTokenDecimals);
-      }
-
-      // 3. Update the user's IN TOKEN details
-      // Q: FIXME What if the buyer doesn't have an existing inTokenATA?
-      // Eg. First time the buyer will have this token in their wallet.
-      // NOTE For now I'm going to assume they have the ATA
-      let buyerInTokenAccountInfo = $walletTokenAccountsStore.find((tokenAccount) => {
-        return tokenAccount.account.data.parsed.info.mint === $userStore.inTokenMint;
-      });
-
-      if (buyerInTokenAccountInfo) {
-        $userStore.inTokenATA = buyerInTokenAccountInfo.pubkey;
-        $userStore.inTokenRawBalance = parseInt(buyerInTokenAccountInfo.account.data.parsed.info.tokenAmount.amount); // "30000000"
-        $userStore.inTokenBalance = buyerInTokenAccountInfo.account.data.parsed.info.tokenAmount.uiAmount; // 3
-        $userStore.inTokenDecimals = buyerInTokenAccountInfo.account.data.parsed.info.tokenAmount.decimals;
-        // Compute the raw amount now that we have amount & decimals
-        // FIXME TS Object possibly null
-        // @ts-ignore
-        $userStore.inTokenRawAmount = $userStore.inTokenAmount * (10 ** $userStore.inTokenDecimals);
-      }
-
-      console.log('ACCEPT::$userStore: ', $userStore);
-
-      // Q: How to get the SELLER ATA addresses? 
-      // A: Use getParsedTokenAccountsByOwner + filter on mint!
-      // REF: https://solanacookbook.com/references/token.html#how-to-get-all-token-accounts-by-owner
-      let sellerInTokenAccountInfo = await $workspaceStore.connection.getParsedTokenAccountsByOwner(
-        $escrowStore.escrow.authority,
-        {
-          mint: $escrowStore.escrow.inMint
-        }
-      );
-
-      // Q: This a good place to check if ATA exists?
-      // Q: FIXME What if the buyer doesn't have an existing inTokenATA?
-      // Eg. First time the buyer will have this token in their wallet.
-      // NOTE For now I'm going to assume they have the ATA
-      const sellerInTokenATA = sellerInTokenAccountInfo.value[0].pubkey;
-      // Q: Do I need to double-check the token balances after the tx?
-      // TODO Look into adding this to the tests
-      // const sellerInTokenBalance = sellerInTokenAccountInfo.value[0].account.data.parsed.info.tokenAmount.uiAmount;
-      
-      const tx = await $workspaceStore.program?.methods
-        .accept()
-        .accounts({
-          buyer: $walletStore.publicKey as anchor.web3.PublicKey,
-          escrow: $escrowStore.pda as anchor.web3.PublicKey,
-          escrowedOutTokenAccount: $escrowStore.escrow
-            ?.escrowedOutTokenAccount as anchor.web3.PublicKey,
-          // Q: How would I get the seller's inTokenATA with only a userStore?
-          // The buyer's info would be in the userStore
-          // A: Use getParsedTokenAccountsByOwner! (see above)
-          sellerInTokenAccount: sellerInTokenATA,
-          buyerInTokenAccount: $userStore.inTokenATA as anchor.web3.PublicKey,
-          buyerOutTokenAccount: $userStore.outTokenATA as anchor.web3.PublicKey,
-          tokenProgram: TOKEN_PROGRAM_ID
-        })
-        .signers([]) // NOTE buyer is wallet, so don't need!
-        .rpc({ skipPreflight: true });
-
-      console.log('TxHash ::', tx);
-
-      const escrowedOutTokenAccountBalance =
-        await $workspaceStore.provider?.connection.getTokenAccountBalance(
-          $escrowStore.escrow?.escrowedOutTokenAccount as anchor.web3.PublicKey
-        );
-      console.log('ACCEPT::escrowedOutTokenAccountBalance: ', escrowedOutTokenAccountBalance);
-      // ACCEPT::escrowedOutTokenAccountBalance:  {
-      //   context: { apiVersion: '1.10.38', slot: 81 },
-      //   value: { amount: '0', decimals: 8, uiAmount: 0, uiAmountString: '0' }
-      // }
-
-      // Fetch data after tx confirms & update global state
-      const currentEscrow = (await $workspaceStore.program?.account.escrow.fetch(
-        $escrowStore.pda as anchor.web3.PublicKey
-      )) as EscrowObject;
-
-      escrowStore.set({
-        escrow: currentEscrow,
-        pda: $escrowStore.pda as anchor.web3.PublicKey
-      } as EscrowStoreObject);
-      console.log('ACCEPT::$escrowStore: ', $escrowStore);
-
-      // Confirm that seller/buyer ATAs also updated correctly
-      // TODO Need to also account for SOL token exchanges (not just SPL)
-      // const currentSellerOutTokenBalance =
-      // 	await $workspaceStore.provider?.connection.getTokenAccountBalance(
-      // 		$sellerStore.outTokenATA as anchor.web3.PublicKey
-      // 	);
-      // $sellerStore.outTokenBalance = currentSellerOutTokenBalance?.value.uiAmount as number;
-
-      // const currentSellerInTokenBalance =
-      // 	await $workspaceStore.provider?.connection.getTokenAccountBalance(
-      // 		$sellerStore.inTokenATA as anchor.web3.PublicKey
-      // 	);
-      // $sellerStore.inTokenBalance = currentSellerInTokenBalance?.value.uiAmount as number;
-
-      const currentBuyerInTokenBalance =
-      	await $workspaceStore.provider?.connection.getTokenAccountBalance(
-      		$userStore.inTokenATA as anchor.web3.PublicKey
-      	);
-      $userStore.inTokenBalance = currentBuyerInTokenBalance?.value.uiAmount as number;
-
-      const currentBuyerOutTokenBalance =
-      	await $workspaceStore.provider?.connection.getTokenAccountBalance(
-      		$userStore.outTokenATA as anchor.web3.PublicKey
-      	);
-      $userStore.outTokenBalance = currentBuyerOutTokenBalance?.value.uiAmount as number;
-
-      // Add to notificationStore
-      notificationStore.add({
-        type: 'success',
-        message: 'Transaction successful!',
-        txid: tx
-      });
-      
-    } catch (error) {
-      
-    }
-
-	}
-
-
-	async function handleCancelTrade() {
-		// U: Copying some of the code from SendTransaction.svelte to add
-		// better notifications.
-		if (!$walletStore.publicKey) {
-			notificationStore.add({ type: 'error', message: `Wallet not connected!` });
-			console.log('error', `Send Transaction: Wallet not connected!`);
-			return;
-		}
-
-		let tx: anchor.web3.TransactionSignature = '';
-
-		try {
-			tx = (await $workspaceStore.program?.methods
-				.cancel()
-				.accounts({
-					seller: $walletStore.publicKey as PublicKey,
-					escrow: $escrowStore.pda as anchor.web3.PublicKey,
-					escrowedOutTokenAccount: $escrowStore.escrow
-						?.escrowedOutTokenAccount as anchor.web3.PublicKey,
-					sellerOutTokenAccount: $userStore.outTokenATA as anchor.web3.PublicKey,
-					tokenProgram: TOKEN_PROGRAM_ID
-				})
-				.signers([]) // NOTE seller is wallet, so don't need!
-				.rpc({ skipPreflight: true })) as string;
-
-			console.log('TxHash ::', tx);
-
-			// NOTE After closing the account it's no longer available!
-			// If we try to fetch the PDA, it will error: Account does not exist!
-			// Let's reset our escrowStore for the UI.
-			escrowStore.reset();
-			console.log('CANCEL::$escrowStore: ', $escrowStore);
-
-			// Add to notificationStore
-			notificationStore.add({
-				type: 'success',
-				message: 'Transaction successful!',
-				txid: tx
-			});
-		} catch (error: any) {
-			// Add to notificationStore
-			notificationStore.add({
-				type: 'error',
-				message: 'Transaction failed!',
-				description: error?.message,
-				txid: tx
-			});
-			console.log('error', `Transaction failed! ${error?.message}`, tx);
-		}
-	}
 
 	function resetAllStores() {
 		// Reset all Stores for fresh UI update after accept/cancel
@@ -1492,7 +1262,9 @@
 		yMintStore.set({ address: null, mint: null });
 		sellerStore.reset();
 		buyerStore.reset();
+    userStore.reset();
 		escrowStore.reset();
+    escrowsStore.reset();
 	}
 </script>
 
@@ -1642,7 +1414,8 @@
 		<div class="divider" />
     {#if $escrowsStore.length > 0}
       {#each $escrowsStore as {escrow, pda} (pda)}
-        <a href="escrow/${pda}">Escrow: {pda}</a>
+        <Escrow {escrow} pda={pda.toBase58()} />
+        <!-- <a href="escrow/${pda}">Escrow: {pda}</a> -->
       {/each}
     {/if}
 
