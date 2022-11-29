@@ -250,7 +250,8 @@
   //   console.log('sellerStore.outTokenATA: ', $sellerStore.outTokenATA?.toBase58())
   //   console.log('sellerStore.outTokenMint: ', $sellerStore.outTokenMint?.toBase58())
 		// console.log('buyerStore: ', $buyerStore);
-		// console.log('escrowStore: ', $escrowStore);
+		console.log('escrowStore: ', $escrowStore);
+		console.log('escrowsStore: ', $escrowsStore);
 		// console.log('formState: ', formState);
     // console.log('hasRequiredEscrowInputs: ', hasRequiredEscrowInputs);
     console.log('userStore: ', $userStore);
@@ -1075,6 +1076,9 @@
 
 
 	async function handleInitializeEscrowAccount() {
+    // U: Reset any existing escrowStore just in case
+    escrowStore.reset();
+
 		if ($escrowStore.pda !== null) {
 			notificationStore.add({
 				type: 'error',
@@ -1094,6 +1098,8 @@
       console.log('error', 'Escrow inputs are invalid!');
       return
     }
+
+
 
     // escrowInputsAreValid = true;
     // if (hasRequiredEscrowInputs) {
@@ -1422,10 +1428,6 @@
 		<button class="btn btn-secondary mt-1" on:click={resetAllStores}>Reset</button>
 	</div>
 
-    <pre>sellerStore: {JSON.stringify($sellerStore, null, 2)}</pre>
-    <br>
-    <pre>buyerStore: {JSON.stringify($buyerStore, null, 2)}</pre>
-    <br>
     <pre>xMintStore: {JSON.stringify($xMintStore, (k, v) => typeof v === 'bigint' ? v.toString() : v
     , 2)}
     </pre>

@@ -25,15 +25,51 @@
   import { escrowsStore } from '$stores/escrow/escrows-store';
 	import * as constants from '../../helpers/escrow/constants';
 	import { get } from 'svelte/store';
+  import { page } from '$app/stores';
+	import { PublicKey } from '@solana/web3.js';
 	// import type { EscrowObject, EscrowStoreObject } from 'src/models/escrow-types';
 
 
   // TODOS:
-  // - Create a __layout.svelte for [pda] routes
   // - Create escrow-types.ts file to clean up
-  // - FIXME userStore.inTokenAmount/outTokenAmounts are type BN! Need number!
-  // - Add/update the single escrowStore using $page.params.pda
-  //   - Could refetch using helper escrowStore.getEscrowAccount()
+
+
+	// Create some variables to react to Stores state
+	$: hasEscrowsStoreValues = $escrowsStore.length > 0;
+	$: hasEscrowStoreValues = $escrowStore.escrow !== null && $escrowStore.pda !== null;
+
+  $: if (hasEscrowsStoreValues && !hasEscrowStoreValues) {
+    	console.log('No escrowStore values found! Trying to set...');
+      try {
+        let currentEscrowStoreObject = $escrowsStore.find(
+          (value: EscrowStoreObject) => value.pda?.toBase58() === $page.params.pda
+        ) as EscrowStoreObject;
+      
+        // console.log('currentEscrowStoreObject: ', currentEscrowStoreObject);
+        if (currentEscrowStoreObject) {
+          console.log('Current Escrow found in escrowsStore. Setting escrowStore values.');
+          escrowStore.set({
+            escrow: currentEscrowStoreObject.escrow,
+            pda: currentEscrowStoreObject.pda
+          });
+        } else {
+          console.log('Current Escrow NOT found in escrowsStore. Trying to get...')
+          // Q: Should I try a fresh escrowStore.getEscrowAccount()?
+          // U: Trying for now... need to test
+          escrowStore.getEscrowAccount(
+            constants.NON_CUSTODIAL_ESCROW_PROGRAM_ID,
+            new PublicKey($page.params.pda),
+            $workspaceStore.connection,
+          )
+        }
+
+      } catch (e) {
+        console.log('Escrow not found in escrowsStore. Single escrowStore not updated.');
+        console.warn(e);
+      }
+
+  }
+
 
   $: {
     console.log('escrowStore: ', $escrowStore);
@@ -79,40 +115,40 @@
 			$userStore.inTokenMint = $escrowStore.escrow.outMint as anchor.web3.PublicKey;
       console.log('userStore.outTokenMint: ', $userStore.outTokenMint.toBase58());
       console.log('userStore.inTokenMint: ', $userStore.inTokenMint.toBase58());
-      // Q: Does escrow.outMint === escrowedTokenAccount.mint? They should be the same
-      console.log('escrowedOutToken.mint: ', $escrowStore.escrow.escrowedOutTokenAccount.mint.toBase58());
 
 			// 2. Update the user's OUT TOKEN details
 			// Q: How to get the BUYER ATA address with only a mint and wallet?
 			// A: Filter/find on $walletTokenAccountsStore!
 			let buyerOutTokenAccountInfo = $walletTokenAccountsStore.find((tokenAccount) => {
-				return tokenAccount.account.data.parsed.info.mint === $userStore.outTokenMint;
+				return tokenAccount.account.data.parsed.info.mint === $userStore.outTokenMint?.toBase58();
 			});
 
 			if (buyerOutTokenAccountInfo) {
         console.log('buyerOutTokenAccountInfo FOUND!')
 
 				$userStore.outTokenATA = buyerOutTokenAccountInfo.pubkey;
+
 				$userStore.outTokenRawBalance = parseInt(
 					buyerOutTokenAccountInfo.account.data.parsed.info.tokenAmount.amount
 				); // "30000000"
+
 				$userStore.outTokenBalance =
 					buyerOutTokenAccountInfo.account.data.parsed.info.tokenAmount.uiAmount; // 3
+
 				$userStore.outTokenDecimals =
 					buyerOutTokenAccountInfo.account.data.parsed.info.tokenAmount.decimals;
-        $userStore.outTokenAmount = buyerOutTokenAccountInfo.account.data.parsed.info.tokenAmount.
-
 
         // Q: Can I just use BN.toNumber() method?
         // A: No! BN.toNumber() returns the RAW amounts! Need to account for decimals!
-        $userStore.outTokenAmount = $escrowStore.escrow.inAmount.toNumber() / (10 ** $userStore.outTokenDecimals); // E.g. 2.5 or 12.2
-        console.log('userStore.outTokenAmount: ', $userStore.outTokenAmount);
+        if ($userStore.outTokenDecimals && $escrowStore.escrow.inAmount) {
+          $userStore.outTokenAmount = $escrowStore.escrow.inAmount.toNumber() / (10 ** $userStore.outTokenDecimals); // E.g. 2.5 or 12.2
+          console.log('userStore.outTokenAmount: ', $userStore.outTokenAmount);
 
-
-				// Compute the raw amount now that we have amount & decimals
-        // U: Actually, escrow.in/outAmount is already type BN, so can
-        // simply use BN.toNumber()!
-				$userStore.outTokenRawAmount = $escrowStore.escrow.outAmount.toNumber();
+          // Compute the raw amount now that we have amount & decimals
+          // U: Actually, escrow.in/outAmount is already type BN, so can
+          // simply use BN.toNumber()!
+          $userStore.outTokenRawAmount = $escrowStore.escrow.outAmount.toNumber();
+        }
 			}
 
 			// 3. Update the user's IN TOKEN details
@@ -120,7 +156,7 @@
 			// Eg. First time the buyer will have this token in their wallet.
 			// NOTE For now I'm going to assume they have the ATA
 			let buyerInTokenAccountInfo = $walletTokenAccountsStore.find((tokenAccount) => {
-				return tokenAccount.account.data.parsed.info.mint === $userStore.inTokenMint;
+				return tokenAccount.account.data.parsed.info.mint === $userStore.inTokenMint?.toBase58();
 			});
 
 			if (buyerInTokenAccountInfo) {
@@ -136,13 +172,15 @@
 				$userStore.inTokenDecimals =
 					buyerInTokenAccountInfo.account.data.parsed.info.tokenAmount.decimals;
 
-        $userStore.inTokenAmount = $escrowStore.escrow.outAmount.toNumber() / (10 ** $userStore.inTokenDecimals);
-        console.log('userStore.inTokenAmount: ', $userStore.inTokenAmount); 
+        if ($userStore.inTokenDecimals && $escrowStore.escrow.outAmount) {
+          $userStore.inTokenAmount = $escrowStore.escrow.outAmount.toNumber() / (10 ** $userStore.inTokenDecimals);
+          console.log('userStore.inTokenAmount: ', $userStore.inTokenAmount); 
 
-				// Compute the raw amount now that we have amount & decimals
-        // U: Actually, escrow.in/outAmount is already type BN, so can
-        // simply use BN.toNumber()!
-				$userStore.inTokenRawAmount = $escrowStore.escrow.inAmount.toNumber();
+          // Compute the raw amount now that we have amount & decimals
+          // U: Actually, escrow.in/outAmount is already type BN, so can
+          // simply use BN.toNumber()!
+          $userStore.inTokenRawAmount = $escrowStore.escrow.inAmount.toNumber();
+        }
 			}
 
 			console.log('ACCEPT::$userStore BEFORE sending tx: ', $userStore);

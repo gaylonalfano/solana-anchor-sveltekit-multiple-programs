@@ -451,7 +451,7 @@ impl Escrow {
     // 8 Y Amount
     // 1 Is Active
     // 1 Has Exchanged
-    pub const ACCOUNT_SPACE: usize = 8 + 8 + 32 + 32 + 1 + 32 + 32 + 8 + 32 + 8 + 1 + 1;
+    pub const ACCOUNT_SPACE: usize = 8 + 32 + 8 + 32 + 1 + 32 + 32 + 8 + 32 + 8 + 1 + 1;
     pub const SEED_PREFIX: &'static str = "escrow";
 }
 

@@ -18,9 +18,8 @@ export const ESCROW_SEED_PREFIX = "escrow";
 export const CUSTOM_PROGRAM_SEED_PREFIX = "custom-program";
 
 
-
 // Data Buffer sizes/Account space
-export const ESCROW_ACCOUNT_SPACE = 115;
+export const ESCROW_ACCOUNT_SPACE = 195;
 
 // NOTE Development Only
 

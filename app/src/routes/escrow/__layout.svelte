@@ -72,7 +72,7 @@
     // Need to get the corresponding Escrow account and update escrowStore
     // TODO Need to reset my stores on wallet connect/disconnect
     userStore.reset();
-    escrowStore.reset();
+    // escrowStore.reset();
     escrowsStore.reset();
 
     // Refetch/update all the Stores
@@ -81,7 +81,7 @@
     // NOTE Cannot access the $page Store for the page.params.pda
     // escrowStore.getEscrowAccount()
     // Q: Can I fetch all escrow accounts and update escrowsStore Array?
-    // escrowsStore
+    escrowsStore.getEscrowAccounts(constants.NON_CUSTODIAL_ESCROW_PROGRAM_ID, $workspaceStore.connection);
 
 		// Q: getTokenAccountsByOwner and update/set Store?
 		// Challenge is that I don't know if the connected wallet is a buyer or seller
