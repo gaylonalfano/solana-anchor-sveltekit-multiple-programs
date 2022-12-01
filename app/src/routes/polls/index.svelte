@@ -489,9 +489,9 @@
 		await goto(href);
 		// Save something, do something with db, etc.
 		// E.g., href=/polls/[pda]
-		// TODO
 		const matchingPoll = $pollsStore.find((p) => p.pda?.toBase58() === href.slice());
-		pollStore.set;
+		// TODO
+		// pollStore.set({ poll: matchingPoll?.poll, pda: matchingPoll.pda });
 	}
 
 	function pollOptionsIdentical(optionA: string, optionB: string): boolean {

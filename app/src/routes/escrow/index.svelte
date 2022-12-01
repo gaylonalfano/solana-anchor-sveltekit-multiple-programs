@@ -83,6 +83,9 @@
 	// - DONE Rename Escrow struct fields to out/in instead of x/y
   // - Add tests for if buyer/seller don't have the ATA for their inTokenATA
   // - Add tests for confirming token balances are accurately credited/debited
+  // - FIXME customProgramStore getting wiped/reset after cancel()
+  //    - Perform a quick check on customProgramStore inside the cancel() and accept()
+  //      If it's not there, then try to fetch the latest.
 
 
 
@@ -1076,6 +1079,8 @@
 
 
 	async function handleInitializeEscrowAccount() {
+
+
     // U: Reset any existing escrowStore just in case
     escrowStore.reset();
 

@@ -2,9 +2,7 @@
 	// REF: UI idea from: https://github.com/paul-schaaf/escrow-ui/blob/master/src/Alice.vue
 	// REF: Good example of web3/spl-token use: https://github.com/paul-schaaf/escrow-ui/blob/master/src/util/initEscrow.ts
 	import type anchor from '@project-serum/anchor';
-	import {
-		TOKEN_PROGRAM_ID,
-	} from '@solana/spl-token';
+	import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 	import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 	import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
@@ -22,60 +20,62 @@
 		type EscrowObject,
 		type EscrowStoreObject
 	} from '$stores/escrow/escrow-store';
-  import { escrowsStore } from '$stores/escrow/escrows-store';
+	import { escrowsStore } from '$stores/escrow/escrows-store';
 	import * as constants from '../../helpers/escrow/constants';
 	import { get } from 'svelte/store';
-  import { page } from '$app/stores';
+	import { page } from '$app/stores';
 	import { PublicKey } from '@solana/web3.js';
+	import { goto } from '$app/navigation';
 	// import type { EscrowObject, EscrowStoreObject } from 'src/models/escrow-types';
 
-
-  // TODOS:
-  // - Create escrow-types.ts file to clean up
-
+	// TODOS:
+	// - Create escrow-types.ts file to clean up
+	// - DONE Update/set userStore values for ACCEPT
+	// - DONE Update/set userStore values for CANCEL
+	// - Update escrowStore on wallet disconnect/connect
+	// - DONE Update escrowStore on page refresh
 
 	// Create some variables to react to Stores state
 	$: hasEscrowsStoreValues = $escrowsStore.length > 0;
 	$: hasEscrowStoreValues = $escrowStore.escrow !== null && $escrowStore.pda !== null;
+	$: isEscrowAuthority =
+		$walletStore.publicKey?.toBase58() === $escrowStore.escrow?.authority.toBase58();
 
-  $: if (hasEscrowsStoreValues && !hasEscrowStoreValues) {
-    	console.log('No escrowStore values found! Trying to set...');
-      try {
-        let currentEscrowStoreObject = $escrowsStore.find(
-          (value: EscrowStoreObject) => value.pda?.toBase58() === $page.params.pda
-        ) as EscrowStoreObject;
-      
-        // console.log('currentEscrowStoreObject: ', currentEscrowStoreObject);
-        if (currentEscrowStoreObject) {
-          console.log('Current Escrow found in escrowsStore. Setting escrowStore values.');
-          escrowStore.set({
-            escrow: currentEscrowStoreObject.escrow,
-            pda: currentEscrowStoreObject.pda
-          });
-        } else {
-          console.log('Current Escrow NOT found in escrowsStore. Trying to get...')
-          // Q: Should I try a fresh escrowStore.getEscrowAccount()?
-          // U: Trying for now... need to test
-          escrowStore.getEscrowAccount(
-            constants.NON_CUSTODIAL_ESCROW_PROGRAM_ID,
-            new PublicKey($page.params.pda),
-            $workspaceStore.connection,
-          )
-        }
+	$: if (hasEscrowsStoreValues && !hasEscrowStoreValues) {
+		console.log('No escrowStore values found! Trying to set...');
+		try {
+			let currentEscrowStoreObject = $escrowsStore.find(
+				(value: EscrowStoreObject) => value.pda?.toBase58() === $page.params.pda
+			) as EscrowStoreObject;
 
-      } catch (e) {
-        console.log('Escrow not found in escrowsStore. Single escrowStore not updated.');
-        console.warn(e);
-      }
+			// console.log('currentEscrowStoreObject: ', currentEscrowStoreObject);
+			if (currentEscrowStoreObject) {
+				console.log('Current Escrow found in escrowsStore. Setting escrowStore values.');
+				escrowStore.set({
+					escrow: currentEscrowStoreObject.escrow,
+					pda: currentEscrowStoreObject.pda
+				});
+			} else {
+				console.log('Current Escrow NOT found in escrowsStore. Trying to get...');
+				// Q: Should I try a fresh escrowStore.getEscrowAccount()?
+				// U: Trying for now... need to test
+				escrowStore.getEscrowAccount(
+					constants.NON_CUSTODIAL_ESCROW_PROGRAM_ID,
+					new PublicKey($page.params.pda),
+					$workspaceStore.connection
+				);
+			}
+		} catch (e) {
+			console.log('Escrow not found in escrowsStore. Single escrowStore not updated.');
+			console.warn(e);
+		}
+	}
 
-  }
-
-
-  $: {
-    console.log('escrowStore: ', $escrowStore);
-    console.log('userStore: ', $userStore);
-  }
-
+	$: {
+		console.log('escrowStore: ', $escrowStore);
+		console.log('userStore: ', $userStore);
+		console.log('isEscrowAuthority: ', isEscrowAuthority);
+	}
 
 	async function handleAcceptTrade() {
 		if ($escrowStore.escrow === null) {
@@ -113,8 +113,8 @@
 			$userStore.walletAddress = $walletStore.publicKey as anchor.web3.PublicKey;
 			$userStore.outTokenMint = $escrowStore.escrow.inMint as anchor.web3.PublicKey;
 			$userStore.inTokenMint = $escrowStore.escrow.outMint as anchor.web3.PublicKey;
-      console.log('userStore.outTokenMint: ', $userStore.outTokenMint.toBase58());
-      console.log('userStore.inTokenMint: ', $userStore.inTokenMint.toBase58());
+			console.log('userStore.outTokenMint: ', $userStore.outTokenMint.toBase58());
+			console.log('userStore.inTokenMint: ', $userStore.inTokenMint.toBase58());
 
 			// 2. Update the user's OUT TOKEN details
 			// Q: How to get the BUYER ATA address with only a mint and wallet?
@@ -124,7 +124,7 @@
 			});
 
 			if (buyerOutTokenAccountInfo) {
-        console.log('buyerOutTokenAccountInfo FOUND!')
+				console.log('buyerOutTokenAccountInfo FOUND!');
 
 				$userStore.outTokenATA = buyerOutTokenAccountInfo.pubkey;
 
@@ -138,17 +138,18 @@
 				$userStore.outTokenDecimals =
 					buyerOutTokenAccountInfo.account.data.parsed.info.tokenAmount.decimals;
 
-        // Q: Can I just use BN.toNumber() method?
-        // A: No! BN.toNumber() returns the RAW amounts! Need to account for decimals!
-        if ($userStore.outTokenDecimals && $escrowStore.escrow.inAmount) {
-          $userStore.outTokenAmount = $escrowStore.escrow.inAmount.toNumber() / (10 ** $userStore.outTokenDecimals); // E.g. 2.5 or 12.2
-          console.log('userStore.outTokenAmount: ', $userStore.outTokenAmount);
+				// Q: Can I just use BN.toNumber() method?
+				// A: No! BN.toNumber() returns the RAW amounts! Need to account for decimals!
+				if ($userStore.outTokenDecimals && $escrowStore.escrow.inAmount) {
+					$userStore.outTokenAmount =
+						$escrowStore.escrow.inAmount.toNumber() / 10 ** $userStore.outTokenDecimals; // E.g. 2.5 or 12.2
+					console.log('userStore.outTokenAmount: ', $userStore.outTokenAmount);
 
-          // Compute the raw amount now that we have amount & decimals
-          // U: Actually, escrow.in/outAmount is already type BN, so can
-          // simply use BN.toNumber()!
-          $userStore.outTokenRawAmount = $escrowStore.escrow.outAmount.toNumber();
-        }
+					// Compute the raw amount now that we have amount & decimals
+					// U: Actually, escrow.in/outAmount is already type BN, so can
+					// simply use BN.toNumber()!
+					$userStore.outTokenRawAmount = $escrowStore.escrow.outAmount.toNumber();
+				}
 			}
 
 			// 3. Update the user's IN TOKEN details
@@ -160,7 +161,7 @@
 			});
 
 			if (buyerInTokenAccountInfo) {
-        console.log('buyerInTokenAccountInfo FOUND!')
+				console.log('buyerInTokenAccountInfo FOUND!');
 
 				$userStore.inTokenATA = buyerInTokenAccountInfo.pubkey;
 				$userStore.inTokenRawBalance = parseInt(
@@ -168,19 +169,20 @@
 				); // "30000000"
 				$userStore.inTokenBalance =
 					buyerInTokenAccountInfo.account.data.parsed.info.tokenAmount.uiAmount; // 3
-        // TODO Compute the IN RAW BALANCE
+
 				$userStore.inTokenDecimals =
 					buyerInTokenAccountInfo.account.data.parsed.info.tokenAmount.decimals;
 
-        if ($userStore.inTokenDecimals && $escrowStore.escrow.outAmount) {
-          $userStore.inTokenAmount = $escrowStore.escrow.outAmount.toNumber() / (10 ** $userStore.inTokenDecimals);
-          console.log('userStore.inTokenAmount: ', $userStore.inTokenAmount); 
+				if ($userStore.inTokenDecimals && $escrowStore.escrow.outAmount) {
+					$userStore.inTokenAmount =
+						$escrowStore.escrow.outAmount.toNumber() / 10 ** $userStore.inTokenDecimals;
+					console.log('userStore.inTokenAmount: ', $userStore.inTokenAmount);
 
-          // Compute the raw amount now that we have amount & decimals
-          // U: Actually, escrow.in/outAmount is already type BN, so can
-          // simply use BN.toNumber()!
-          $userStore.inTokenRawAmount = $escrowStore.escrow.inAmount.toNumber();
-        }
+					// Compute the raw amount now that we have amount & decimals
+					// U: Actually, escrow.in/outAmount is already type BN, so can
+					// simply use BN.toNumber()!
+					$userStore.inTokenRawAmount = $escrowStore.escrow.inAmount.toNumber();
+				}
 			}
 
 			console.log('ACCEPT::$userStore BEFORE sending tx: ', $userStore);
@@ -245,8 +247,8 @@
 			} as EscrowStoreObject);
 			console.log('ACCEPT::$escrowStore: ', $escrowStore);
 
-      // Update the escrowsStore
-      escrowsStore.updateEscrow($escrowStore.pda as anchor.web3.PublicKey, $escrowStore.escrow);
+			// Update the escrowsStore
+			escrowsStore.updateEscrow($escrowStore.pda as anchor.web3.PublicKey, $escrowStore.escrow);
 
 			// Confirm that seller/buyer ATAs also updated correctly
 			// TODO Need to also account for SOL token exchanges (not just SPL)
@@ -281,8 +283,8 @@
 				txid: tx
 			});
 		} catch (error) {
-      console.log(error);
-    }
+			console.log(error);
+		}
 	}
 
 	async function handleCancelTrade() {
@@ -294,46 +296,90 @@
 			return;
 		}
 
-		let tx: anchor.web3.TransactionSignature = '';
+		// Check whether userStore.walletAddress (or walletStore.pubkey) matches
+		// the escrowStore.authority address
+		if (!isEscrowAuthority) {
+			console.log('userStore.walletAddress does NOT match escrow.authority!');
+			notificationStore.add({ type: 'error', message: 'Wallet is not escrow authority!' });
+			console.log('error', `Wallet is not escrow authority!`);
+			return;
+		}
 
-		try {
-			tx = (await $workspaceStore.program?.methods
-				.cancel()
-				.accounts({
-					seller: $walletStore.publicKey as anchor.web3.PublicKey,
-					escrow: $escrowStore.pda as anchor.web3.PublicKey,
-					escrowedOutTokenAccount: $escrowStore.escrow
-						?.escrowedOutTokenAccount as anchor.web3.PublicKey,
-					sellerOutTokenAccount: $userStore.outTokenATA as anchor.web3.PublicKey,
-					tokenProgram: TOKEN_PROGRAM_ID
-				})
-				.signers([]) // NOTE seller is wallet, so don't need!
-				.rpc({ skipPreflight: true })) as string;
-
-			console.log('TxHash ::', tx);
-
-			// NOTE After closing the account it's no longer available!
-			// If we try to fetch the PDA, it will error: Account does not exist!
-			// Let's reset our escrowStore for the UI.
-			escrowStore.reset();
-			console.log('CANCEL::$escrowStore: ', $escrowStore);
-
-			// Add to notificationStore
-			notificationStore.add({
-				type: 'success',
-				message: 'Transaction successful!',
-				txid: tx
-			});
-		} catch (error: any) {
-			// Add to notificationStore
+    if ($escrowStore.escrow === null) {
 			notificationStore.add({
 				type: 'error',
-				message: 'Transaction failed!',
-				description: error?.message,
-				txid: tx
+				message: 'Escrow account data is null!'
 			});
-			console.log('error', `Transaction failed! ${error?.message}`, tx);
+			console.log('error', 'Escrow account data is null!');
+			return;
 		}
+
+		try {
+			// Update/confirm our userStore is updated
+      $userStore.outTokenMint = $escrowStore.escrow.outMint as anchor.web3.PublicKey;
+
+			// Q: FIXME What if the seller doesn't have an existing outTokenATA?
+			// NOTE For now I'm going to assume they have the ATA
+      let sellerOutTokenAccountInfo = $walletTokenAccountsStore.find((tokenAccount) => {
+        return tokenAccount.account.data.parsed.info.mint === $userStore.outTokenMint?.toBase58();
+      })
+
+      if (sellerOutTokenAccountInfo) {
+				console.log('sellerOutTokenAccountInfo FOUND!');
+        $userStore.outTokenATA = sellerOutTokenAccountInfo.pubkey;
+      }
+      
+
+			let tx: anchor.web3.TransactionSignature = '';
+
+			try {
+				tx = (await $workspaceStore.program?.methods
+					.cancel()
+					.accounts({
+						seller: $walletStore.publicKey as anchor.web3.PublicKey, // userStore.walletAddress
+						escrow: $escrowStore.pda as anchor.web3.PublicKey,
+						escrowedOutTokenAccount: $escrowStore.escrow
+							?.escrowedOutTokenAccount as anchor.web3.PublicKey,
+						sellerOutTokenAccount: $userStore.outTokenATA as anchor.web3.PublicKey,
+						tokenProgram: TOKEN_PROGRAM_ID
+					})
+					.signers([]) // NOTE seller is wallet, so don't need!
+					.rpc({ skipPreflight: true })) as string;
+
+				console.log('TxHash ::', tx);
+
+        // Q: Should I bother updating the escrowsStore array?
+        // U: Might as well...
+        escrowsStore.deleteEscrow($escrowStore.pda as anchor.web3.PublicKey);
+
+				// NOTE After closing the account it's no longer available!
+				// If we try to fetch the PDA, it will error: Account does not exist!
+				// Let's reset our escrowStore for the UI.
+				escrowStore.reset();
+				console.log('CANCEL::$escrowStore: ', $escrowStore);
+
+
+				// Add to notificationStore
+				notificationStore.add({
+					type: 'success',
+					message: 'Transaction successful!',
+					txid: tx
+				});
+
+        // Reroute back to the main page
+        goto("/escrow");
+        
+			} catch (error: any) {
+				// Add to notificationStore
+				notificationStore.add({
+					type: 'error',
+					message: 'Transaction failed!',
+					description: error?.message,
+					txid: tx
+				});
+				console.log('error', `Transaction failed! ${error?.message}`, tx);
+			}
+		} catch (error) {}
 	}
 </script>
 
