@@ -233,7 +233,7 @@
 
 		const voteCount: string = ($pollStore.poll?.voteCount.toNumber() + 1).toString();
 
-		const [pda, bump] = await PublicKey.findProgramAddress(
+		const [pda, bump] = await anchor.web3.PublicKey.findProgramAddress(
 			[
 				anchor.utils.bytes.utf8.encode(constants.VOTE_SEED_PREFIX),
 				$pollStore.pda?.toBuffer() as Buffer, // Q: Can get I PDA from pollStore? A: Yes!
@@ -321,7 +321,7 @@
 
 		const voteCount: string = ($pollStore.poll?.voteCount.toNumber() + 1).toString();
 
-		const [pda, bump] = await PublicKey.findProgramAddress(
+		const [pda, bump] = await anchor.web3.PublicKey.findProgramAddress(
 			[
 				anchor.utils.bytes.utf8.encode(constants.VOTE_SEED_PREFIX),
 				$pollStore.pda?.toBuffer() as Buffer, // Q: Can get I PDA from pollStore? A: Yes!

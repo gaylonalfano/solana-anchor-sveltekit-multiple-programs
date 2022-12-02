@@ -25,6 +25,8 @@ function createCustomProgramStore() {
     set,
     update,
     getCustomProgramAccount: async (customProgramPda?: anchor.web3.PublicKey) => {
+      // U: Once deployed on mainnet, could consider generating the PublicKey
+      // and storing inside a constant.
       // Q: How do I use async?
       // A: Fixed. Turns out findProgramAccounts[0] was causing issues.
       // Q: How to check whether this store already has a pda?
@@ -56,7 +58,8 @@ function createCustomProgramStore() {
         // let customProgram = await $workspaceStore.program?.account.customProgram.fetch(pda); // E: Cannot find $workspaceStore
         // let customProgram = await get(workspaceStore).program?.account.customProgram.fetch(pda); // E: Param is type 'Address'
         // let customProgram = await get(workspaceStore).program?.account.customProgram.fetch(pda as anchor.Address); // E: null '_bn'
-        let customProgram = await get(workspaceStore).program?.account.customProgram?.fetch(pda as anchor.web3.PublicKey) as CustomProgramObject; 
+        let customProgram = await get(workspaceStore).program?.account
+          .customProgram?.fetch(pda as anchor.web3.PublicKey) as CustomProgramObject;
 
         // Q: Can I add a 'pda' or 'address' property to this Store?
         // NOTE This is using a custom TYPE with a 'pda' prop...

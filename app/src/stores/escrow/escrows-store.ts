@@ -82,6 +82,7 @@ function createEscrowsStore() {
     },
     deleteEscrow: (pda: anchor.web3.PublicKey) => {
       update((self: EscrowStoreObject[]) => {
+        console.log('deleteEscrow::self: ', self);
         return self.filter((escrowStore: EscrowStoreObject) => escrowStore.pda !== pda);
       })
     },

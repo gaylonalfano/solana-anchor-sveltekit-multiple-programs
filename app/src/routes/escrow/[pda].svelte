@@ -22,6 +22,7 @@
 	} from '$stores/escrow/escrow-store';
 	import { escrowsStore } from '$stores/escrow/escrows-store';
 	import * as constants from '../../helpers/escrow/constants';
+	import { getParsedTokenAccountsByOwner } from '../../helpers/escrow/getParsedTokenAccountsByOwner';
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
 	import { PublicKey } from '@solana/web3.js';
@@ -32,8 +33,10 @@
 	// - Create escrow-types.ts file to clean up
 	// - DONE Update/set userStore values for ACCEPT
 	// - DONE Update/set userStore values for CANCEL
-	// - Update escrowStore on wallet disconnect/connect
+	// - DONE Update escrowStore on wallet disconnect/connect
 	// - DONE Update escrowStore on page refresh
+	// - DONE escrowsStore state after cancel();
+	// - DONE Disable accept/cancel buttons based on isEscrowAuthority
 
 	// Create some variables to react to Stores state
 	$: hasEscrowsStoreValues = $escrowsStore.length > 0;
@@ -75,6 +78,20 @@
 		console.log('escrowStore: ', $escrowStore);
 		console.log('userStore: ', $userStore);
 		console.log('isEscrowAuthority: ', isEscrowAuthority);
+	}
+
+	async function navigateAndSetStoreState() {
+		await goto(`/escrow`);
+		// Now go something with the data/db, etc. (e.g., set Store values):
+		// NOTE Using escrowsStore.deleteEscrow() doesn't seem to work.
+		// Going to try to do a fresh fetch instead
+		// U: Fresh fetch helps! This correctly navigates and then fetches
+		// the latest escrow accounts state and updates escrowsStore array!
+		escrowsStore.getEscrowAccounts(
+			constants.NON_CUSTODIAL_ESCROW_PROGRAM_ID,
+			$workspaceStore.connection
+		);
+		escrowStore.reset();
 	}
 
 	async function handleAcceptTrade() {
@@ -252,31 +269,12 @@
 
 			// Confirm that seller/buyer ATAs also updated correctly
 			// TODO Need to also account for SOL token exchanges (not just SPL)
-			// const currentSellerOutTokenBalance =
-			// 	await $workspaceStore.provider?.connection.getTokenAccountBalance(
-			// 		$sellerStore.outTokenATA as anchor.web3.PublicKey
-			// 	);
-			// $sellerStore.outTokenBalance = currentSellerOutTokenBalance?.value.uiAmount as number;
+			// U: Use the helper getParsedTokenAccountsByOwner() instead
+			await getParsedTokenAccountsByOwner(
+				$workspaceStore.connection,
+				$walletStore.publicKey as anchor.web3.PublicKey
+			);
 
-			// const currentSellerInTokenBalance =
-			// 	await $workspaceStore.provider?.connection.getTokenAccountBalance(
-			// 		$sellerStore.inTokenATA as anchor.web3.PublicKey
-			// 	);
-			// $sellerStore.inTokenBalance = currentSellerInTokenBalance?.value.uiAmount as number;
-
-			const currentBuyerInTokenBalance =
-				await $workspaceStore.provider?.connection.getTokenAccountBalance(
-					$userStore.inTokenATA as anchor.web3.PublicKey
-				);
-			$userStore.inTokenBalance = currentBuyerInTokenBalance?.value.uiAmount as number;
-
-			const currentBuyerOutTokenBalance =
-				await $workspaceStore.provider?.connection.getTokenAccountBalance(
-					$userStore.outTokenATA as anchor.web3.PublicKey
-				);
-			$userStore.outTokenBalance = currentBuyerOutTokenBalance?.value.uiAmount as number;
-
-			// Add to notificationStore
 			notificationStore.add({
 				type: 'success',
 				message: 'Transaction successful!',
@@ -305,7 +303,7 @@
 			return;
 		}
 
-    if ($escrowStore.escrow === null) {
+		if ($escrowStore.escrow === null) {
 			notificationStore.add({
 				type: 'error',
 				message: 'Escrow account data is null!'
@@ -316,19 +314,18 @@
 
 		try {
 			// Update/confirm our userStore is updated
-      $userStore.outTokenMint = $escrowStore.escrow.outMint as anchor.web3.PublicKey;
+			$userStore.outTokenMint = $escrowStore.escrow.outMint as anchor.web3.PublicKey;
 
 			// Q: FIXME What if the seller doesn't have an existing outTokenATA?
 			// NOTE For now I'm going to assume they have the ATA
-      let sellerOutTokenAccountInfo = $walletTokenAccountsStore.find((tokenAccount) => {
-        return tokenAccount.account.data.parsed.info.mint === $userStore.outTokenMint?.toBase58();
-      })
+			let sellerOutTokenAccountInfo = $walletTokenAccountsStore.find((tokenAccount) => {
+				return tokenAccount.account.data.parsed.info.mint === $userStore.outTokenMint?.toBase58();
+			});
 
-      if (sellerOutTokenAccountInfo) {
+			if (sellerOutTokenAccountInfo) {
 				console.log('sellerOutTokenAccountInfo FOUND!');
-        $userStore.outTokenATA = sellerOutTokenAccountInfo.pubkey;
-      }
-      
+				$userStore.outTokenATA = sellerOutTokenAccountInfo.pubkey;
+			}
 
 			let tx: anchor.web3.TransactionSignature = '';
 
@@ -347,17 +344,11 @@
 					.rpc({ skipPreflight: true })) as string;
 
 				console.log('TxHash ::', tx);
-
-        // Q: Should I bother updating the escrowsStore array?
-        // U: Might as well...
-        escrowsStore.deleteEscrow($escrowStore.pda as anchor.web3.PublicKey);
-
 				// NOTE After closing the account it's no longer available!
 				// If we try to fetch the PDA, it will error: Account does not exist!
 				// Let's reset our escrowStore for the UI.
 				escrowStore.reset();
 				console.log('CANCEL::$escrowStore: ', $escrowStore);
-
 
 				// Add to notificationStore
 				notificationStore.add({
@@ -366,9 +357,22 @@
 					txid: tx
 				});
 
-        // Reroute back to the main page
-        goto("/escrow");
-        
+				// Reroute back to the main page
+				// NOTE After closing the account it's no longer available!
+				// If we try to fetch the PDA, it will error: Account does not exist!
+				// Let's reset our escrowStore for the UI.
+				// IMPORTANT If we escrowStore.reset() here, then the reactives trigger
+				// and find a match in escrowsStore array which hasn't updated yet!
+				// Q: Should I consider using goto() to reroute and set
+				// store state after resolving?
+				// U: Yes, for now seems to help prevent a reactive trigger
+				// U: Going to do a fresh fetch to update instead of trying to use deleteEscrow()
+				await navigateAndSetStoreState();
+				// U: Need to refetch token accounts for updated balances, etc.
+				await getParsedTokenAccountsByOwner(
+					$workspaceStore.connection,
+					$walletStore.publicKey as anchor.web3.PublicKey
+				);
 			} catch (error: any) {
 				// Add to notificationStore
 				notificationStore.add({
@@ -430,8 +434,21 @@
 						disabled
 					/>
 				</label>
-				<button class="btn btn-accent mt-1" on:click={handleAcceptTrade}>Accept Escrow</button>
-				<button class="btn btn-error mt-1" on:click={handleCancelTrade}>Cancel Escrow</button>
+				{#if $walletStore.publicKey && $escrowStore.escrow.isActive}
+					{#if isEscrowAuthority}
+						<button
+							class="btn btn-error mt-1"
+							on:click={handleCancelTrade}
+							disabled={!isEscrowAuthority}>Cancel Escrow</button
+						>
+					{:else}
+						<button
+							class="btn btn-accent mt-1"
+							on:click={handleAcceptTrade}
+							disabled={isEscrowAuthority}>Accept Escrow</button
+						>
+					{/if}
+				{/if}
 			</div>
 		</div>
 	</div>
