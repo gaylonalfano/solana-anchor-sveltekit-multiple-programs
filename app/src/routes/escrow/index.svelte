@@ -174,7 +174,7 @@
 		$walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting;
 
 	// $: if ($walletTokenAccountsStore && $walletTokenAccountsStore.length > 0) {
-	// 	reactiveTokenBalance = setSelectedTokenBalance(selectedToken) as number;
+	// 	reactiveTokenBalance = setSelectedTokenMintAtaBalanceDecimals(selectedToken) as number;
 	// }
 
 	$: hasRequiredEscrowInputs =
@@ -272,7 +272,7 @@
 	// U: Think I need to create an outTokenMintStore etc. so I can keep track of
 	// the selected token and reactively do the compute based on user's outTokenAmount
 	// U: Scratch that. Just going to expand sellerStore for now.
-	function setSelectedTokenBalance() {
+	function setSelectedTokenMintAtaBalanceDecimals() {
 		// NOTE Check if the selectedToken === 'SOL' so return the SOL
 		// balance from balanceStore instead.
 		console.log('formState.outTokenMint: ', formState.outTokenMint);
@@ -280,10 +280,13 @@
 			formState.outTokenBalance = $balanceStore.balance;
 			// U: Need to update sellerStore values as well to init escrow
 			$userStore.outTokenMint = constants.SOL_PUBLIC_KEY;
+      $userStore.outTokenDecimals = constants.SOL_DECIMALS;
 			// Q: Should I set outTokenATA to wallet address for SOL? Or leave null?
 			// TODO Still need to update my init escrow to allow SOL
 			$userStore.outTokenATA = $walletStore.publicKey;
 			$userStore.outTokenBalance = $balanceStore.balance;
+      $userStore.outTokenRawBalance = $balanceStore.balance * 10 ** constants.SOL_DECIMALS;
+
 		}
 
 		let matchingToken = $walletTokenAccountsStore.find((tokenAccount) => {
@@ -313,7 +316,7 @@
 		$userStore.outTokenAmount = null;
 		$userStore.outTokenRawAmount = null;
 		// Get the selected token's details and balance and update UI
-		setSelectedTokenBalance();
+		setSelectedTokenMintAtaBalanceDecimals();
 	}
 
 	function handleOutTokenAmountInput() {
@@ -342,7 +345,15 @@
 				// Update userStore values
 				$userStore.outTokenRawAmount = rawTokenAmount;
 				$userStore.outTokenAmount = parseFloat(formState.outTokenAmount);
-			}
+			} else if (formState.outTokenAmount && formState.outTokenMint) {
+        // FIXME Sometimes I refresh and enter new values but nothing
+        // updates inside userStore.outTokenAmount
+        console.log('OutTokenAmountInput::formState.outTokenAmount && formState.outTokenMint')
+        // Q: Need to find inside walletTokenAccountsStore and update userStore.outTokenAmount
+        // and outTokenRawAmount?
+
+
+      }
 		} catch (e) {
 			console.log(e);
 		}
@@ -395,6 +406,7 @@
 				$userStore.inTokenDecimals = inTokenMintData.decimals;
 
 				// Q: What if seller doesn't have inTokenATA? Need to create it here or where?
+        // NOTE May need to look into getOrCreateAssociatedTokenAccount()
 			}
 		} catch (e) {
 			console.log(e);

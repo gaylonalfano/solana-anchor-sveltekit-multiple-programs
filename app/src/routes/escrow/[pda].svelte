@@ -37,6 +37,9 @@
 	// - DONE Update escrowStore on page refresh
 	// - DONE escrowsStore state after cancel();
 	// - DONE Disable accept/cancel buttons based on isEscrowAuthority
+  // - Handle the scenario when the ATA do not exist (need to create)
+  //    - NOTE Look into getOrCreateAssociatedTokenAccount() as potential solution
+  //    - REF: https://www.quicknode.com/guides/solana-development/how-to-transfer-spl-tokens-on-solana
 
 	// Create some variables to react to Stores state
 	$: hasEscrowsStoreValues = $escrowsStore.length > 0;

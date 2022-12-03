@@ -18,7 +18,6 @@
 	// const network = clusterApiUrl('devnet'); // localhost or mainnet */
 	const network = constants.NETWORK;
 
-
 	// Q: Where should I try to pre-fetch account data?
 	// A: Think __layout component is a good spot. I tried doing
 	// it inside /polls and /polls/[pda] routes, but had slightly

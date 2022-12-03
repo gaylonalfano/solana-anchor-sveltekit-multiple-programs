@@ -14,6 +14,7 @@ import { expect } from "chai";
 import NodeWallet from "@project-serum/anchor/dist/cjs/nodewallet";
 
 
+// TODO - Add test for SOL -> SPL token transfers
 // TODO - Consider adding a new mint with different ATAs for a third
 // escrow created by the Seller.
 
