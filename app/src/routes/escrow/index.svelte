@@ -200,8 +200,6 @@
 			// Attempt to grab xMintStore, yMintStore values
 			// Attempt to getMint() using Store address
 			// Finally recreate the tokens!
-			// ======= do next =====
-			// TODO -  think I just need getMint(connection, address)
 			// Q: Do I need a CONST to store the addresses or just
 			// save in the xMintStore is enough?
 			// U: I'm thinking I need to create CONSTANTS to represent
@@ -341,7 +339,7 @@
 					return;
 				}
 
-				// Update sellerStore values
+				// Update userStore values
 				$userStore.outTokenRawAmount = rawTokenAmount;
 				$userStore.outTokenAmount = parseFloat(formState.outTokenAmount);
 			}
@@ -1085,25 +1083,6 @@
 			return;
 		}
 
-		// escrowInputsAreValid = true;
-		// if (hasRequiredEscrowInputs) {
-
-		//   if ($userStore.outTokenAmount > $userStore.outTokenBalance) {
-		//     escrowInputsAreValid = false;
-		//     formErrors.outTokenAmount = "Amount exceeds balance!";
-		//   } else {
-		//     formErrors.outTokenAmount = '';
-		//   }
-
-		//   if ($userStore.outTokenAmount > $userStore.outTokenBalance) {
-		//     escrowInputsAreValid = false;
-		//     formErrors.outTokenAmount = "Amount exceeds balance!";
-		//   } else {
-		//     formErrors.outTokenAmount = '';
-		//   }
-
-		// }
-
 		if ($userStore.inTokenAmount && $userStore.inTokenDecimals) {
 			let inTokenRawAmount = $userStore.inTokenAmount * 10 ** $userStore.inTokenDecimals;
 			console.log('inTokenRawAmount: ', inTokenRawAmount);
@@ -1112,6 +1091,7 @@
 
 		// Get the customProgram.totalEscrowCount to use as a seed
 		// Q: How to pass a type u64 into seeds array? Uint8Array
+    // A: Convert to string and use anchor.utils.bytes.utf8.encode()
 		const escrowNumber: string = (
 			$customProgramStore.customProgram?.totalEscrowCount.toNumber() + 1
 		).toString();
@@ -1161,6 +1141,11 @@
 		// NOTE This also allows me to later create MULTIPLE escrow accounts
 		// with different token pairs, etc.
 		let escrowedOutTokenAccount = anchor.web3.Keypair.generate();
+
+    // U: Check if formState.outTokenMint === 'SOL' and grab the actual PublicKey
+    if (formState.outTokenMint === 'SOL') {
+      formState.outTokenMint = constants.SOL_PUBLIC_KEY.toBase58();
+    }
 
 		const tx = await $workspaceStore.program?.methods
 			.initialize(outAmount, inAmount)

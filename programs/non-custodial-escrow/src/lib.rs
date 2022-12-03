@@ -7,6 +7,8 @@ use anchor_spl::token::{
 };
 declare_id!("2StMWoVSWWjefwhoFsvjXVcaFABDBeMaFH2pKarQGjdW");
 
+
+// TODO Add support for SOL -> SPL Token transfers
 // U: Updated/renamed escrow fields to use out/in instead of x/y. I eventually want to allow users
 // the ability to create multiple escrows, but need to rethink the seeds to allow more. 
 // May need to change/add another account struct as a parent or something.
