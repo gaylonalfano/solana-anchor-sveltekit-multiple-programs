@@ -346,6 +346,7 @@
 				$userStore.outTokenRawAmount = rawTokenAmount;
 				$userStore.outTokenAmount = parseFloat(formState.outTokenAmount);
 			} else if (formState.outTokenAmount && formState.outTokenMint) {
+        // ======== DO THIS =======
         // FIXME Sometimes I refresh and enter new values but nothing
         // updates inside userStore.outTokenAmount
         console.log('OutTokenAmountInput::formState.outTokenAmount && formState.outTokenMint')
