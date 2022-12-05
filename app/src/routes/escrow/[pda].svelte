@@ -40,6 +40,7 @@
   // - Handle the scenario when the ATA do not exist (need to create)
   //    - NOTE Look into getOrCreateAssociatedTokenAccount() as potential solution
   //    - REF: https://www.quicknode.com/guides/solana-development/how-to-transfer-spl-tokens-on-solana
+  //    - U: Added tests using getOrCreateAssociatedTokenAccount().
 
 	// Create some variables to react to Stores state
 	$: hasEscrowsStoreValues = $escrowsStore.length > 0;
@@ -173,9 +174,10 @@
 			}
 
 			// 3. Update the user's IN TOKEN details
-			// Q: FIXME What if the buyer doesn't have an existing inTokenATA?
+			// Q: What if the buyer doesn't have an existing inTokenATA?
 			// Eg. First time the buyer will have this token in their wallet.
 			// NOTE For now I'm going to assume they have the ATA
+      // A: Must create the ATA using getOrCreateAssociatedTokenAccount()!
 			let buyerInTokenAccountInfo = $walletTokenAccountsStore.find((tokenAccount) => {
 				return tokenAccount.account.data.parsed.info.mint === $userStore.inTokenMint?.toBase58();
 			});
