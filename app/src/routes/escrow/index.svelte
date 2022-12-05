@@ -50,6 +50,9 @@
 	// import type { EscrowObject, EscrowStoreObject } from 'src/models/escrow-types';
 
 	// TODOS:
+  // - Add support for SOL-SPL escrow swaps (*see lib.rs)
+	// - Add tests for if buyer/seller don't have the ATA for their inTokenATA
+	// - Add tests for confirming token balances are accurately credited/debited
 	// - DONE Fetch all active Escrows involving wallet and display
 	//    - First, simply display active Escrows on page load
 	// - WIP Add a Token select menu rather than hardcoding X/Y
@@ -58,12 +61,11 @@
 	//      token info and balance based on selected token mint address
 	//      - U: Ended up leaving x/yMintStores alone. Updated buyer/sellerStores instead
 	//    - DONE Limit mint address input to 32-44 chars long (base58 pubkeys)
-	//    - Fix BN/decimal issue. May need to create helper fn to calculate
+	//    - DONE Fix BN/decimal issue. May need to create helper fn to calculate
 	//      the outTokenAmount / parsed.info.tokenAmount.amount (or sth)
-	//      - Limit amount to be <= outTokenBalance
-	//      - Add validation inside create escrow handler for raw amounts
-	//      - Reset sellerStore on refresh/disconnect
-	// - Clean up UI now that customProgram is available
+	//    - Limit amount to be <= outTokenBalance
+	//    - DONE Add validation inside create escrow handler for raw amounts
+	// - DONE Clean up UI now that customProgram is available
 	// - DONE Create custom Store for escrow
 	//    - Implement the store into the code to replace local vars
 	//    - U: May need expand custom EscrowStoreObject to include
@@ -74,14 +76,12 @@
 	// - DONE Create custom Store X and Y Mints
 	// - DONE Declare return types for async functions (Promise<web3.Transaction>, etc.)
 	//    - U: Not needed! Just need to save await sendTransaction() to local var
-	// - Add reactive statements for $walletStore.publicKey to fetch state
-	// - Add Dapp_Program Account Struct that allows the same wallet to init multiple Escrow
+	// - DONE Add reactive statements for $walletStore.publicKey to fetch state
+	// - DONE Add Dapp_Program Account Struct that allows the same wallet to init multiple Escrow
 	//   exchanges. Currently seeds will only allow 1 unique escrow. This is a bigger task!
 	// - DONE Add ability to cancel Escrow by authority (wallet)
 	// - DONE Add helper resetStores() method for successful accept or cancel
 	// - DONE Rename Escrow struct fields to out/in instead of x/y
-	// - Add tests for if buyer/seller don't have the ATA for their inTokenATA
-	// - Add tests for confirming token balances are accurately credited/debited
 	// - DONE customProgramStore getting wiped/reset after cancel()
 	//    - Perform a quick check on customProgramStore inside the cancel() and accept()
 	//      If it's not there, then try to fetch the latest.
@@ -1439,5 +1439,5 @@
 			(k, v) => (typeof v === 'bigint' ? v.toString() : v),
 			2
 		)}
-    </pre>
+  </pre>
 </div>

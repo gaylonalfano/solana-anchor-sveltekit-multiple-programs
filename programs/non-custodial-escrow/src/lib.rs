@@ -9,6 +9,38 @@ declare_id!("2StMWoVSWWjefwhoFsvjXVcaFABDBeMaFH2pKarQGjdW");
 
 
 // TODO Add support for SOL -> SPL Token transfers
+// - NOTE Seems like you either create separate instructions for both SOL and SPL,
+//   or you can use built-in WSOL. You can create an ATA for WSOL and transfer SOL
+//   to the ATA. This would align better (I think) with my current program, so I
+//   wouldn't have to add/rewrite all the instructions. 
+// - NOTE Transferring WSOL does the minting for you (different from SPL)
+//   REF: https://discord.com/channels/889577356681945098/889577399308656662/998875729263595580
+//   REF: https://discord.com/channels/889577356681945098/889577399308656662/938833843635515582
+// - NOTE To UNWRAP WSOL, apparently you end up closing the WSOL ATA. This may end
+//   up affecting my successful exchanges involving SOL-SPL swaps, since if the
+//   WSOL ATA is closed, then this would close the escrow PDA completely (I think).
+// - Q: Do I need to create separate instructions and ctx structs?
+// - Q: Guess I need to first create an ATA for the user's wallet, transfer/wrap the SOL
+//   to the ATA, THEN it can finally continue with the initialize instruction?
+// - Q: How can I check if the out_mint/in_mint is WSOL, so I can perform different
+//   actions based on the tokens we're dealing with? It may just make sense to create
+//   all new instructions to separate the two scenarios...
+// - Q: How would this flow?
+//      - Create wallet ATA for WSOL (seller_out_token_account)
+//      - Transfer SOL to ATA (seller_out_token_account)
+//      - Trigger initialize() instruction to transfer WSOL
+//        from seller_out_token_account to escrowed_out_token_account
+//      - Q: I don't think I'd have to close the wallet WSOL ATA until
+//        its accepted or cancelled.
+//      - Q: For ACCEPT and CANCEL, would we close escrowed_out_token_account and
+//        set the destination to buyer's/seller's wallet address? Looks like it's
+//        a standard token::close_account() call. This would remove the need to
+//        create WSOL ATAs, since closing unwraps to SOL:
+//        REF: https://spl.solana.com/token#example-wrapping-sol-in-a-token
+// - REF: https://spl.solana.com/token#example-wrapping-sol-in-a-token
+// - REF: https://solanacookbook.com/references/token.html#how-to-manage-wrapped-sol
+//
+// - Use Wrapped SOL to treat SOL like SPL Token
 // U: Updated/renamed escrow fields to use out/in instead of x/y. I eventually want to allow users
 // the ability to create multiple escrows, but need to rethink the seeds to allow more. 
 // May need to change/add another account struct as a parent or something.
@@ -23,7 +55,6 @@ pub mod non_custodial_escrow {
             // NOTE bumps.get("account_name"), NOT seed!
             *ctx.bumps.get("custom_program").expect("Bump not found.")
         );
-
         ctx.accounts.custom_program.set_inner(custom_program.clone());
 
         Ok(())
@@ -248,6 +279,8 @@ pub struct Initialize<'info> {
     #[account(mut)]
     seller: Signer<'info>,
 
+    // Q: Is WSOL of type Mint? Could I perform some check to see if
+    // either out/in_mint === WSOL? (NATIVE_MINT)
     out_mint: Account<'info, Mint>,
 
     in_mint: Account<'info, Mint>,

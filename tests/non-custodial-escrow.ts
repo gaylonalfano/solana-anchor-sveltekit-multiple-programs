@@ -3,6 +3,7 @@ import {
   TOKEN_PROGRAM_ID,
   createMint,
   createAssociatedTokenAccount,
+  getOrCreateAssociatedTokenAccount,
   mintToChecked,
   TOKEN_2022_PROGRAM_ID,
   getAccount,
@@ -14,9 +15,11 @@ import { expect } from "chai";
 import NodeWallet from "@project-serum/anchor/dist/cjs/nodewallet";
 
 
-// TODO - Add test for SOL -> SPL token transfers
-// TODO - Consider adding a new mint with different ATAs for a third
-// escrow created by the Seller.
+// TODOS
+//    - Add test for SOL -> SPL token transfers
+//      - DONE Add third mint (z) and test whether a user without an ATA can accept
+//      - Rename the out/in token accounts to x,y,z accounts
+
 
 // U: 11/22 - Added a new CustomProgram account to track total_escrow_count,
 // in order to allow wallets to create multiple escrow PDAs.
@@ -68,20 +71,31 @@ describe("non-custodial-escrow", () => {
 
   let x_mint;
   let y_mint;
+  let z_mint;
+  let seller_x_token_account;
+  let seller_y_token_account;
+  let seller_z_token_account;
   let seller_out_token_account; // Associated Token Accounts
   let seller_in_token_account;
   let buyer_in_token_account;
   let buyer_out_token_account;
+  let buyer_x_token_account;
+  let buyer_y_token_account;
+  let buyer_z_token_account;
+  // console.log(buyer_z_token_account); // undefined
   // U: Adding multiple tokenAccounts and escrows after implementing customProgram
   // NOTE This is just saving the Pubkey, since program creates actual account
   let escrowedOutTokenAccount1 = anchor.web3.Keypair.generate();
   let escrowedOutTokenAccount2 = anchor.web3.Keypair.generate();
+  let escrowedOutTokenAccount3 = anchor.web3.Keypair.generate();
   console.log(`escrowedOutTokenAccount1: ${escrowedOutTokenAccount1.publicKey}`);
   // NOTE This is a PDA that we'll get below
   let escrow1: anchor.IdlTypes<anchor.Idl>["Escrow"];
   let escrow1Pda: anchor.web3.PublicKey;
   let escrow2: anchor.IdlTypes<anchor.Idl>["Escrow"];
-  let escrowPda2: anchor.web3.PublicKey;
+  let escrow2Pda: anchor.web3.PublicKey;
+  let escrow3: anchor.IdlTypes<anchor.Idl>["Escrow"];
+  let escrow3Pda: anchor.web3.PublicKey;
 
   // Use the before() hook to create our mints, find our escrow PDA, etc.
   before(async () => {
@@ -134,6 +148,16 @@ describe("non-custodial-escrow", () => {
     );
     console.log(`y_mint: ${y_mint.toBase58()}`);
     // await new Promise((resolve) => setTimeout(resolve, 500));
+
+
+    z_mint = await createMint(
+      provider.connection, // connection
+      seller.payer, // payer of tx and init fees
+      seller.publicKey, // mintAuthority
+      seller.publicKey, // freezeAuthority?
+      8 // decimals location of the decimal place
+    );
+    console.log(`z_mint: ${z_mint.toBase58()}`);
 
     // Create associated token accounts for seller's and buyer's x and y tokens
     // Create seller_out_token_account ATA
@@ -212,6 +236,34 @@ describe("non-custodial-escrow", () => {
         .getTokenAccountBalance(buyer_out_token_account)
         .then((r) => r.value.amount)}`
     );
+
+    // U: Adding Z mint and ONLY creating seller_z_token_account ATA
+    // Not creating buyer_y_token_account to test if the exchange
+    // can still happen.
+    seller_z_token_account = await createAssociatedTokenAccount(
+      provider.connection,
+      seller.payer,
+      z_mint,
+      seller.publicKey
+    );
+    console.log(`seller_z_token_account: ${seller_z_token_account}`);
+
+    await mintToChecked(
+      provider.connection,
+      seller.payer, // payer
+      z_mint, // mint
+      seller_z_token_account, // destination
+      seller.publicKey, // mint authority
+      1e8, // amount. NOTE If decimals is 8, you mint 10^8 for 1 token
+      8 // decimals
+      // [signer1, signer2...], // only multisig account will use
+    );
+    console.log(
+      `seller_z_token_account balance: ${await provider.connection
+        .getTokenAccountBalance(seller_z_token_account)
+        .then((r) => r.value.amount)}`
+    );
+
   });
 
 
@@ -523,76 +575,226 @@ describe("non-custodial-escrow", () => {
     //   escrowedXTokenAccountData
     // );
     // CANCEL::escrowedXTokenAccountData:  null
-    });
-
-
-    it("Initialize escrow2 with same wallet", async () => {
-      const escrowNumber: string = (
-        customProgram.totalEscrowCount.toNumber() + 1
-      ).toString();
-      console.log("escrowNumber: ", escrowNumber);
-
-      const [pda, bump] = await PublicKey.findProgramAddress(
-        // [anchor.utils.bytes.utf8.encode("escrow"), seller.publicKey.toBuffer()],
-        [Buffer.from(ESCROW_SEED_PREFIX), seller.publicKey.toBuffer(), anchor.utils.bytes.utf8.encode(escrowNumber)],
-        program.programId
-      );
-
-      escrowPda2 = pda;
-      console.log(`escrowPda2: ${escrowPda2}`);
-      console.log("STARTED: Initialize escrow test...");
-
-      const out_amount = new anchor.BN(20);
-      const in_amount = new anchor.BN(80); // number of token seller wants in exchange for out_amount
-
-      const tx = await program.methods
-        .initialize(out_amount, in_amount)
-        .accounts({
-          seller: seller.publicKey,
-          customProgram: customProgramPda,
-          outMint: x_mint,
-          inMint: y_mint,
-          sellerOutTokenAccount: seller_out_token_account,
-          escrow: escrowPda2, // created in program
-          escrowedOutTokenAccount: escrowedOutTokenAccount2.publicKey, // created in program
-          tokenProgram: TOKEN_PROGRAM_ID, // Q: Use 2022 version? A: TOKEN_PROGRAM_ID!
-          rent: SYSVAR_RENT_PUBKEY,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        .signers([escrowedOutTokenAccount2])
-        .rpc({ skipPreflight: true });
-
-      console.log("TxHash ::", tx);
-
-      const currentCustomProgram = await program.account.customProgram.fetch(customProgramPda);
-      customProgram = currentCustomProgram;
-
-      const currentEscrow = await program.account.escrow.fetch(escrowPda2);
-      console.log("currentEscrow: ", currentEscrow);
-      // Update global state
-      escrow2 = currentEscrow;
-
-
-      const escrowedOutTokenAccountBalance =
-        await provider.connection.getTokenAccountBalance(
-          escrowedOutTokenAccount2.publicKey
-        );
-      console.log(
-        "INITIALIZE::escrowedOutTokenAccountBalance: ",
-        escrowedOutTokenAccountBalance
-      );
-
-      console.log('escrow account: ', currentEscrow);
-
-      expect(currentEscrow.authority.toString()).to.equal(seller.publicKey.toString());
-      expect(currentEscrow.isActive).to.equal(true);
-      expect(currentEscrow.hasExchanged).to.equal(false);
-      expect(currentEscrow.outAmount.toNumber()).to.equal(20);
-      expect(currentEscrow.inAmount.toNumber()).to.equal(80);
-      expect(parseInt(escrowedOutTokenAccountBalance.value.amount)).to.equal(20);
-      expect(currentEscrow.bump).to.equal(bump);
-      expect(customProgram.totalEscrowCount.toNumber()).to.equal(parseInt(escrowNumber)); //
   });
+
+
+  it("Initialize escrow2 with same wallet", async () => {
+    const escrowNumber: string = (
+      customProgram.totalEscrowCount.toNumber() + 1
+    ).toString();
+    console.log("escrowNumber: ", escrowNumber);
+
+    const [pda, bump] = await PublicKey.findProgramAddress(
+      // [anchor.utils.bytes.utf8.encode("escrow"), seller.publicKey.toBuffer()],
+      [Buffer.from(ESCROW_SEED_PREFIX), seller.publicKey.toBuffer(), anchor.utils.bytes.utf8.encode(escrowNumber)],
+      program.programId
+    );
+
+    escrow2Pda = pda;
+    console.log(`escrow2Pda: ${escrow2Pda}`);
+    console.log("STARTED: Initialize escrow test...");
+
+    const out_amount = new anchor.BN(20);
+    const in_amount = new anchor.BN(80); // number of token seller wants in exchange for out_amount
+
+    const tx = await program.methods
+      .initialize(out_amount, in_amount)
+      .accounts({
+        seller: seller.publicKey,
+        customProgram: customProgramPda,
+        outMint: x_mint,
+        inMint: y_mint,
+        sellerOutTokenAccount: seller_out_token_account,
+        escrow: escrow2Pda, // created in program
+        escrowedOutTokenAccount: escrowedOutTokenAccount2.publicKey, // created in program
+        tokenProgram: TOKEN_PROGRAM_ID, // Q: Use 2022 version? A: TOKEN_PROGRAM_ID!
+        rent: SYSVAR_RENT_PUBKEY,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([escrowedOutTokenAccount2])
+      .rpc({ skipPreflight: true });
+
+    console.log("TxHash ::", tx);
+
+    const currentCustomProgram = await program.account.customProgram.fetch(customProgramPda);
+    customProgram = currentCustomProgram;
+
+    const currentEscrow = await program.account.escrow.fetch(escrow2Pda);
+    console.log("currentEscrow: ", currentEscrow);
+    // Update global state
+    escrow2 = currentEscrow;
+
+
+    const escrowedOutTokenAccountBalance =
+      await provider.connection.getTokenAccountBalance(
+        escrowedOutTokenAccount2.publicKey
+      );
+    console.log(
+      "INITIALIZE::escrowedOutTokenAccountBalance: ",
+      escrowedOutTokenAccountBalance
+    );
+
+    console.log('escrow account: ', currentEscrow);
+
+    expect(currentEscrow.authority.toString()).to.equal(seller.publicKey.toString());
+    expect(currentEscrow.isActive).to.equal(true);
+    expect(currentEscrow.hasExchanged).to.equal(false);
+    expect(currentEscrow.outAmount.toNumber()).to.equal(20);
+    expect(currentEscrow.inAmount.toNumber()).to.equal(80);
+    expect(parseInt(escrowedOutTokenAccountBalance.value.amount)).to.equal(20);
+    expect(currentEscrow.bump).to.equal(bump);
+    expect(customProgram.totalEscrowCount.toNumber()).to.equal(parseInt(escrowNumber)); //
+  });
+
+
+  it("Initialize escrow3 with seller out token as Z mint", async () => {
+    const escrowNumber: string = (
+      customProgram.totalEscrowCount.toNumber() + 1
+    ).toString();
+    console.log("escrowNumber: ", escrowNumber);
+
+    const [pda, bump] = await PublicKey.findProgramAddress(
+      // [anchor.utils.bytes.utf8.encode("escrow"), seller.publicKey.toBuffer()],
+      [Buffer.from(ESCROW_SEED_PREFIX), seller.publicKey.toBuffer(), anchor.utils.bytes.utf8.encode(escrowNumber)],
+      program.programId
+    );
+
+    escrow3Pda = pda;
+    console.log(`escrow3Pda: ${escrow3Pda}`);
+    console.log("STARTED: Initialize escrow test...");
+
+    const out_amount = new anchor.BN(20);
+    const in_amount = new anchor.BN(80); // number of token seller wants in exchange for out_amount
+
+    const tx = await program.methods
+      .initialize(out_amount, in_amount)
+      .accounts({
+        seller: seller.publicKey,
+        customProgram: customProgramPda,
+        outMint: z_mint,
+        inMint: y_mint,
+        sellerOutTokenAccount: seller_z_token_account,
+        escrow: escrow3Pda, // created in program
+        escrowedOutTokenAccount: escrowedOutTokenAccount3.publicKey, // created in program
+        tokenProgram: TOKEN_PROGRAM_ID, // Q: Use 2022 version? A: TOKEN_PROGRAM_ID!
+        rent: SYSVAR_RENT_PUBKEY,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([escrowedOutTokenAccount3])
+      .rpc({ skipPreflight: true });
+
+    console.log("TxHash ::", tx);
+
+    const currentCustomProgram = await program.account.customProgram.fetch(customProgramPda);
+    customProgram = currentCustomProgram;
+
+    const currentEscrow = await program.account.escrow.fetch(escrow3Pda);
+    console.log("currentEscrow: ", currentEscrow);
+    // Update global state
+    escrow3 = currentEscrow;
+
+
+    const escrowedOutTokenAccountBalance =
+      await provider.connection.getTokenAccountBalance(
+        escrowedOutTokenAccount3.publicKey
+      );
+    console.log(
+      "INITIALIZE::escrowedOutTokenAccountBalance: ",
+      escrowedOutTokenAccountBalance
+    );
+
+    console.log('escrow account: ', currentEscrow);
+
+    expect(currentEscrow.authority.toString()).to.equal(seller.publicKey.toString());
+    expect(currentEscrow.isActive).to.equal(true);
+    expect(currentEscrow.hasExchanged).to.equal(false);
+    expect(currentEscrow.outAmount.toNumber()).to.equal(20);
+    expect(currentEscrow.inAmount.toNumber()).to.equal(80);
+    expect(parseInt(escrowedOutTokenAccountBalance.value.amount)).to.equal(20);
+    expect(currentEscrow.bump).to.equal(bump);
+    expect(customProgram.totalEscrowCount.toNumber()).to.equal(parseInt(escrowNumber)); //
+  });
+
+
+  it("Accept the trade without buyer having token Z ATA", async () => {
+    // Q: Should I add some assert up top ensure that buyer doesn't have ATA?
+    // Q: In Chai, how to check if 'undefined'?
+    // A: Use the to.be.undefined
+    expect(buyer_z_token_account).to.be.undefined; // WORKS
+
+    // Use the getOrCreateAssociatedTokenAccount() function
+    // NOTE This returns type Account (not PublicKey), so you have to
+    // access the 'address' property to get the pubkey!
+    buyer_z_token_account = await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      buyer, // payer
+      z_mint,
+      buyer.publicKey // owner
+    );
+    console.log('buyer_z_token_account AFTER getOrCreateAssociatedTokenAccount: ', buyer_z_token_account);
+
+
+    const tx = await program.methods
+      .accept()
+      .accounts({
+        buyer: buyer.publicKey,
+        escrow: escrow3Pda,
+        escrowedOutTokenAccount: escrowedOutTokenAccount3.publicKey,
+        sellerInTokenAccount: seller_in_token_account, // Y mint
+        buyerInTokenAccount: buyer_z_token_account.address, // Q: Will this work without creating ATA first? A: No!
+        buyerOutTokenAccount: buyer_out_token_account, // Y mint
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers([buyer])
+      .rpc({ skipPreflight: true });
+
+    console.log("TxHash ::", tx);
+
+    // Get account data to verify is_active and has_exchanged values
+    const data = await program.account.escrow.fetch(escrow3Pda);
+    console.log('escrow account: ', data);
+
+    const escrowedOutTokenAccountBalance =
+      await provider.connection.getTokenAccountBalance(
+        escrowedOutTokenAccount3.publicKey
+      );
+    console.log(
+      "ACCEPT::escrowedOutTokenAccountBalance: ",
+      escrowedOutTokenAccountBalance
+    );
+    // ACCEPT::escrowedOutTokenAccountBalance:  {
+    //   context: { apiVersion: '1.10.38', slot: 81 },
+    //   value: { amount: '0', decimals: 8, uiAmount: 0, uiAmountString: '0' }
+    // }
+
+    // const escrowedXTokenAccountData = await provider.connection
+    //   .getAccountInfo(escrowedOutTokenAccount1.publicKey)
+    //   .then((res) => res.data.toJSON());
+    // console.log(
+    //   "ACCEPT::escrowedXTokenAccountData: ",
+    //   escrowedXTokenAccountData
+    // );
+    // ACCEPT::escrowedXTokenAccountData:  {
+    //   data: <Buffer e2 bd 5c 49 60 9d 4b 7d 64 2e 61 e0 a0 a5 b3 44 e0 4d 24 98 5a 43 3c 10 9c cd e1 6d 69 01 a1 9e b1 f0 cc 28 e1 e2 41 58 0f 62 c
+    // c 70 0f 9c cb d2 bb 7d ... 115 more bytes>,
+    //   executable: false,
+    //   lamports: 2039280,
+    //   owner: PublicKey {
+    //     _bn: <BN: 6ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9>
+    //   },
+    //   rentEpoch: 0
+    // }
+
+    expect(data.buyer.toString()).to.equal(buyer.publicKey.toString());
+    expect(data.isActive).to.equal(false);
+    expect(data.hasExchanged).to.equal(true);
+    expect(parseInt(escrowedOutTokenAccountBalance.value.amount)).to.equal(0);
+    // TODO Check that buyer and seller ATA balances are accurately updated.
+  });
+
+
+
+
 
 });
 
