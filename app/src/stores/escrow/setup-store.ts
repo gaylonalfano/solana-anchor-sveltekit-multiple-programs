@@ -6,6 +6,9 @@ import * as constants from '../../helpers/escrow/constants';
 // needed (creating tokens, ATAs, minting supply, etc.) so that I 
 // can start testing/using with different wallets. This is for dev
 // purposes only at this point!
+// U: Added Z and W Mints to simulate a user not having an ATA
+// NOTE Only creating/minting to sellerZ and buyerW.
+// May come back and add other props if needed.
 
 export type SetupStoreObject = {
   sellerWallet: anchor.web3.PublicKey | null,
@@ -15,7 +18,13 @@ export type SetupStoreObject = {
   sellerYTokenMint: anchor.web3.PublicKey | null,
   sellerYTokenATA: anchor.web3.PublicKey | null,
   sellerYTokenBalance: number | null,
+  sellerZTokenMint: anchor.web3.PublicKey | null,
+  sellerZTokenATA: anchor.web3.PublicKey | null,
+  sellerZTokenBalance: number | null,
   buyerWallet: anchor.web3.PublicKey | null,
+  buyerWTokenMint: anchor.web3.PublicKey | null,
+  buyerWTokenATA: anchor.web3.PublicKey | null,
+  buyerWTokenBalance: number | null,
   buyerXTokenMint: anchor.web3.PublicKey | null,
   buyerXTokenATA: anchor.web3.PublicKey | null,
   buyerXTokenBalance: number | null,
@@ -35,7 +44,13 @@ function createSetupStore() {
       sellerYTokenMint: null,
       sellerYTokenATA: null,
       sellerYTokenBalance: null,
+      sellerZTokenMint: null,
+      sellerZTokenATA: null,
+      sellerZTokenBalance: null,
       buyerWallet: constants.BUYER_WALLET_ADDRESS,
+      buyerWTokenMint: null,
+      buyerWTokenATA: null,
+      buyerWTokenBalance: null,
       buyerXTokenMint: null,
       buyerXTokenATA: null,
       buyerXTokenBalance: null,
@@ -57,7 +72,13 @@ function createSetupStore() {
       sellerYTokenMint: null,
       sellerYTokenATA: null,
       sellerYTokenBalance: null,
+      sellerZTokenMint: null,
+      sellerZTokenATA: null,
+      sellerZTokenBalance: null,
       buyerWallet: constants.BUYER_WALLET_ADDRESS,
+      buyerWTokenMint: null,
+      buyerWTokenATA: null,
+      buyerWTokenBalance: null,
       buyerXTokenMint: null,
       buyerXTokenATA: null,
       buyerXTokenBalance: null,

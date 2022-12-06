@@ -34,7 +34,13 @@
 	import { setupStore } from '$stores/escrow/setup-store';
 	import { sellerStore } from '$stores/escrow/seller-store';
 	import { buyerStore } from '$stores/escrow/buyer-store';
-	import { xMintStore, yMintStore, walletTokenAccountsStore } from '$stores/escrow/tokens-store';
+	import {
+		wMintStore,
+		xMintStore,
+		yMintStore,
+		zMintStore,
+		walletTokenAccountsStore
+	} from '$stores/escrow/tokens-store';
 	import { customProgramStore } from '$stores/escrow/custom-program-store';
 	import { userStore } from '$stores/escrow/user-store';
 	import {
@@ -50,8 +56,8 @@
 	// import type { EscrowObject, EscrowStoreObject } from 'src/models/escrow-types';
 
 	// TODOS:
-  // - Add support for SOL-SPL escrow swaps (*see lib.rs)
-	// - Add tests for if buyer/seller don't have the ATA for their inTokenATA
+	// - Add support for SOL-SPL escrow swaps (*see lib.rs)
+	// - DONE Add tests for if buyer/seller don't have the ATA for their inTokenATA
 	// - Add tests for confirming token balances are accurately credited/debited
 	// - DONE Fetch all active Escrows involving wallet and display
 	//    - First, simply display active Escrows on page load
@@ -99,11 +105,17 @@
 	const buyer = constants.BUYER_WALLET_ADDRESS;
 	// U: Going to store token Keypairs OUTSIDE of createToken() methods.
 	// The idea is to stop recreating tokens on refreshes, etc.
+	let wMintKeypair = Keypair.generate();
+	let wMintPubkey = wMintKeypair.publicKey;
+
 	let xMintKeypair = Keypair.generate();
 	let xMintPubkey = xMintKeypair.publicKey;
 
 	let yMintKeypair = Keypair.generate();
 	let yMintPubkey = yMintKeypair.publicKey;
+
+	let zMintKeypair = Keypair.generate();
+	let zMintPubkey = zMintKeypair.publicKey;
 
 	// Q: Is there an SPL 'Account' type to use for TS?
 	// A: Yes, it's 'Mint'
@@ -206,10 +218,12 @@
 			// each token Keypair and then just use them inside the createToken()
 			// functions. Otherwise, it will generate again and again...
 			// A: Just used Stores instead for now.
+			get(wMintStore);
 			get(xMintStore);
 			get(yMintStore);
+			get(zMintStore);
 
-			// TODO Don't forget about yMintStore!
+			// TODO Don't forget about yMintStore, w, z!
 			if ($xMintStore.address !== null && $xMintStore.mint === null) {
 				// Store maintains mint address but need to get mint account info
 				// Q: Do I need to await or resolve Promise? How? tick()?
@@ -235,8 +249,10 @@
 	$: {
 		// console.log('workspaceStore: ', $workspaceStore);
 		// console.log('walletStore: ', $walletStore);
+		console.log('wMintStore: ', $wMintStore);
 		console.log('xMintStore: ', $xMintStore);
 		console.log('yMintStore: ', $yMintStore);
+		console.log('zMintStore: ', $zMintStore);
 		// console.log('walletTokenAccountsStore: ', $walletTokenAccountsStore);
 		// console.log('balanceStore: ', $balanceStore);
 		// console.log('selectedToken: ', selectedToken);
@@ -248,14 +264,14 @@
 		//   console.log('sellerStore.outTokenATA: ', $sellerStore.outTokenATA?.toBase58())
 		//   console.log('sellerStore.outTokenMint: ', $sellerStore.outTokenMint?.toBase58())
 		// console.log('buyerStore: ', $buyerStore);
-		console.log('escrowStore: ', $escrowStore);
-		console.log('escrowsStore: ', $escrowsStore);
+		// console.log('escrowStore: ', $escrowStore);
+		// console.log('escrowsStore: ', $escrowsStore);
 		// console.log('formState: ', formState);
 		// console.log('hasRequiredEscrowInputs: ', hasRequiredEscrowInputs);
-		console.log('userStore: ', $userStore);
+		// console.log('userStore: ', $userStore);
 		console.log('setupStore: ', $setupStore);
-		console.log('customProgramStore: ', $customProgramStore);
-		console.log('userStore.outTokenATA: ', $userStore.outTokenATA?.toBase58());
+		// console.log('customProgramStore: ', $customProgramStore);
+		// console.log('userStore.outTokenATA: ', $userStore.outTokenATA?.toBase58());
 	}
 
 	// Q: How could I use X/Y tokens from wallets or mint addresses?
@@ -280,13 +296,12 @@
 			formState.outTokenBalance = $balanceStore.balance;
 			// U: Need to update sellerStore values as well to init escrow
 			$userStore.outTokenMint = constants.SOL_PUBLIC_KEY;
-      $userStore.outTokenDecimals = constants.SOL_DECIMALS;
+			$userStore.outTokenDecimals = constants.SOL_DECIMALS;
 			// Q: Should I set outTokenATA to wallet address for SOL? Or leave null?
 			// TODO Still need to update my init escrow to allow SOL
 			$userStore.outTokenATA = $walletStore.publicKey;
 			$userStore.outTokenBalance = $balanceStore.balance;
-      $userStore.outTokenRawBalance = $balanceStore.balance * 10 ** constants.SOL_DECIMALS;
-
+			$userStore.outTokenRawBalance = $balanceStore.balance * 10 ** constants.SOL_DECIMALS;
 		}
 
 		let matchingToken = $walletTokenAccountsStore.find((tokenAccount) => {
@@ -346,15 +361,13 @@
 				$userStore.outTokenRawAmount = rawTokenAmount;
 				$userStore.outTokenAmount = parseFloat(formState.outTokenAmount);
 			} else if (formState.outTokenAmount && formState.outTokenMint) {
-        // ======== DO THIS =======
-        // FIXME Sometimes I refresh and enter new values but nothing
-        // updates inside userStore.outTokenAmount
-        console.log('OutTokenAmountInput::formState.outTokenAmount && formState.outTokenMint')
-        // Q: Need to find inside walletTokenAccountsStore and update userStore.outTokenAmount
-        // and outTokenRawAmount?
-
-
-      }
+				// ======== DO THIS =======
+				// FIXME Sometimes I refresh and enter new values but nothing
+				// updates inside userStore.outTokenAmount
+				console.log('OutTokenAmountInput::formState.outTokenAmount && formState.outTokenMint');
+				// Q: Need to find inside walletTokenAccountsStore and update userStore.outTokenAmount
+				// and outTokenRawAmount?
+			}
 		} catch (e) {
 			console.log(e);
 		}
@@ -407,7 +420,7 @@
 				$userStore.inTokenDecimals = inTokenMintData.decimals;
 
 				// Q: What if seller doesn't have inTokenATA? Need to create it here or where?
-        // NOTE May need to look into getOrCreateAssociatedTokenAccount()
+				// NOTE May need to look into getOrCreateAssociatedTokenAccount()
 			}
 		} catch (e) {
 			console.log(e);
@@ -670,7 +683,93 @@
 		// ); // WORKS! Need to use walletStore instead of workspaceStore!
 	}
 
-	async function createTokenXAndTokenY() {
+	async function createTokenW() {
+		const tx = new Transaction().add(
+			// create mint account
+			SystemProgram.createAccount({
+				fromPubkey: $walletStore.publicKey as anchor.web3.PublicKey,
+				newAccountPubkey: wMintPubkey,
+				space: MINT_SIZE,
+				lamports: await getMinimumBalanceForRentExemptMint($workspaceStore.connection),
+				programId: TOKEN_PROGRAM_ID
+			}),
+			// init mint account
+			createInitializeMintInstruction(
+				wMintPubkey, // mint publicKey
+				8, // decimals
+				$walletStore.publicKey as anchor.web3.PublicKey, // seller.publicKey, // mint authority
+				$walletStore.publicKey as anchor.web3.PublicKey // seller.publicKey // freeze authority
+			)
+		);
+
+		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
+			signers: [wMintKeypair]
+		});
+		console.log('signature:	', signature);
+		// NOTE Must call confirmTransaction() or else get TokenAccountNotFoundError
+		// Q: Why do I get TokenAccountNotFoundError if I DON'T call confirmTransaction()?
+		const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+			blockhash: latestBlockhash.blockhash,
+			lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+			signature: signature
+		});
+		console.log('confirmedTx: ', confirmedTx);
+
+		const wMintAccountData = await getMint($workspaceStore.connection, wMintPubkey);
+		wMintStore.set({ address: wMintPubkey, mint: wMintAccountData });
+
+		// console.log(
+		// 	`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
+		// 		signers: [mint]
+		// 	})}`
+		// ); // WORKS! Need to use walletStore instead of workspaceStore!
+	}
+
+	async function createTokenZ() {
+		const tx = new Transaction().add(
+			// create mint account
+			SystemProgram.createAccount({
+				fromPubkey: $walletStore.publicKey as anchor.web3.PublicKey,
+				newAccountPubkey: zMintPubkey,
+				space: MINT_SIZE,
+				lamports: await getMinimumBalanceForRentExemptMint($workspaceStore.connection),
+				programId: TOKEN_PROGRAM_ID
+			}),
+			// init mint account
+			createInitializeMintInstruction(
+				zMintPubkey, // mint publicKey
+				8, // decimals
+				$walletStore.publicKey as anchor.web3.PublicKey, // seller.publicKey, // mint authority
+				$walletStore.publicKey as anchor.web3.PublicKey // seller.publicKey // freeze authority
+			)
+		);
+
+		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
+			signers: [zMintKeypair]
+		});
+		console.log('signature:	', signature);
+		// NOTE Must call confirmTransaction() or else get TokenAccountNotFoundError
+		// Q: Why do I get TokenAccountNotFoundError if I DON'T call confirmTransaction()?
+		const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+			blockhash: latestBlockhash.blockhash,
+			lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+			signature: signature
+		});
+		console.log('confirmedTx: ', confirmedTx);
+
+		const zMintAccountData = await getMint($workspaceStore.connection, zMintPubkey);
+		zMintStore.set({ address: zMintPubkey, mint: zMintAccountData });
+
+		// console.log(
+		// 	`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection, {
+		// 		signers: [mint]
+		// 	})}`
+		// ); // WORKS! Need to use walletStore instead of workspaceStore!
+	}
+
+	async function createAllTokens() {
 		// NOTE For testing ONLY. Let's airdrop both wallets some SOL
 		await $workspaceStore.connection.confirmTransaction(
 			await $workspaceStore.connection.requestAirdrop(
@@ -683,11 +782,21 @@
 		);
 
 		// Create our Tokens
+		await createTokenW();
 		await createTokenX();
 		await createTokenY();
+		await createTokenZ();
 	}
 
 	// TODO Refactor
+	async function getWMintAccount() {
+		const wMintAccountData = await getMint(
+			$workspaceStore.connection,
+			$wMintStore.address as anchor.web3.PublicKey
+		);
+		wMintStore.set({ address: wMintAccountData.address, mint: wMintAccountData });
+	}
+
 	async function getXMintAccount() {
 		// NOTE Currently getMint() only works when I add to onclick event...
 		const xMintAccountData = await getMint(
@@ -716,12 +825,37 @@
 		$setupStore.sellerXTokenBalance = tokenAmount?.value.uiAmount as number;
 	}
 
+	async function getSellerZTokenAccountBalance() {
+		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
+			$setupStore.sellerZTokenATA as anchor.web3.PublicKey
+		);
+
+		$setupStore.sellerZTokenBalance = tokenAmount?.value.uiAmount as number;
+	}
+
 	async function getBuyerYTokenAccountBalance() {
 		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
 			$setupStore.buyerYTokenATA as anchor.web3.PublicKey
 		);
 
 		$setupStore.buyerYTokenBalance = tokenAmount?.value.uiAmount as number;
+	}
+
+	async function getBuyerWTokenAccountBalance() {
+		const tokenAmount = await $workspaceStore.provider?.connection.getTokenAccountBalance(
+			$setupStore.buyerWTokenATA as anchor.web3.PublicKey
+		);
+
+		$setupStore.buyerWTokenBalance = tokenAmount?.value.uiAmount as number;
+	}
+
+
+	async function getZMintAccount() {
+		const zMintAccountData = await getMint(
+			$workspaceStore.connection,
+			$zMintStore.address as anchor.web3.PublicKey
+		);
+		zMintStore.set({ address: zMintAccountData.address, mint: zMintAccountData });
 	}
 
 	async function createSellerTokenXAssociatedTokenAccount() {
@@ -869,14 +1003,85 @@
 		console.log('confirmedTx: ', confirmedTx);
 	}
 
+	// TODO - Finish the setup for buyerW and sellerZ ATAs
+	// U: Added W and Z Mints to simulate a user not having an ATA
+	async function createBuyerTokenWAssociatedTokenAccount() {
+		const buyerWToken = await getAssociatedTokenAddress(
+			$wMintStore.address as anchor.web3.PublicKey, // mint
+			$setupStore.buyerWallet as anchor.web3.PublicKey // buyer.publicKey // owner
+		);
+		console.log(`buyerWToken: ${buyerWToken.toBase58()}`);
+		$setupStore.buyerWTokenATA = buyerWToken;
+		$setupStore.buyerWTokenMint = $wMintStore.address;
+
+		const tx = new Transaction().add(
+			createAssociatedTokenAccountInstruction(
+				$walletStore.publicKey as anchor.web3.PublicKey, // payer
+				$setupStore.buyerWTokenATA, // ata
+				$setupStore.buyerWallet as anchor.web3.PublicKey, // buyer.publicKey, // owner
+				$setupStore.buyerWTokenMint as anchor.web3.PublicKey // mint
+			)
+		);
+
+		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection);
+		console.log('signature:	', signature);
+		// NOTE Must call confirmTransaction() or else get TokenAccountNotFoundError
+		// Q: Why do I get TokenAccountNotFoundError if I DON'T call confirmTransaction()?
+		// U: New signature for confirmTransaction uses BlockHeightBasedTransactionConfirmationStrategy
+		// REF: https://stackoverflow.com/a/72333685
+		const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+			blockhash: latestBlockhash.blockhash,
+			lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+			signature: signature
+		});
+		console.log('confirmedTx: ', confirmedTx);
+	}
+
+	async function createSellerTokenZAssociatedTokenAccount() {
+		const sellerZToken = await getAssociatedTokenAddress(
+			$zMintStore.address as anchor.web3.PublicKey, // mint
+			$setupStore.sellerWallet as anchor.web3.PublicKey // buyer.publicKey // owner
+		);
+		console.log(`sellerZToken: ${sellerZToken.toBase58()}`);
+		$setupStore.sellerZTokenATA = sellerZToken;
+		$setupStore.sellerZTokenMint = $zMintStore.address;
+
+		const tx = new Transaction().add(
+			createAssociatedTokenAccountInstruction(
+				$walletStore.publicKey as anchor.web3.PublicKey, // payer
+				$setupStore.sellerZTokenATA, // ata
+				$setupStore.sellerWallet as anchor.web3.PublicKey,
+				$setupStore.sellerZTokenMint as anchor.web3.PublicKey // mint
+			)
+		);
+
+		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection);
+		console.log('signature:	', signature);
+		// NOTE Must call confirmTransaction() or else get TokenAccountNotFoundError
+		// Q: Why do I get TokenAccountNotFoundError if I DON'T call confirmTransaction()?
+		// U: New signature for confirmTransaction uses BlockHeightBasedTransactionConfirmationStrategy
+		// REF: https://stackoverflow.com/a/72333685
+		const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+			blockhash: latestBlockhash.blockhash,
+			lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+			signature: signature
+		});
+		console.log('confirmedTx: ', confirmedTx);
+	}
+
 	async function createAllBuyerAndSellerAssociatedTokenAccounts() {
 		// Q: Not sure this will be needed when I implement actual wallets...
 		// Q: Is there a sendAllTransactions() method?
 		try {
 			await createBuyerTokenXAssociatedTokenAccount();
 			await createBuyerTokenYAssociatedTokenAccount();
+			await createBuyerTokenWAssociatedTokenAccount();
+
 			await createSellerTokenXAssociatedTokenAccount();
 			await createSellerTokenYAssociatedTokenAccount();
+			await createSellerTokenZAssociatedTokenAccount();
 		} catch (error) {
 			console.log(error);
 		}
@@ -990,12 +1195,75 @@
 		await getYMintAccount();
 	}
 
+	// U: Need to mint supply to sellerZ and buyerW
+	async function mintTokenZAndTransferToSellerTokenZAssociatedTokenAccount() {
+		const tx = new Transaction().add(
+			createMintToCheckedInstruction(
+				$setupStore.sellerZTokenMint as anchor.web3.PublicKey, // mint
+				$setupStore.sellerZTokenATA as anchor.web3.PublicKey, // destination ata
+				$walletStore.publicKey as anchor.web3.PublicKey, // mint authority
+				3e8, // amount
+				$zMintStore.mint?.decimals as number // decimals 8 // U: Could maybe reference $yMintStore.mint.decimals
+			)
+		);
+		// console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
+
+		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection);
+		console.log('signature: ', signature);
+
+		const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+			blockhash: latestBlockhash.blockhash,
+			lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+			signature: signature
+		});
+		console.log('confirmedTx: ', confirmedTx);
+
+		// Get updated mint account data and update Store for Supply UI
+		// NOTE Using helper to fetch and update Store
+		await getZMintAccount();
+	}
+
+	async function mintTokenWAndTransferToBuyerTokenWAssociatedTokenAccount() {
+		const tx = new Transaction().add(
+			createMintToCheckedInstruction(
+				$setupStore.buyerWTokenMint as anchor.web3.PublicKey, // mint
+				$setupStore.buyerWTokenATA as anchor.web3.PublicKey, // destination ata
+				$walletStore.publicKey as anchor.web3.PublicKey, // mint authority
+				3e8, // amount
+				$wMintStore.mint?.decimals as number // decimals 8 // U: Could maybe reference $yMintStore.mint.decimals
+			)
+		);
+		// console.log(`TxHash :: ${await $walletStore.sendTransaction(tx, $workspaceStore.connection)}`); // WORKS! Need to use walletStore instead of workspaceStore!
+
+		const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection);
+		console.log('signature: ', signature);
+
+		const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+		const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+			blockhash: latestBlockhash.blockhash,
+			lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+			signature: signature
+		});
+		console.log('confirmedTx: ', confirmedTx);
+
+		// Get updated mint account data and update Store for Supply UI
+		// NOTE Using helper to fetch and update Store
+		await getWMintAccount();
+	}
+
 	async function mintAllTokensAndTransferToAssociatedTokenAccounts() {
+		// TODO Refactor possibly using Promise.all()
 		try {
 			await mintTokenXAndTransferToSellerTokenXAssociatedTokenAccount();
+			await mintTokenZAndTransferToSellerTokenZAssociatedTokenAccount();
 			await mintTokenYAndTransferToBuyerTokenYAssociatedTokenAccount();
+			await mintTokenWAndTransferToBuyerTokenWAssociatedTokenAccount();
+
 			await getSellerXTokenAccountBalance();
+      await getSellerZTokenAccountBalance();
 			await getBuyerYTokenAccountBalance();
+      await getBuyerWTokenAccountBalance();
 		} catch (error) {
 			console.log(error);
 		}
@@ -1072,6 +1340,21 @@
 		}
 	}
 
+
+  // U: Create one BIG setup() that does it all
+  async function setupForClientTesting() {
+    try {
+      await handleCreateCustomProgramAccount();
+      await createAllTokens();
+      await createAllBuyerAndSellerAssociatedTokenAccounts();
+      await mintAllTokensAndTransferToAssociatedTokenAccounts();
+      
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+
 	async function handleInitializeEscrowAccount() {
 		// U: Reset any existing escrowStore just in case
 		escrowStore.reset();
@@ -1104,7 +1387,7 @@
 
 		// Get the customProgram.totalEscrowCount to use as a seed
 		// Q: How to pass a type u64 into seeds array? Uint8Array
-    // A: Convert to string and use anchor.utils.bytes.utf8.encode()
+		// A: Convert to string and use anchor.utils.bytes.utf8.encode()
 		const escrowNumber: string = (
 			$customProgramStore.customProgram?.totalEscrowCount.toNumber() + 1
 		).toString();
@@ -1155,10 +1438,10 @@
 		// with different token pairs, etc.
 		let escrowedOutTokenAccount = anchor.web3.Keypair.generate();
 
-    // U: Check if formState.outTokenMint === 'SOL' and grab the actual PublicKey
-    if (formState.outTokenMint === 'SOL') {
-      formState.outTokenMint = constants.SOL_PUBLIC_KEY.toBase58();
-    }
+		// U: Check if formState.outTokenMint === 'SOL' and grab the actual PublicKey
+		if (formState.outTokenMint === 'SOL') {
+			formState.outTokenMint = constants.SOL_PUBLIC_KEY.toBase58();
+		}
 
 		const tx = await $workspaceStore.program?.methods
 			.initialize(outAmount, inAmount)
@@ -1305,7 +1588,7 @@
 				>
 			</div>
 			<div class="form-control">
-				<button class="btn btn-info" on:click={createTokenXAndTokenY}>Create Tokens</button>
+				<button class="btn btn-info" on:click={createAllTokens}>Create Tokens</button>
 			</div>
 			<div class="form-control">
 				<button class="btn btn-info" on:click={createAllBuyerAndSellerAssociatedTokenAccounts}
@@ -1424,18 +1707,36 @@
 			{/each}
 		{/if}
 
+		<button class="btn btn-info mt-1" on:click={setupForClientTesting}>Setup</button>
 		<button class="btn btn-secondary mt-1" on:click={resetAllStores}>Reset</button>
 	</div>
+
+	<br />
+	<pre>wMintStore: {JSON.stringify(
+			$wMintStore,
+			(k, v) => (typeof v === 'bigint' ? v.toString() : v),
+			2
+		)}
+  </pre>
 
 	<pre>xMintStore: {JSON.stringify(
 			$xMintStore,
 			(k, v) => (typeof v === 'bigint' ? v.toString() : v),
 			2
 		)}
-    </pre>
+  </pre>
+
 	<br />
 	<pre>yMintStore: {JSON.stringify(
 			$yMintStore,
+			(k, v) => (typeof v === 'bigint' ? v.toString() : v),
+			2
+		)}
+  </pre>
+
+  <br/>
+	<pre>zMintStore: {JSON.stringify(
+			$zMintStore,
 			(k, v) => (typeof v === 'bigint' ? v.toString() : v),
 			2
 		)}

@@ -37,13 +37,28 @@ export type TokenMintStoreObject = {
 // U: Or, use the SPL Token's 'Mint' type
 // REF Check out the spl-token library for details
 // A: Using BOTH to store address separately and the mint info
+export const wMintStore = writable<TokenMintStoreObject>(
+  {
+    address: null,
+    mint: null
+  }
+);
+
 export const xMintStore = writable<TokenMintStoreObject>(
   {
     address: null,
     mint: null
   }
 );
+
 export const yMintStore = writable<TokenMintStoreObject>(
+  {
+    address: null,
+    mint: null,
+  }
+);
+
+export const zMintStore = writable<TokenMintStoreObject>(
   {
     address: null,
     mint: null,
