@@ -51,6 +51,7 @@
 	import { escrowsStore } from '$stores/escrow/escrows-store';
 	import Escrow from '$lib/Escrow.svelte';
 	import { getParsedTokenAccountsByOwner } from '../../helpers/escrow/getParsedTokenAccountsByOwner';
+	import { setupDevelopment } from '../../helpers/escrow/setupDevelopment';
 	import * as constants from '../../helpers/escrow/constants';
 	import { get } from 'svelte/store';
 	// import type { EscrowObject, EscrowStoreObject } from 'src/models/escrow-types';
@@ -222,6 +223,8 @@
 			get(xMintStore);
 			get(yMintStore);
 			get(zMintStore);
+
+      console.log('Token stores after using get(): ', $wMintStore, $xMintStore, $yMintStore, $zMintStore);
 
 			// TODO Don't forget about yMintStore, w, z!
 			if ($xMintStore.address !== null && $xMintStore.mint === null) {
@@ -1707,7 +1710,7 @@
 			{/each}
 		{/if}
 
-		<button class="btn btn-info mt-1" on:click={setupForClientTesting}>Setup</button>
+		<button class="btn btn-info mt-1" on:click={setupDevelopment}>Setup</button>
 		<button class="btn btn-secondary mt-1" on:click={resetAllStores}>Reset</button>
 	</div>
 
