@@ -687,49 +687,6 @@
 		>
 			Escrow
 		</h1>
-		<ul class="steps">
-			<li class="step" class:step-accent={$customProgramStore.customProgram !== null}>
-				Create Custom Program
-			</li>
-			<li class="step" class:step-accent={$xMintStore.address && $yMintStore.address}>
-				Create Tokens
-			</li>
-			<li
-				class="step"
-				class:step-accent={$setupStore.buyerXTokenATA &&
-					$setupStore.buyerYTokenATA &&
-					$setupStore.sellerXTokenATA &&
-					$setupStore.sellerYTokenATA}
-			>
-				Create ATAs
-			</li>
-			<li
-				class="step"
-				class:step-accent={$setupStore.sellerXTokenBalance && $setupStore.buyerYTokenBalance}
-			>
-				Mint Tokens
-			</li>
-		</ul>
-		<div class="grid grid-cols-4 gap-6 pt-2">
-			<div class="form-control">
-				<button class="btn btn-info" on:click={handleCreateCustomProgramAccount}
-					>Create Custom Program</button
-				>
-			</div>
-			<div class="form-control">
-				<button class="btn btn-info" on:click={createAllTokens}>Create Tokens</button>
-			</div>
-			<div class="form-control">
-				<button class="btn btn-info" on:click={createAllBuyerAndSellerAssociatedTokenAccounts}
-					>Create ATAs</button
-				>
-			</div>
-			<div class="form-control">
-				<button class="btn btn-info" on:click={mintAllTokensAndTransferToAssociatedTokenAccounts}
-					>Mint Tokens</button
-				>
-			</div>
-		</div>
 
 		<div class="divider" />
 

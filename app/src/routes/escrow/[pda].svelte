@@ -2,7 +2,13 @@
 	// REF: UI idea from: https://github.com/paul-schaaf/escrow-ui/blob/master/src/Alice.vue
 	// REF: Good example of web3/spl-token use: https://github.com/paul-schaaf/escrow-ui/blob/master/src/util/initEscrow.ts
 	import type anchor from '@project-serum/anchor';
-	import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+	import {
+		createAssociatedTokenAccountInstruction,
+		getAccount,
+		getAssociatedTokenAddress,
+		getOrCreateAssociatedTokenAccount,
+		TOKEN_PROGRAM_ID
+	} from '@solana/spl-token';
 
 	import { walletStore } from '@svelte-on-solana/wallet-adapter-core';
 	import { workSpace as workspaceStore } from '@svelte-on-solana/wallet-adapter-anchor';
@@ -25,11 +31,12 @@
 	import { getParsedTokenAccountsByOwner } from '../../helpers/escrow/getParsedTokenAccountsByOwner';
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
-	import { PublicKey } from '@solana/web3.js';
+	import { Transaction, PublicKey } from '@solana/web3.js';
 	import { goto } from '$app/navigation';
 	// import type { EscrowObject, EscrowStoreObject } from 'src/models/escrow-types';
 
 	// TODOS:
+	// - getOrCreateAssociatedTokenAccount() for SELLER inTokenATA!
 	// - Create escrow-types.ts file to clean up
 	// - DONE Update/set userStore values for ACCEPT
 	// - DONE Update/set userStore values for CANCEL
@@ -37,10 +44,10 @@
 	// - DONE Update escrowStore on page refresh
 	// - DONE escrowsStore state after cancel();
 	// - DONE Disable accept/cancel buttons based on isEscrowAuthority
-  // - Handle the scenario when the ATA do not exist (need to create)
-  //    - NOTE Look into getOrCreateAssociatedTokenAccount() as potential solution
-  //    - REF: https://www.quicknode.com/guides/solana-development/how-to-transfer-spl-tokens-on-solana
-  //    - U: Added tests using getOrCreateAssociatedTokenAccount().
+	// - Handle the scenario when the ATA do not exist (need to create)
+	//    - NOTE Look into getOrCreateAssociatedTokenAccount() as potential solution
+	//    - REF: https://www.quicknode.com/guides/solana-development/how-to-transfer-spl-tokens-on-solana
+	//    - U: Added tests using getOrCreateAssociatedTokenAccount().
 
 	// Create some variables to react to Stores state
 	$: hasEscrowsStoreValues = $escrowsStore.length > 0;
@@ -134,8 +141,8 @@
 			$userStore.walletAddress = $walletStore.publicKey as anchor.web3.PublicKey;
 			$userStore.outTokenMint = $escrowStore.escrow.inMint as anchor.web3.PublicKey;
 			$userStore.inTokenMint = $escrowStore.escrow.outMint as anchor.web3.PublicKey;
-			console.log('userStore.outTokenMint: ', $userStore.outTokenMint.toBase58());
-			console.log('userStore.inTokenMint: ', $userStore.inTokenMint.toBase58());
+			// console.log('userStore.outTokenMint: ', $userStore.outTokenMint.toBase58());
+			// console.log('userStore.inTokenMint: ', $userStore.inTokenMint.toBase58());
 
 			// 2. Update the user's OUT TOKEN details
 			// Q: How to get the BUYER ATA address with only a mint and wallet?
@@ -177,8 +184,10 @@
 			// Q: What if the buyer doesn't have an existing inTokenATA?
 			// Eg. First time the buyer will have this token in their wallet.
 			// NOTE For now I'm going to assume they have the ATA
-      // A: Must create the ATA using getOrCreateAssociatedTokenAccount()!
-			let buyerInTokenAccountInfo = $walletTokenAccountsStore.find((tokenAccount) => {
+			// A: Must create the ATA using getOrCreateAssociatedTokenAccount()!
+			let buyerInTokenAccountInfo;
+
+			buyerInTokenAccountInfo = $walletTokenAccountsStore.find((tokenAccount) => {
 				return tokenAccount.account.data.parsed.info.mint === $userStore.inTokenMint?.toBase58();
 			});
 
@@ -205,28 +214,131 @@
 					// simply use BN.toNumber()!
 					$userStore.inTokenRawAmount = $escrowStore.escrow.inAmount.toNumber();
 				}
+			} else {
+				// Need to create the ATA using getOrCreateAssociatedTokenAccount()
+				let buyerInTokenAddress;
+
+				try {
+					// NOTE Cannot directly call getOrCreateAssociatedTokenAccount() since
+					// we encounter Signer type issues for for payer property. Have to manually
+					// build the intruction.
+					buyerInTokenAddress = await getAssociatedTokenAddress(
+						$userStore.inTokenMint,
+						$walletStore.publicKey as anchor.web3.PublicKey
+					);
+
+					const tx = new Transaction().add(
+						createAssociatedTokenAccountInstruction(
+							$walletStore.publicKey as anchor.web3.PublicKey,
+							buyerInTokenAddress as anchor.web3.PublicKey,
+							$userStore.walletAddress,
+							$userStore.inTokenMint
+						)
+					);
+
+					const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection);
+					console.log('signature: ', signature);
+
+					const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+					const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+						blockhash: latestBlockhash.blockhash,
+						lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+						signature: signature
+					});
+
+					console.log('confirmedTx: ', confirmedTx);
+				} catch (error) {
+					console.log(error);
+				}
+
+				// After we create the ATA, need to fetch the account and update userStore
+				// Q: Use getAccount() or getTokenAccountBalance()?
+				// A: Use getTokenAccountBalance() as it has decimals
+				buyerInTokenAccountInfo = await $workspaceStore.connection.getTokenAccountBalance(
+					buyerInTokenAddress as anchor.web3.PublicKey
+				);
+
+				console.log('buyerInTokenAccountInfo AFTER creating ATA: ', buyerInTokenAccountInfo);
+
+				$userStore.inTokenATA = buyerInTokenAddress as anchor.web3.PublicKey;
+				$userStore.inTokenRawBalance = parseInt(buyerInTokenAccountInfo.value.amount);
+				$userStore.inTokenBalance = buyerInTokenAccountInfo.value.uiAmount;
+				$userStore.inTokenDecimals = buyerInTokenAccountInfo.value.decimals;
+				$userStore.inTokenAmount =
+					$escrowStore.escrow.outAmount.toNumber() / 10 ** $userStore.inTokenDecimals;
+				$userStore.inTokenRawAmount = $escrowStore.escrow.outAmount.toNumber();
 			}
 
 			console.log('ACCEPT::$userStore BEFORE sending tx: ', $userStore);
 
+			let sellerInTokenAccountInfo;
+			let sellerInTokenATA;
+
 			// Q: How to get the SELLER ATA addresses?
 			// A: Use getParsedTokenAccountsByOwner + filter on mint!
 			// REF: https://solanacookbook.com/references/token.html#how-to-get-all-token-accounts-by-owner
-			let sellerInTokenAccountInfo = await $workspaceStore.connection.getParsedTokenAccountsByOwner(
+			sellerInTokenAccountInfo = await $workspaceStore.connection.getParsedTokenAccountsByOwner(
 				$escrowStore.escrow.authority,
 				{
 					mint: $escrowStore.escrow.inMint
 				}
 			);
 
-			// Q: This a good place to check if ATA exists?
-			// Q: FIXME What if the buyer doesn't have an existing inTokenATA?
-			// Eg. First time the buyer will have this token in their wallet.
-			// NOTE For now I'm going to assume they have the ATA
-			const sellerInTokenATA = sellerInTokenAccountInfo.value[0].pubkey;
-			// Q: Do I need to double-check the token balances after the tx?
-			// TODO Look into adding this to the tests
-			// const sellerInTokenBalance = sellerInTokenAccountInfo.value[0].account.data.parsed.info.tokenAmount.uiAmount;
+
+			if (sellerInTokenAccountInfo.value.length > 0) {
+        console.log('sellerInTokenAccount FOUND: ', sellerInTokenAccountInfo);
+				// Q: This a good place to check if ATA exists?
+				// Q: FIXME What if the buyer doesn't have an existing inTokenATA?
+				// Eg. First time the buyer will have this token in their wallet.
+				// A: Gotta create the ATA!
+				// NOTE For now I'm going to assume they have the ATA
+				sellerInTokenATA = sellerInTokenAccountInfo.value[0].pubkey;
+				// Q: Do I need to double-check the token balances after the tx?
+				// TODO Look into adding this to the tests
+				// const sellerInTokenBalance = sellerInTokenAccountInfo.value[0].account.data.parsed.info.tokenAmount.uiAmount;
+			} else {
+				// Seller doesn't have an inTokenATA (no inMint in wallet)
+				let sellerInTokenAddress;
+
+				try {
+					sellerInTokenAddress = await getAssociatedTokenAddress(
+						$escrowStore.escrow.inMint,
+						$escrowStore.escrow.authority
+					);
+
+					const tx = new Transaction().add(
+						createAssociatedTokenAccountInstruction(
+							$walletStore.publicKey as anchor.web3.PublicKey,
+							sellerInTokenAddress,
+							$escrowStore.escrow.authority,
+							$escrowStore.escrow.inMint
+						)
+					);
+
+					const signature = await $walletStore.sendTransaction(tx, $workspaceStore.connection);
+					console.log('signature: ', signature);
+
+					const latestBlockhash = await $workspaceStore.connection.getLatestBlockhash();
+					const confirmedTx = await $workspaceStore.connection.confirmTransaction({
+						blockhash: latestBlockhash.blockhash,
+						lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+						signature: signature
+					});
+          console.log('confirmedTx: ', confirmedTx);
+
+				} catch (error) {
+					console.log(error);
+				}
+
+        // Set sellerInTokenATA
+        // NOTE No need to fetch data since we just need the ATA
+        sellerInTokenAccountInfo = await $workspaceStore.connection.getTokenAccountBalance(
+          sellerInTokenAddress as anchor.web3.PublicKey
+        );
+
+        sellerInTokenATA = sellerInTokenAddress;
+
+			}
 
 			const tx = await $workspaceStore.program?.methods
 				.accept()
@@ -238,7 +350,7 @@
 					// Q: How would I get the seller's inTokenATA with only a userStore?
 					// The buyer's info would be in the userStore
 					// A: Use getParsedTokenAccountsByOwner! (see above)
-					sellerInTokenAccount: sellerInTokenATA,
+					sellerInTokenAccount: sellerInTokenATA as anchor.web3.PublicKey,
 					buyerInTokenAccount: $userStore.inTokenATA as anchor.web3.PublicKey,
 					buyerOutTokenAccount: $userStore.outTokenATA as anchor.web3.PublicKey,
 					tokenProgram: TOKEN_PROGRAM_ID
