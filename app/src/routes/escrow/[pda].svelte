@@ -36,7 +36,8 @@
 	// import type { EscrowObject, EscrowStoreObject } from 'src/models/escrow-types';
 
 	// TODOS:
-	// - getOrCreateAssociatedTokenAccount() for SELLER inTokenATA!
+  // - DONE Test when BOTH seller and buyer don't have an ATA
+	// - DONE getOrCreateAssociatedTokenAccount() for SELLER inTokenATA!
 	// - Create escrow-types.ts file to clean up
 	// - DONE Update/set userStore values for ACCEPT
 	// - DONE Update/set userStore values for CANCEL
@@ -44,7 +45,7 @@
 	// - DONE Update escrowStore on page refresh
 	// - DONE escrowsStore state after cancel();
 	// - DONE Disable accept/cancel buttons based on isEscrowAuthority
-	// - Handle the scenario when the ATA do not exist (need to create)
+	// - DONE Handle the scenario when the ATA do not exist (need to create)
 	//    - NOTE Look into getOrCreateAssociatedTokenAccount() as potential solution
 	//    - REF: https://www.quicknode.com/guides/solana-development/how-to-transfer-spl-tokens-on-solana
 	//    - U: Added tests using getOrCreateAssociatedTokenAccount().

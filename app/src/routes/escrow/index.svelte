@@ -94,30 +94,6 @@
 	//      If it's not there, then try to fetch the latest.
 	// - DONE formState.outTokenBalance needs to update after inititialize
 
-	// Q: Losing reactivity in UI. Not sure why. Just seems like after I sendTransaction(),
-	// no other async/awaits really work unless I add to button onclick handler...
-	// U: Is it my connection's commitment level? Default is 'processed' I think,
-	// but maybe I need to set to 'confirmed'?
-	// U: NOPE. Commitment level didn't have any impact.
-	// A: Need to use Stores to maintain reactivity!
-	// NOTE Need to type anchor.Wallet to get 'payer' property or errors
-	// const seller = ($workspaceStore.provider as anchor.AnchorProvider).wallet as anchor.Wallet;
-	// const buyer = anchor.web3.Keypair.generate();
-	const buyer = constants.BUYER_WALLET_ADDRESS;
-	// U: Going to store token Keypairs OUTSIDE of createToken() methods.
-	// The idea is to stop recreating tokens on refreshes, etc.
-	let wMintKeypair = Keypair.generate();
-	let wMintPubkey = wMintKeypair.publicKey;
-
-	let xMintKeypair = Keypair.generate();
-	let xMintPubkey = xMintKeypair.publicKey;
-
-	let yMintKeypair = Keypair.generate();
-	let yMintPubkey = yMintKeypair.publicKey;
-
-	let zMintKeypair = Keypair.generate();
-	let zMintPubkey = zMintKeypair.publicKey;
-
 	// Q: Is there an SPL 'Account' type to use for TS?
 	// A: Yes, it's 'Mint'
 	// U: Replacing local vars with buyer/sellerStores
@@ -176,7 +152,6 @@
 
 	let escrowInputsAreValid = false;
 
-	// $: hasCreatedTokens = if(yMint != null && xMint != null) return true;
 
 	$: hasWorkspaceProgramReady =
 		$workspaceStore &&
