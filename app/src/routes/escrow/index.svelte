@@ -118,22 +118,12 @@
 	// let reactiveTokenBalance = 0;
 
 	let formState = {
-		escrow: '',
-		programId: '',
-		escrowIsActive: '',
-		escrowHasExchanged: '',
-		seller: '',
-		buyer: '',
-		sellerXToken: '',
-		buyerYToken: '',
-		xAmountFromSeller: 0,
-		yAmountFromBuyer: 0,
-		// NOTE Adding out/inToken fields (see seller/buyerStores)
 		outTokenMint: 'SOL',
 		outTokenATA: '',
 		outTokenAmount: '',
 		outTokenBalance: 0,
 		inTokenMint: '',
+		inTokenMintError: false,
 		inTokenATA: '',
 		inTokenAmount: '',
 		inTokenBalance: 0
@@ -152,6 +142,12 @@
 
 	let escrowInputsAreValid = false;
 
+	$: hasValidInTokenMintAddress =
+		formState.inTokenMintError &&
+		!(
+			formState.inTokenMint.trim().length > constants.PUBKEY_MAX_CHARS ||
+			formState.inTokenMint.trim().length < constants.PUBKEY_MIN_CHARS
+		);
 
 	$: hasWorkspaceProgramReady =
 		$workspaceStore &&
@@ -173,8 +169,6 @@
 		$userStore.outTokenRawAmount !== null &&
 		$userStore.inTokenMint !== null &&
 		$userStore.inTokenAmount !== null;
-
-	// TODO hasValidEscrowInputs
 
 	$: if (hasWalletReadyForFetch && hasWorkspaceProgramReady) {
 		console.log('REFETCH!');
@@ -199,7 +193,13 @@
 			get(yMintStore);
 			get(zMintStore);
 
-      console.log('Token stores after using get(): ', $wMintStore, $xMintStore, $yMintStore, $zMintStore);
+			console.log(
+				'Token stores after using get(): ',
+				$wMintStore,
+				$xMintStore,
+				$yMintStore,
+				$zMintStore
+			);
 
 			// TODO Don't forget about yMintStore, w, z!
 			if ($xMintStore.address !== null && $xMintStore.mint === null) {
@@ -250,6 +250,7 @@
 		console.log('setupStore: ', $setupStore);
 		// console.log('customProgramStore: ', $customProgramStore);
 		// console.log('userStore.outTokenATA: ', $userStore.outTokenATA?.toBase58());
+		console.log('hasValidInTokenMintAddress: ', hasValidInTokenMintAddress);
 	}
 
 	// Q: How could I use X/Y tokens from wallets or mint addresses?
@@ -364,8 +365,10 @@
 				formState.inTokenMint.length < constants.PUBKEY_MIN_CHARS
 			) {
 				console.log(`inTokenMint has invalid length of ${formState.inTokenMint.length} chars!`);
+
 				return;
 			}
+
 			// Update state
 			$userStore.inTokenMint = new anchor.web3.PublicKey(formState.inTokenMint);
 			// Q: Do I need to see if wallet already has inTokenMint? And then update
@@ -457,7 +460,6 @@
 		let transferAmountAsBN = new anchor.BN(transferAmountOfTokenInfoAmount);
 		console.log('transferAmountAsBN: ', transferAmountAsBN);
 	}
-
 
 	async function handleInitializeEscrowAccount() {
 		// U: Reset any existing escrowStore just in case
@@ -738,6 +740,7 @@
 						type="text"
 						placeholder="Mint address"
 						class="input input-bordered w-full max-w-xs mb-2"
+						class:input-error={hasValidInTokenMintAddress}
 					/>
 					<div class="relative">
 						<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -795,7 +798,7 @@
 		)}
   </pre>
 
-  <br/>
+	<br />
 	<pre>zMintStore: {JSON.stringify(
 			$zMintStore,
 			(k, v) => (typeof v === 'bigint' ? v.toString() : v),
