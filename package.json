@@ -7,7 +7,8 @@
     "@project-serum/anchor": "^0.25.0",
     "@solana/spl-token": "^0.3.4",
     "@solana/web3.js": "^1.60.0",
-    "mz": "^2.7.0"
+    "mz": "^2.7.0",
+    "zod": "^3.20.2"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.1",
