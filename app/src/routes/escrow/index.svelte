@@ -58,7 +58,10 @@
 	// import type { EscrowObject, EscrowStoreObject } from 'src/models/escrow-types';
 
 	// TODOS:
-	// - Add form validation and a <form> submit
+	// - FIXME Add form validation and a <form> submit
+  //   - Remove Zod object validation and instead add inside existing
+  //     input handlers. I update a lot of userStore state inside these
+  //     handlers to just toss out. 
 	// - Add support for SOL-SPL escrow swaps (*see lib.rs)
 	// - DONE Add tests for if buyer/seller don't have the ATA for their inTokenATA
 	// - Add tests for confirming token balances are accurately credited/debited
@@ -153,10 +156,10 @@
 		$walletStore.connected && !$walletStore.connecting && !$walletStore.disconnecting;
 
 	// $: if ($walletTokenAccountsStore && $walletTokenAccountsStore.length > 0) {
-	// 	reactiveTokenBalance = setSelectedTokenMintAtaBalanceDecimals(selectedToken) as number;
+	// 	reactiveTokenBalance = setUserStoreOutTokenMintDecimalsAtaBalanceRawBalance(selectedToken) as number;
 	// }
 
-	$: hasRequiredEscrowInputs =
+	$: hasRequiredUserStoreValues =
 		$userStore.outTokenMint !== null &&
 		$userStore.outTokenATA !== null &&
 		$userStore.outTokenDecimals !== null &&
@@ -226,6 +229,10 @@
 		// console.log('xMintStore: ', $xMintStore);
 		// console.log('yMintStore: ', $yMintStore);
 		// console.log('zMintStore: ', $zMintStore);
+		console.log('wMint: ', $wMintStore.address?.toBase58());
+		console.log('xMint: ', $xMintStore.address?.toBase58());
+		console.log('yMint: ', $yMintStore.address?.toBase58());
+		console.log('zMint: ', $zMintStore.address?.toBase58());
 		// console.log('walletTokenAccountsStore: ', $walletTokenAccountsStore);
 		// console.log('balanceStore: ', $balanceStore);
 		// console.log('selectedToken: ', selectedToken);
@@ -244,10 +251,10 @@
 		// console.log('userStore: ', $userStore);
 		// console.log('setupStore: ', $setupStore);
 		// console.log('customProgramStore: ', $customProgramStore);
-		// console.log('userStore.outTokenATA: ', $userStore.outTokenATA?.toBase58());
-    console.log('escrowInputsAreValid: ', escrowInputsAreValid);
-    // console.log('formState: ', formState);
-    // console.log('formErrors: ', formErrors);
+		console.log('userStore.outTokenATA: ', $userStore.outTokenATA?.toBase58());
+		console.log('escrowInputsAreValid: ', escrowInputsAreValid);
+		// console.log('formState: ', formState);
+		// console.log('formErrors: ', formErrors);
 	}
 
 	// Q: How could I use X/Y tokens from wallets or mint addresses?
@@ -264,7 +271,7 @@
 	// U: Think I need to create an outTokenMintStore etc. so I can keep track of
 	// the selected token and reactively do the compute based on user's outTokenAmount
 	// U: Scratch that. Just going to expand sellerStore for now.
-	function setSelectedTokenMintAtaBalanceDecimals() {
+	function setUserStoreOutTokenMintDecimalsAtaBalanceRawBalance() {
 		// NOTE Check if the selectedToken === 'SOL' so return the SOL
 		// balance from balanceStore instead.
 		console.log('formState.outTokenMint: ', formState.outTokenMint);
@@ -307,7 +314,7 @@
 		$userStore.outTokenAmount = null;
 		$userStore.outTokenRawAmount = null;
 		// Get the selected token's details and balance and update UI
-		setSelectedTokenMintAtaBalanceDecimals();
+		setUserStoreOutTokenMintDecimalsAtaBalanceRawBalance();
 	}
 
 	function handleOutTokenAmountInput() {
@@ -350,6 +357,7 @@
 	}
 
 	async function handleInTokenMintAddressInput() {
+
 		// Clear any existing input
 		$userStore.inTokenMint = null;
 		$userStore.inTokenATA = null;
@@ -459,9 +467,9 @@
 	}
 
 	// TODO Build a Zod Object Schema for the formData
-  // TODO Add a check that outTokenBalance >= outTokenAmount
+	// TODO Add a check that outTokenBalance >= outTokenAmount
 	const escrowSchema = z.object({
-    outTokenMint: z
+		outTokenMint: z
 			.string({ required_error: 'outToken mint address required!' })
 			.min(constants.PUBKEY_MIN_CHARS, {
 				message: `Address must be greater than or equal to ${constants.PUBKEY_MIN_CHARS} characters.`
@@ -470,7 +478,7 @@
 				message: `Address must be less than or equal to ${constants.PUBKEY_MAX_CHARS} characters.`
 			})
 			.trim(),
-    outTokenAmount: z
+		outTokenAmount: z
 			.string()
 			.min(1, { message: 'Amount must be greater than 0.' })
 			.max(10, { message: 'Amount must be less than 10.' })
@@ -495,22 +503,21 @@
 	function validateEscrowInputs(inputs: unknown): boolean {
 		escrowInputsAreValid = true;
 
-			// Reset any lingering error messages.
-			formErrors = {
-				outTokenMint: '',
-				outTokenATA: '',
-				outTokenAmount: '',
-				outTokenBalance: '',
-				inTokenMint: '',
-				inTokenATA: '',
-				inTokenAmount: '',
-				inTokenBalance: ''
-			};
+		// Reset any lingering error messages.
+		formErrors = {
+			outTokenMint: '',
+			outTokenATA: '',
+			outTokenAmount: '',
+			outTokenBalance: '',
+			inTokenMint: '',
+			inTokenATA: '',
+			inTokenAmount: '',
+			inTokenBalance: ''
+		};
 
 		try {
 			const result = escrowSchema.parse(inputs);
 			console.log('result: ', result);
-
 
 			// return escrowInputsAreValid;
 		} catch (error: any) {
@@ -526,7 +533,7 @@
 			console.log('formErrors: ', formErrors);
 		}
 
-    return escrowInputsAreValid;
+		return escrowInputsAreValid;
 
 		// EASIEST validation!
 		// // Validate outTokenMint
@@ -602,14 +609,23 @@
 			return;
 		}
 
+    // FIXME 
+		// U: Need to update $userStore values
+		// NOTE Previously handled inside input handlers. Now moving
+		// all inside this form element, so need to update userStore
+    handleOutTokenAmountInput();
+    handleInTokenMintAddressInput();
+    handleInTokenAmountInput();
+    
+
 		// TODO Add validation for out/in token details and raw amounts
 		// NOTE Currently storing all the details in sellerStore
-		if (!hasRequiredEscrowInputs) {
+		if (!hasRequiredUserStoreValues) {
 			notificationStore.add({
 				type: 'error',
-				message: 'Escrow inputs are invalid!'
+				message: 'User store values are missing!'
 			});
-			console.log('error', 'Escrow inputs are invalid!');
+			console.log('error', 'User store values are missing!');
 			return;
 		}
 
@@ -785,8 +801,8 @@
 	}
 </script>
 
-<div class="md:hero mx-auto p-4">
-	<div class="md:hero-content flex flex-col">
+<div class="hero mx-auto p-4 w-full">
+	<div class="hero-content flex flex-col w-full">
 		<h1
 			class="text-center text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-tr from-[#9945FF] to-[#14F195]"
 		>
@@ -795,155 +811,132 @@
 
 		<div class="divider" />
 
-		<div class="flex w-full justify-evenly">
-			<form on:submit|preventDefault={handleInitializeEscrowAccount}>
-				<div class="grid flex-grow card bg-base-300 rounded-box place-items-center">
-					{#if $walletTokenAccountsStore && $walletTokenAccountsStore.length > 0}
-						<div class="form-control w-full max-w-xs ">
-							<label class="label">
-								<span class="label-text">Input</span>
-								<span class="label-text-alt"
-									>FormState: {formState.outTokenMint === 'SOL'
-										? $balanceStore.balance
-										: formState.outTokenBalance}</span
-								>
-							</label>
-							<div class="relative">
-								<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-									<span class="text-gray-500 sm:text-sm">$</span>
-								</div>
-								<input
-									bind:value={formState.outTokenAmount}
-									type="text"
-									placeholder="0.00"
-									class="input input-bordered w-full max-w-xs pl-7 pr-12"
-                  name="outTokenAmount"
-								/>
-
-								<div class="absolute inset-y-0 right-0 flex items-center">
-									<label for="outTokenMint" class="sr-only">Token</label>
-									<select
-										bind:value={formState.outTokenMint}
-										on:change={handleOnChange}
-										class="select select-bordered py-0 pl-2 pr-7"
-										id="outTokenMint"
-										name="outTokenMint"
-									>
-										<option value="SOL" selected={formState.outTokenMint === 'SOL'}>SOL</option>
-										{#each $walletTokenAccountsStore as tokenAccount}
-											<option
-												value={tokenAccount.account.data.parsed.info.mint}
-												selected={formState.outTokenMint ==
-													tokenAccount.account.data.parsed.info.mint}
-											>
-												{tokenAccount.account.data.parsed.info.mint.slice(0, 4)}
-											</option>
-										{/each}
-									</select>
-								</div>
-							</div>
-              {#if formErrors.outTokenAmount}
-                <label for="outTokenAmount" class="label">
-                  <span class="label-text-alt text-error">{formErrors.outTokenAmount}</span>
-                </label>
-              {:else if formState.outTokenMint}
-							<label for="outTokenMint" class="label pb-0">
-								<span class="label-text-alt">{formState.outTokenMint}</span>
-							</label>
-              {/if}
-						</div>
-					{/if}
-
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke-width="1.5"
-						stroke="currentColor"
-						class="w-6 h-6 m-2"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5"
-						/>
-					</svg>
-
+		<form on:submit|preventDefault={handleInitializeEscrowAccount} class="w-full">
+			<div class="grid flex-grow card bg-base-300 rounded-box place-items-center">
+				{#if $walletTokenAccountsStore && $walletTokenAccountsStore.length > 0}
 					<div class="form-control w-full max-w-xs pb-4">
-						<input
-							bind:value={formState.inTokenMint}
-							name="inTokenMint"
-							type="text"
-							placeholder="Mint address"
-							class="input input-bordered w-full max-w-xs mb-2"
-						/>
-						<label for="inTokenMint" class="label">
-							<span class="label-text-alt text-error">{formErrors.inTokenMint}</span>
+						<label class="label">
+							<span class="label-text" />
+							<span class="label-text-alt"
+								>Balance: {formState.outTokenMint === 'SOL'
+									? $balanceStore.balance
+									: formState.outTokenBalance}</span
+							>
 						</label>
 						<div class="relative">
 							<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 								<span class="text-gray-500 sm:text-sm">$</span>
 							</div>
 							<input
-								bind:value={formState.inTokenAmount}
-								name="inTokenAmount"
+								bind:value={formState.outTokenAmount}
 								type="text"
 								placeholder="0.00"
 								class="input input-bordered w-full max-w-xs pl-7 pr-12"
+								name="outTokenAmount"
 							/>
-						</div>
-						<label for="inTokenAmount" class="label">
-							<span class="label-text-alt text-error">{formErrors.inTokenAmount}</span>
-						</label>
 
-						<button class="btn btn-accent mt-2 w-full max-w-xs" type="submit"
-							>Initialize Escrow</button
-						>
+							<div class="absolute inset-y-0 right-0 flex items-center">
+								<label for="outTokenMint" class="sr-only">Token</label>
+								<select
+									bind:value={formState.outTokenMint}
+									on:change={handleOnChange}
+									class="select select-bordered py-0 pl-2 pr-7"
+									id="outTokenMint"
+									name="outTokenMint"
+								>
+									<option value="SOL" selected={formState.outTokenMint === 'SOL'}>SOL</option>
+									{#each $walletTokenAccountsStore as tokenAccount}
+										<option
+											value={tokenAccount.account.data.parsed.info.mint}
+											selected={formState.outTokenMint ==
+												tokenAccount.account.data.parsed.info.mint}
+										>
+											{tokenAccount.account.data.parsed.info.mint.slice(0, 4)}
+										</option>
+									{/each}
+								</select>
+							</div>
+						</div>
+						{#if formErrors.outTokenAmount}
+							<label for="outTokenAmount" class="label">
+								<span class="label-text-alt text-error">{formErrors.outTokenAmount}</span>
+							</label>
+						{:else if formState.outTokenMint}
+							<label for="outTokenMint" class="label pb-0">
+								<span class="label-text-alt">{formState.outTokenMint}</span>
+							</label>
+						{/if}
 					</div>
+				{/if}
+
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke-width="1.5"
+					stroke="currentColor"
+					class="w-6 h-6 m-2"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5"
+					/>
+				</svg>
+
+				<div class="form-control w-full max-w-xs pb-4">
+					<input
+						bind:value={formState.inTokenMint}
+						name="inTokenMint"
+						type="text"
+						placeholder="Mint address"
+						class="input input-bordered w-full max-w-xs mb-2"
+					/>
+					<label for="inTokenMint" class="label">
+						<span class="label-text-alt text-error">{formErrors.inTokenMint}</span>
+					</label>
 				</div>
-			</form>
+
+				<div class="form-control w-full max-w-xs pb-4">
+					<div class="relative">
+						<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+							<span class="text-gray-500 sm:text-sm">$</span>
+						</div>
+						<input
+							bind:value={formState.inTokenAmount}
+							name="inTokenAmount"
+							type="text"
+							placeholder="0.00"
+							class="input input-bordered w-full max-w-xs pl-7 pr-12"
+						/>
+					</div>
+					<label for="inTokenAmount" class="label">
+						<span class="label-text-alt text-error">{formErrors.inTokenAmount}</span>
+					</label>
+				</div>
+
+				<div class="form-control w-full max-w-xs pb-4">
+					<button class="btn btn-accent mt-2 w-full max-w-xs" type="submit"
+						>Initialize Escrow</button
+					>
+				</div>
+			</div>
+		</form>
+
+		<div class="form-control w-full max-w-xs pb-4">
+			<button class="btn btn-info mt-1" on:click={setupDevelopment}>Setup</button>
+			<button class="btn btn-secondary mt-1" on:click={resetAllStores}>Reset</button>
 		</div>
 
 		<div class="divider" />
-		{#if $escrowsStore.length > 0}
-			{#each $escrowsStore as { escrow, pda } (pda)}
-				<Escrow {escrow} pda={pda.toBase58()} />
-				<!-- <a href="escrow/${pda}">Escrow: {pda}</a> -->
-			{/each}
-		{/if}
 
-		<button class="btn btn-info mt-1" on:click={setupDevelopment}>Setup</button>
-		<button class="btn btn-secondary mt-1" on:click={resetAllStores}>Reset</button>
+		<div class="text-center">
+			{#if $escrowsStore.length > 0}
+				{#each $escrowsStore as { escrow, pda } (pda)}
+					<Escrow {escrow} pda={pda.toBase58()} />
+					<!-- <a href="escrow/${pda}">Escrow: {pda}</a> -->
+				{/each}
+			{/if}
+		</div>
 	</div>
-
-	<br />
-	<pre>wMintStore: {JSON.stringify(
-			$wMintStore,
-			(k, v) => (typeof v === 'bigint' ? v.toString() : v),
-			2
-		)}
-  </pre>
-
-	<pre>xMintStore: {JSON.stringify(
-			$xMintStore,
-			(k, v) => (typeof v === 'bigint' ? v.toString() : v),
-			2
-		)}
-  </pre>
-
-	<br />
-	<pre>yMintStore: {JSON.stringify(
-			$yMintStore,
-			(k, v) => (typeof v === 'bigint' ? v.toString() : v),
-			2
-		)}
-  </pre>
-
-	<br />
-	<pre>zMintStore: {JSON.stringify(
-			$zMintStore,
-			(k, v) => (typeof v === 'bigint' ? v.toString() : v),
-			2
-		)}
-  </pre>
 </div>
