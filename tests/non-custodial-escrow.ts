@@ -14,6 +14,9 @@ import { NonCustodialEscrow } from "../target/types/non_custodial_escrow";
 import { expect } from "chai";
 import NodeWallet from "@project-serum/anchor/dist/cjs/nodewallet";
 
+// IMPORTANT: Connection errors due to Node 18! Gotta switch to 16
+// in order to: anchor run test-escrow command! nvm use 16..
+// REF: https://github.com/solana-labs/example-helloworld/issues/392
 
 // TODOS
 //    - DONE Add test for SOL -> SPL token transfers

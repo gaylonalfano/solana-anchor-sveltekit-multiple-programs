@@ -222,10 +222,10 @@
 	$: {
 		// console.log('workspaceStore: ', $workspaceStore);
 		// console.log('walletStore: ', $walletStore);
-		console.log('wMintStore: ', $wMintStore);
-		console.log('xMintStore: ', $xMintStore);
-		console.log('yMintStore: ', $yMintStore);
-		console.log('zMintStore: ', $zMintStore);
+		// console.log('wMintStore: ', $wMintStore);
+		// console.log('xMintStore: ', $xMintStore);
+		// console.log('yMintStore: ', $yMintStore);
+		// console.log('zMintStore: ', $zMintStore);
 		// console.log('walletTokenAccountsStore: ', $walletTokenAccountsStore);
 		// console.log('balanceStore: ', $balanceStore);
 		// console.log('selectedToken: ', selectedToken);
@@ -242,9 +242,12 @@
 		// console.log('formState: ', formState);
 		// console.log('hasRequiredEscrowInputs: ', hasRequiredEscrowInputs);
 		// console.log('userStore: ', $userStore);
-		console.log('setupStore: ', $setupStore);
+		// console.log('setupStore: ', $setupStore);
 		// console.log('customProgramStore: ', $customProgramStore);
 		// console.log('userStore.outTokenATA: ', $userStore.outTokenATA?.toBase58());
+    console.log('escrowInputsAreValid: ', escrowInputsAreValid);
+    // console.log('formState: ', formState);
+    // console.log('formErrors: ', formErrors);
 	}
 
 	// Q: How could I use X/Y tokens from wallets or mint addresses?
@@ -456,7 +459,22 @@
 	}
 
 	// TODO Build a Zod Object Schema for the formData
+  // TODO Add a check that outTokenBalance >= outTokenAmount
 	const escrowSchema = z.object({
+    outTokenMint: z
+			.string({ required_error: 'outToken mint address required!' })
+			.min(constants.PUBKEY_MIN_CHARS, {
+				message: `Address must be greater than or equal to ${constants.PUBKEY_MIN_CHARS} characters.`
+			})
+			.max(constants.PUBKEY_MAX_CHARS, {
+				message: `Address must be less than or equal to ${constants.PUBKEY_MAX_CHARS} characters.`
+			})
+			.trim(),
+    outTokenAmount: z
+			.string()
+			.min(1, { message: 'Amount must be greater than 0.' })
+			.max(10, { message: 'Amount must be less than 10.' })
+			.trim(),
 		inTokenMint: z
 			.string({ required_error: 'inToken mint address required!' })
 			.min(constants.PUBKEY_MIN_CHARS, {
@@ -474,12 +492,8 @@
 			.trim()
 	});
 
-	function validateFormData(inputs: unknown): boolean {
+	function validateEscrowInputs(inputs: unknown): boolean {
 		escrowInputsAreValid = true;
-
-		try {
-			const result = escrowSchema.parse(inputs);
-			console.log('result: ', result);
 
 			// Reset any lingering error messages.
 			formErrors = {
@@ -493,23 +507,26 @@
 				inTokenBalance: ''
 			};
 
-			return escrowInputsAreValid;
+		try {
+			const result = escrowSchema.parse(inputs);
+			console.log('result: ', result);
 
+
+			// return escrowInputsAreValid;
 		} catch (error: any) {
-      escrowInputsAreValid = false;
+			escrowInputsAreValid = false;
 			// Use Zod's error.flatten
 			const { fieldErrors } = error.flatten();
 
 			// Update our formErrors obj and stop execution
-			console.log(fieldErrors);
+			console.log('fieldErrors: ', fieldErrors);
 			for (const [key, value] of Object.entries(fieldErrors)) {
 				formErrors[key] = (value as any[])[0] as string;
 			}
-			console.log(formErrors);
-
-			// Reset/clear formErrors
-			return escrowInputsAreValid;;
+			console.log('formErrors: ', formErrors);
 		}
+
+    return escrowInputsAreValid;
 
 		// EASIEST validation!
 		// // Validate outTokenMint
@@ -565,10 +582,6 @@
 		// U: Grab the formData by using the e.target
 		const formData = new FormData(e.target as HTMLFormElement);
 
-		for (const [k, v] of formData.entries()) {
-			console.log(k, v);
-		}
-
 		const formDataExtracted = {};
 
 		for (let field of formData) {
@@ -577,23 +590,15 @@
 		}
 		console.log(formDataExtracted);
 
-		try {
-			const result = escrowSchema.parse(formDataExtracted);
-			console.log('Successful result: ', result);
-		} catch (error: any) {
-			// Use Zod's error.flatten
-			const { fieldErrors } = error.flatten();
+		// Validate the form data
+		validateEscrowInputs(formDataExtracted);
 
-			// Update our formErrors obj and stop execution
-			console.log(fieldErrors);
-			for (const [key, value] of Object.entries(fieldErrors)) {
-				// console.log(key, value);
-				formErrors[key] = value[0];
-			}
-			console.log(formErrors);
-
-			// Reset/clear formErrors
-			formErrors = {};
+		if (!escrowInputsAreValid) {
+			notificationStore.add({
+				type: 'error',
+				message: 'Escrow inputs are invalid!'
+			});
+			console.log('error', 'Escrow inputs are invalid!');
 			return;
 		}
 
@@ -812,8 +817,9 @@
 									type="text"
 									placeholder="0.00"
 									class="input input-bordered w-full max-w-xs pl-7 pr-12"
-									on:input={handleOutTokenAmountInput}
+                  name="outTokenAmount"
 								/>
+
 								<div class="absolute inset-y-0 right-0 flex items-center">
 									<label for="outTokenMint" class="sr-only">Token</label>
 									<select
@@ -836,9 +842,15 @@
 									</select>
 								</div>
 							</div>
-							<label class="label pb-0">
+              {#if formErrors.outTokenAmount}
+                <label for="outTokenAmount" class="label">
+                  <span class="label-text-alt text-error">{formErrors.outTokenAmount}</span>
+                </label>
+              {:else if formState.outTokenMint}
+							<label for="outTokenMint" class="label pb-0">
 								<span class="label-text-alt">{formState.outTokenMint}</span>
 							</label>
+              {/if}
 						</div>
 					{/if}
 
@@ -861,16 +873,13 @@
 						<input
 							bind:value={formState.inTokenMint}
 							name="inTokenMint"
-							on:input={handleInTokenMintAddressInput}
 							type="text"
 							placeholder="Mint address"
 							class="input input-bordered w-full max-w-xs mb-2"
 						/>
-						{#if formErrors.inTokenMint.length > 1}
-							<label for="inTokenMint" class="label">
-								<span class="label-text-alt text-error">{formErrors.inTokenMint}</span>
-							</label>
-						{/if}
+						<label for="inTokenMint" class="label">
+							<span class="label-text-alt text-error">{formErrors.inTokenMint}</span>
+						</label>
 						<div class="relative">
 							<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 								<span class="text-gray-500 sm:text-sm">$</span>
@@ -878,17 +887,14 @@
 							<input
 								bind:value={formState.inTokenAmount}
 								name="inTokenAmount"
-								on:input={handleInTokenAmountInput}
 								type="text"
 								placeholder="0.00"
 								class="input input-bordered w-full max-w-xs pl-7 pr-12"
 							/>
 						</div>
-						{#if formErrors.inTokenAmount.length > 1}
-							<label for="inTokenAmount" class="label">
-								<span class="label-text-alt text-error">{formErrors.inTokenAmount}</span>
-							</label>
-						{/if}
+						<label for="inTokenAmount" class="label">
+							<span class="label-text-alt text-error">{formErrors.inTokenAmount}</span>
+						</label>
 
 						<button class="btn btn-accent mt-2 w-full max-w-xs" type="submit"
 							>Initialize Escrow</button
