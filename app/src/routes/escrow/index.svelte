@@ -122,6 +122,7 @@
 	// let selectedTokenBalance = 0;
 	// let reactiveTokenBalance = 0;
 
+
 	let formState = {
 		outTokenMint: 'SOL',
 		outTokenATA: '',
@@ -145,7 +146,7 @@
 		inTokenBalance: ''
 	};
 
-	let escrowInputsAreValid = false;
+	let formInputsAreValid = false;
 
 	$: hasWorkspaceProgramReady =
 		$workspaceStore &&
@@ -252,7 +253,7 @@
 		// console.log('setupStore: ', $setupStore);
 		// console.log('customProgramStore: ', $customProgramStore);
 		console.log('userStore.outTokenATA: ', $userStore.outTokenATA?.toBase58());
-		console.log('escrowInputsAreValid: ', escrowInputsAreValid);
+		console.log('escrowInputsAreValid: ', formInputsAreValid);
 		// console.log('formState: ', formState);
 		// console.log('formErrors: ', formErrors);
 	}
@@ -468,7 +469,7 @@
 
 	// TODO Build a Zod Object Schema for the formData
 	// TODO Add a check that outTokenBalance >= outTokenAmount
-	const escrowSchema = z.object({
+	const formSchema = z.object({
 		outTokenMint: z
 			.string({ required_error: 'outToken mint address required!' })
 			.min(constants.PUBKEY_MIN_CHARS, {
@@ -492,7 +493,6 @@
 				message: `Address must be less than or equal to ${constants.PUBKEY_MAX_CHARS} characters.`
 			})
 			.trim(),
-
 		inTokenAmount: z
 			.string()
 			.min(1, { message: 'Amount must be greater than 0.' })
@@ -500,8 +500,8 @@
 			.trim()
 	});
 
-	function validateEscrowInputs(inputs: unknown): boolean {
-		escrowInputsAreValid = true;
+	function validateFormInputs(inputs: unknown): boolean {
+		formInputsAreValid = true;
 
 		// Reset any lingering error messages.
 		formErrors = {
@@ -516,12 +516,12 @@
 		};
 
 		try {
-			const result = escrowSchema.parse(inputs);
+			const result = formSchema.parse(inputs);
 			console.log('result: ', result);
 
 			// return escrowInputsAreValid;
 		} catch (error: any) {
-			escrowInputsAreValid = false;
+			formInputsAreValid = false;
 			// Use Zod's error.flatten
 			const { fieldErrors } = error.flatten();
 
@@ -533,42 +533,7 @@
 			console.log('formErrors: ', formErrors);
 		}
 
-		return escrowInputsAreValid;
-
-		// EASIEST validation!
-		// // Validate outTokenMint
-		// if (formState.outTokenMint.trim().length < 3) {
-		// 	escrowInputsAreValid = false;
-		//     formErrors.outTokenMint = 'outToken mint address required!';
-		// } else {
-		//     formErrors.outTokenMint = '';
-		//   }
-
-		// // Validate outTokenAmount
-		//   if (formState.outTokenAmount.trim().length < 1) {
-		//     escrowInputsAreValid = false;
-		//     formErrors.outTokenAmount = 'Amount must be greater than 0.';
-		//   } else {
-		//     formErrors.outTokenAmount = '';
-		//   }
-
-		// // Validate inTokenMint
-		//   if (formState.inTokenMint.trim().length < 1) {
-		//     escrowInputsAreValid = false;
-		//     formErrors.inTokenMint = 'inToken mint address required!';
-		//   } else {
-		//     formErrors.inTokenMint = '';
-		//   }
-
-		// // Validate the inTokenAmount
-		//   if (formState.inTokenAmount.trim().length < 1) {
-		//     escrowInputsAreValid = false;
-		//     formErrors.inTokenAmount = 'Amount must be greater than 0.';
-		//   } else {
-		//     formErrors.inTokenAmount = '';
-		//   }
-
-		//   return escrowInputsAreValid;
+		return formInputsAreValid;
 	}
 
 	async function handleInitializeEscrowAccount(e: SubmitEvent) {
@@ -598,25 +563,16 @@
 		console.log(formDataExtracted);
 
 		// Validate the form data
-		validateEscrowInputs(formDataExtracted);
+		validateFormInputs(formDataExtracted);
 
-		if (!escrowInputsAreValid) {
+		if (!formInputsAreValid) {
 			notificationStore.add({
 				type: 'error',
 				message: 'Escrow inputs are invalid!'
 			});
 			console.log('error', 'Escrow inputs are invalid!');
 			return;
-		}
-
-    // FIXME 
-		// U: Need to update $userStore values
-		// NOTE Previously handled inside input handlers. Now moving
-		// all inside this form element, so need to update userStore
-    handleOutTokenAmountInput();
-    handleInTokenMintAddressInput();
-    handleInTokenAmountInput();
-    
+		} 
 
 		// TODO Add validation for out/in token details and raw amounts
 		// NOTE Currently storing all the details in sellerStore
@@ -833,6 +789,7 @@
 								placeholder="0.00"
 								class="input input-bordered w-full max-w-xs pl-7 pr-12"
 								name="outTokenAmount"
+                on:input={handleOutTokenAmountInput}
 							/>
 
 							<div class="absolute inset-y-0 right-0 flex items-center">
@@ -887,6 +844,7 @@
 				<div class="form-control w-full max-w-xs pb-4">
 					<input
 						bind:value={formState.inTokenMint}
+            on:input={handleInTokenMintAddressInput}
 						name="inTokenMint"
 						type="text"
 						placeholder="Mint address"
@@ -904,6 +862,7 @@
 						</div>
 						<input
 							bind:value={formState.inTokenAmount}
+              on:input={handleInTokenAmountInput}
 							name="inTokenAmount"
 							type="text"
 							placeholder="0.00"
