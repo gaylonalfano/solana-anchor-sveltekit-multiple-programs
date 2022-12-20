@@ -29,10 +29,7 @@
 
 	let wallets = [new PhantomWalletAdapter(), new SolflareWalletAdapter()];
 
-	// Q: Needed?
-	let checked = Boolean(getLocalStorage('autoconnect', false));
-	$: autoconnect = browser && setLocalStorage('autoconnect', checked);
-	// $: autoConnect = browser && Boolean(getLocalStorage('autoconnect', false));
+	$: autoConnect = browser && Boolean(getLocalStorage('autoconnect', false));
 
 	// $: {
 	// 	console.log('walletStore: ', $walletStore);
@@ -60,7 +57,7 @@
 	// $: autoConnect = browser && Boolean(getLocalStorage('autoconnect', false));
 </script>
 
-<WalletProvider {localStorageKey} {wallets} autoConnect />
+<WalletProvider {localStorageKey} {wallets} {autoConnect} />
 <AnchorConnectionProvider {network} {idl} />
 <AppBar />
 <ContentContainer>
