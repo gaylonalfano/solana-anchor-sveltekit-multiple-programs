@@ -3,8 +3,7 @@ use anchor_lang::prelude::*;
 use crate::state::CustomProgram;
 use crate::state::Profile;
 use crate::state::Poll;
-use crate::state::Vote;
-use crate::state::VoteOption;
+use crate::state::{Vote, VoteOption};
 
 pub fn create_vote(
     ctx: Context<CreateVote>, 
